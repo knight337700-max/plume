@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { authRoutes } from "./routes/auth/index.js";
 import { registerHealthRoute } from "./routes/system/health.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
@@ -7,5 +8,6 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
     reply.header("x-request-id", request.id);
   });
   await registerHealthRoute(app);
+  await app.register(authRoutes);
   return app;
 }
