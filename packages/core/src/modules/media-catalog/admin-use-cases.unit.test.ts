@@ -1,0 +1,4 @@
+import { describe, expect, it } from "vitest";
+import { createCatalogAdminUseCases } from "./admin-use-cases.js";
+import { createInMemoryCatalogRepository } from "./repositories.js";
+describe("catalog admin use cases", () => { it("does not overwrite an existing version", async () => { const repo = createInMemoryCatalogRepository({ channels: [{ id: "c1", code: "META", name: "Meta", status: "ACTIVE", metadata: {} }] }); const admin = createCatalogAdminUseCases(repo); const input = { channelId: "c1", channelCode: "META" as const, stableKey: "meta.feed", version: "v1", name: "Feed", status: "DRAFT" as const, renderMode: "PLATFORM_COMPOSED", mediaType: "STATIC_IMAGE", spec: {}, ruleSetId: "r", exportRecipeId: "e" }; await admin.createFormatProfile(input); await expect(admin.createFormatProfile(input)).rejects.toThrow("immutable"); }); });
