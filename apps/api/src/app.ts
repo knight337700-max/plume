@@ -3,6 +3,7 @@ import { authRoutes } from "./routes/auth/index.js";
 import { registerHealthRoute } from "./routes/system/health.js";
 import { workspaceRoutes } from "./routes/workspace/index.js";
 import { clientBrandRoutes } from "./routes/client-brand/index.js";
+import { mediaCatalogQueryRoutes } from "./routes/media-catalog/index.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, ...options });
@@ -13,5 +14,6 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await app.register(authRoutes);
   await app.register(workspaceRoutes);
   await app.register(clientBrandRoutes);
+  await app.register(mediaCatalogQueryRoutes);
   return app;
 }
