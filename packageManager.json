@@ -1,0 +1,7 @@
+{
+  "node": "24.15.0",
+  "pnpm": "11.17.0",
+  "typescript": "5.9.3",
+  "verified_at": "2026-07-28",
+  "rationale": "Pinned to the locally installed Node and pnpm toolchain; TypeScript 5.9.3 is the strict-monorepo compiler baseline verified with Node 24.15.0."
+}

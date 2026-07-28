@@ -1,0 +1,13 @@
+verified_at: '2026-07-28'
+toolchain:
+  node: 24.15.0
+  pnpm: 11.17.0
+  typescript: 5.9.3
+verification:
+  node: 'node --version => v24.15.0'
+  pnpm: 'corepack pnpm --version => 11.17.0'
+  typescript: 'TypeScript 5.9.3 is pinned as an exact root devDependency.'
+rationale:
+  - Node and pnpm use the installed stable runtime versions available at repository bootstrap.
+  - TypeScript is pinned exactly to keep strict compiler behavior reproducible across packages.
+  - No library versions are selected beyond the Foundation toolchain in this task.
