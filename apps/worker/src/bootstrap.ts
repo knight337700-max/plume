@@ -39,9 +39,13 @@ export function createWorkerBootstrap(
       if (state.status === "ready") return state;
       for (const registration of handlers) {
         workers.push(
-          adapter.consume(registration.queue, registration.handler, {
-            concurrency: registration.concurrency,
-          }),
+          adapter.consume(
+            registration.queue,
+            registration.handler,
+            registration.concurrency === undefined
+              ? {}
+              : { concurrency: registration.concurrency },
+          ),
         );
       }
       state = Object.freeze({

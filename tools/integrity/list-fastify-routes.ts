@@ -39,7 +39,9 @@ export async function readOpenApiOperationIds(sourcePath?: string): Promise<read
   );
   const block =
     source.match(/openApiOperationIds\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
-  return [...block.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  return [...block.matchAll(/"([^"]+)"/g)]
+    .map((match) => match[1])
+    .filter((operationId): operationId is string => operationId !== undefined);
 }
 
 if (
