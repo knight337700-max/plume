@@ -86,6 +86,7 @@ const GLYPHS: Readonly<Record<string, readonly string[]>> = {
   "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
   "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
 };
+const SPACE_GLYPH = GLYPHS[" "] ?? ["00000", "00000", "00000", "00000", "00000", "00000", "00000"];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(value)));
@@ -133,7 +134,7 @@ function fillPixel(
   if (x < 0 || y < 0 || x >= width) return;
   const index = (y * width + x) * 4;
   const sourceAlpha = (color[3] / 255) * Math.max(0, Math.min(1, opacity));
-  const destinationAlpha = pixels[index + 3] / 255;
+  const destinationAlpha = (pixels[index + 3] ?? 0) / 255;
   const alpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
   if (alpha <= 0) {
     pixels[index] = 0;
@@ -143,17 +144,19 @@ function fillPixel(
     return;
   }
   pixels[index] = clamp(
-    (color[0] * sourceAlpha + pixels[index] * destinationAlpha * (1 - sourceAlpha)) / alpha,
+    (color[0] * sourceAlpha + (pixels[index] ?? 0) * destinationAlpha * (1 - sourceAlpha)) / alpha,
     0,
     255,
   );
   pixels[index + 1] = clamp(
-    (color[1] * sourceAlpha + pixels[index + 1] * destinationAlpha * (1 - sourceAlpha)) / alpha,
+    (color[1] * sourceAlpha + (pixels[index + 1] ?? 0) * destinationAlpha * (1 - sourceAlpha)) /
+      alpha,
     0,
     255,
   );
   pixels[index + 2] = clamp(
-    (color[2] * sourceAlpha + pixels[index + 2] * destinationAlpha * (1 - sourceAlpha)) / alpha,
+    (color[2] * sourceAlpha + (pixels[index + 2] ?? 0) * destinationAlpha * (1 - sourceAlpha)) /
+      alpha,
     0,
     255,
   );
@@ -195,10 +198,11 @@ function drawText(
   const startY = Math.max(0, Math.floor(element.y * scaleY));
   let cursorX = startX;
   for (const character of text.toUpperCase().slice(0, 120)) {
-    const glyph = GLYPHS[character] ?? GLYPHS[" "];
-    for (let row = 0; row < glyph.length; row += 1)
-      for (let column = 0; column < glyph[row].length; column += 1)
-        if (glyph[row][column] === "1")
+    const glyph = GLYPHS[character] ?? SPACE_GLYPH;
+    for (let row = 0; row < glyph.length; row += 1) {
+      const glyphRow = glyph[row] ?? "";
+      for (let column = 0; column < glyphRow.length; column += 1)
+        if (glyphRow[column] === "1")
           for (let sy = 0; sy < glyphScale; sy += 1)
             for (let sx = 0; sx < glyphScale; sx += 1)
               fillPixel(
@@ -209,6 +213,7 @@ function drawText(
                 color,
                 element.opacity ?? 1,
               );
+    }
     cursorX += glyphScale * 6;
     if (cursorX >= Math.min(width, (element.x + element.width) * scaleX)) break;
   }
@@ -349,11 +354,14 @@ export function renderCreativeDocument(request: RenderRequest): RenderResult {
         drawText(pixels, width, height, element, element.text ?? "", color, scaleX, scaleY);
       } else drawRect(pixels, width, height, element, color, scaleX, scaleY);
     }
-    const optimized = optimizeRenderOutput({
+    const optimizeInput = {
       bytes: encodePng(pixels, width, height),
       mimeType: "image/png",
-      maxBytes: request.outputProfile.maxBytes,
-    });
+      ...(request.outputProfile.maxBytes === undefined
+        ? {}
+        : { maxBytes: request.outputProfile.maxBytes }),
+    } as const;
+    const optimized = optimizeRenderOutput(optimizeInput);
     if (!optimized.withinMaxBytes)
       return failed(
         request,

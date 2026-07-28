@@ -147,13 +147,22 @@ export interface CreativeRepositories {
   createVersion(
     input: Omit<
       CreativeVersionRecord,
-      "id" | "versionNo" | "status" | "revisionNo" | "createdAt" | "frozenAt"
+      | "id"
+      | "versionNo"
+      | "status"
+      | "revisionNo"
+      | "createdAt"
+      | "frozenAt"
+      | "copyAssetsJson"
+      | "generationMetadataJson"
     > & {
       id?: string;
       versionNo?: number;
       status?: CreativeVersionStatus;
       revisionNo?: number;
       createdAt?: string;
+      copyAssetsJson?: Readonly<Record<string, unknown>>;
+      generationMetadataJson?: Readonly<Record<string, unknown>>;
     },
   ): Promise<CreativeVersionRecord>;
   listVersions(workspaceId: string, creativeId: string): Promise<readonly CreativeVersionRecord[]>;
