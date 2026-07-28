@@ -46,7 +46,7 @@ export interface AssetRepositories {
   listAssets(workspaceId: string, brandId: string, includeArchived?: boolean): Promise<readonly AssetRecord[]>;
   getAsset(workspaceId: string, id: string): Promise<AssetRecord | null>;
   createAsset(input: Omit<AssetRecord, "id" | "revisionNo" | "status" | "analysisSummaryJson" | "createdAt" | "updatedAt"> & { id?: string; status?: AssetStatus; analysisSummaryJson?: Readonly<Record<string, unknown>> }): Promise<AssetRecord>;
-  updateAsset(workspaceId: string, id: string, patch: Partial<Pick<AssetRecord, "brandId" | "name" | "assetType" | "licenseStatus" | "licenseStartAt" | "licenseEndAt" | "analysisSummaryJson">>, expectedRevision?: number): Promise<AssetRecord>;
+  updateAsset(workspaceId: string, id: string, patch: Partial<Pick<AssetRecord, "brandId" | "name" | "assetType" | "status" | "licenseStatus" | "licenseStartAt" | "licenseEndAt" | "analysisSummaryJson">>, expectedRevision?: number): Promise<AssetRecord>;
   archiveAsset(workspaceId: string, id: string, expectedRevision?: number): Promise<AssetRecord>;
   listVersions(workspaceId: string, assetId: string): Promise<readonly AssetVersionRecord[]>;
   getVersion(workspaceId: string, versionId: string): Promise<AssetVersionRecord | null>;
