@@ -1,0 +1,24 @@
+manifest_version: 1.0.0
+generated_at: "2026-07-28T13:40:00+09:00"
+contracts:
+  - id: openapi
+    upstream_path: "10_api/openapi-v1.yaml"
+    source_path: "contracts-source/openapi-v1.yaml"
+    version: 1.0.0
+    sha256: "FC1B5971DDDB674E91CFB88878D14D1D8509AAE0D0CD8966FB0E25D8725A3C20"
+  - id: screen-data
+    upstream_path: "06_product-design/screen-data-contracts.yaml"
+    source_path: "contracts-source/screen-data-contracts.yaml"
+    version: 1.0.0
+    sha256: "A52C20BFBB1B326027B928D82DFCAEE755B6AB40DCE5B386B10B26F9544D7828"
+  - id: agent-schemas
+    upstream_path: "09_agent-engine/schema-registry.yaml"
+    source_path: "contracts-source/agent-schemas"
+    version: 1.0.0
+    sha256: "04E1533E53806769D90665EFD56D4E3DD013D5CE19812A19C9005975CC3DF47B"
+    hash_scope: upstream_registry
+  - id: ui-component-catalog
+    upstream_path: "11_ui-ux/component-catalog.yaml"
+    source_path: "contracts-source/ui-component-catalog.yaml"
+    version: 1.0.0
+    sha256: "19FF10DAAEEB57388E95369D9E3F49719C72277319295757FD02CE1BC52A7BD6"
