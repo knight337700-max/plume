@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+.turbo/
+.env
+.env.*
+!.env.example
+!.env.*.example
+pnpm-debug.log*
+*.log
