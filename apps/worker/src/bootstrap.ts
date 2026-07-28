@@ -1,4 +1,3 @@
-import type { Worker } from "bullmq";
 import {
   createBullMqAdapter,
   type BullMqAdapter,
@@ -6,9 +5,11 @@ import {
 } from "../../../packages/infrastructure/src/queue/bullmq.js";
 import type { WorkerHealth } from "./health.js";
 
+type WorkerHandle = { close(): Promise<void> };
+
 export interface WorkerHandlerRegistration {
   readonly queue: string;
-  readonly handler: QueueHandler;
+  readonly handler: QueueHandler<unknown>;
   readonly concurrency?: number;
 }
 
@@ -31,7 +32,7 @@ export function createWorkerBootstrap(
     activeHandlers: 0,
     checkedAt: new Date().toISOString(),
   });
-  const workers: Worker[] = [];
+  const workers: WorkerHandle[] = [];
 
   return {
     async start() {
