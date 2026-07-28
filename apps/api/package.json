@@ -10,6 +10,8 @@
     "test": "node -e \"console.log('No API tests yet')\""
   },
   "dependencies": {
+    "@fastify/cookie": "11.0.2",
+    "@fastify/session": "11.1.0",
     "fastify": "5.3.3"
   }
 }
