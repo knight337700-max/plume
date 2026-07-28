@@ -6,7 +6,8 @@
   "dependencies": {
     "@plume/contracts": "workspace:*",
     "@plume/core": "workspace:*",
-    "@plume/db": "workspace:*"
+    "@plume/db": "workspace:*",
+    "bullmq": "5.52.2"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",

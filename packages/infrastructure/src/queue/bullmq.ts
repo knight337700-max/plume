@@ -1,0 +1,85 @@
+import { Job, Queue, Worker, type ConnectionOptions, type JobsOptions } from "bullmq";
+
+export interface BullMqAdapterOptions {
+  readonly redisUrl?: string;
+  readonly environmentPrefix?: string;
+}
+
+export interface QueueMessage<T = unknown> {
+  readonly name?: string;
+  readonly data: T;
+  readonly options?: JobsOptions;
+}
+
+export type QueueHandler<T> = (data: T, job: Job<T>) => Promise<unknown> | unknown;
+
+function redisConnection(redisUrl: string): ConnectionOptions {
+  const parsed = new URL(redisUrl);
+  const database = parsed.pathname.replace(/^\//, "");
+  return {
+    host: parsed.hostname || "localhost",
+    port: parsed.port ? Number(parsed.port) : 6379,
+    ...(parsed.password ? { password: decodeURIComponent(parsed.password) } : {}),
+    ...(database ? { db: Number(database) } : {}),
+    ...(parsed.protocol === "rediss:" ? { tls: {} } : {}),
+  };
+}
+
+export class BullMqAdapter {
+  private readonly connection: ConnectionOptions;
+  private readonly prefix: string;
+  private readonly queues = new Map<string, Queue>();
+  private readonly workers = new Set<Worker>();
+
+  constructor(options: BullMqAdapterOptions = {}) {
+    this.connection = redisConnection(
+      options.redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379",
+    );
+    this.prefix = (options.environmentPrefix ?? process.env.NODE_ENV ?? "development").replace(
+      /[^a-z0-9_-]/gi,
+      "-",
+    );
+  }
+
+  queueName(queue: string): string {
+    return `${this.prefix}:${queue}`;
+  }
+
+  getQueue(queue: string): Queue {
+    const name = this.queueName(queue);
+    const existing = this.queues.get(name);
+    if (existing) return existing;
+    const created = new Queue(name, { connection: this.connection });
+    this.queues.set(name, created);
+    return created;
+  }
+
+  async enqueue<T>(queue: string, message: QueueMessage<T>): Promise<Job<T>> {
+    return this.getQueue(queue).add(message.name ?? "message", message.data, message.options);
+  }
+
+  consume<T>(
+    queue: string,
+    handler: QueueHandler<T>,
+    options: { readonly concurrency?: number } = {},
+  ): Worker {
+    const worker = new Worker(
+      this.queueName(queue),
+      async (job) => handler(job.data as T, job as Job<T>),
+      { connection: this.connection, concurrency: options.concurrency ?? 1 },
+    );
+    this.workers.add(worker);
+    return worker;
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([...this.workers].map((worker) => worker.close()));
+    await Promise.all([...this.queues.values()].map((queue) => queue.close()));
+    this.workers.clear();
+    this.queues.clear();
+  }
+}
+
+export function createBullMqAdapter(options: BullMqAdapterOptions = {}): BullMqAdapter {
+  return new BullMqAdapter(options);
+}
