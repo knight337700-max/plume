@@ -28,7 +28,7 @@ export function createCampaignUseCases(repositories: CampaignRepositories): Camp
       const selections = await repositories.listAssetPoolSelections(workspaceId, campaignId);
       const channels = await repositories.listChannelSelections(workspaceId, campaignId);
       const formats = await repositories.listFormatSelections(workspaceId, campaignId);
-      return deriveWorkflowState({ campaign, sources: await repositories.listSources(workspaceId, campaignId), briefVersion: briefVersion ?? undefined, products, assetSelections: selections, channels, formats });
+      return deriveWorkflowState({ campaign, sources: await repositories.listSources(workspaceId, campaignId), ...(briefVersion ? { briefVersion } : {}), products, assetSelections: selections, channels, formats });
     },
     activity: (workspaceId, campaignId) => repositories.listActivity(workspaceId, campaignId),
   };

@@ -37,18 +37,18 @@ export interface CampaignRepositories {
   getBriefVersion(workspaceId: string, versionId: string): Promise<CampaignBriefVersionRecord | null>;
   confirmBriefVersion(workspaceId: string, versionId: string): Promise<CampaignBriefVersionRecord>;
   listMatchingCandidates(workspaceId: string, campaignId: string): Promise<readonly ProductMatchingCandidateRecord[]>;
-  addMatchingCandidates(items: readonly Omit<ProductMatchingCandidateRecord, "id" | "confirmed" | "createdAt"> & { id?: string }[]): Promise<readonly ProductMatchingCandidateRecord[]>;
+  addMatchingCandidates(items: readonly (Omit<ProductMatchingCandidateRecord, "id" | "confirmed" | "createdAt"> & { id?: string })[]): Promise<readonly ProductMatchingCandidateRecord[]>;
   listCampaignProducts(workspaceId: string, campaignId: string): Promise<readonly CampaignProductRecord[]>;
   upsertCampaignProduct(input: Omit<CampaignProductRecord, "id" | "createdAt"> & { id?: string; createdAt?: string }): Promise<CampaignProductRecord>;
   listAssetRecommendations(workspaceId: string, campaignId: string, productId?: string): Promise<readonly CampaignAssetRecommendationRecord[]>;
-  addAssetRecommendations(items: readonly Omit<CampaignAssetRecommendationRecord, "id" | "status" | "createdAt" | "updatedAt"> & { id?: string }[]): Promise<readonly CampaignAssetRecommendationRecord[]>;
+  addAssetRecommendations(items: readonly (Omit<CampaignAssetRecommendationRecord, "id" | "status" | "createdAt" | "updatedAt"> & { id?: string })[]): Promise<readonly CampaignAssetRecommendationRecord[]>;
   listAssetPoolSelections(workspaceId: string, campaignId: string, productId?: string): Promise<readonly CampaignAssetPoolSelectionRecord[]>;
   upsertAssetPoolSelection(input: Omit<CampaignAssetPoolSelectionRecord, "id" | "updatedAt"> & { id?: string }): Promise<CampaignAssetPoolSelectionRecord>;
   listChannelSelections(workspaceId: string, campaignId: string): Promise<readonly CampaignChannelSelectionRecord[]>;
   upsertChannelSelection(input: Omit<CampaignChannelSelectionRecord, "id" | "updatedAt"> & { id?: string }): Promise<CampaignChannelSelectionRecord>;
   listFormatSelections(workspaceId: string, campaignId: string): Promise<readonly CampaignFormatSelectionRecord[]>;
   upsertFormatSelection(input: Omit<CampaignFormatSelectionRecord, "id" | "updatedAt"> & { id?: string }): Promise<CampaignFormatSelectionRecord>;
-  createGenerationAggregate(input: Omit<GenerationRequestRecord, "id" | "status" | "createdAt" | "updatedAt"> & { id?: string }, items: readonly Omit<GenerationItemRecord, "id" | "status" | "updatedAt"> & { id?: string }[]): Promise<{ readonly request: GenerationRequestRecord; readonly items: readonly GenerationItemRecord[] }>;
+  createGenerationAggregate(input: Omit<GenerationRequestRecord, "id" | "status" | "createdAt" | "updatedAt"> & { id?: string }, items: readonly (Omit<GenerationItemRecord, "id" | "status" | "updatedAt"> & { id?: string })[]): Promise<{ readonly request: GenerationRequestRecord; readonly items: readonly GenerationItemRecord[] }>;
   getGenerationRequest(workspaceId: string, id: string): Promise<{ readonly request: GenerationRequestRecord; readonly items: readonly GenerationItemRecord[] } | null>;
 }
 

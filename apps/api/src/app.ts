@@ -5,6 +5,7 @@ import { workspaceRoutes } from "./routes/workspace/index.js";
 import { clientBrandRoutes } from "./routes/client-brand/index.js";
 import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
 import { assetFileRoutes, assetRoutesGroup } from "./routes/asset/index.js";
+import { campaignRouteGroup } from "./routes/campaign/index.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, rewriteUrl: (request) => (request.url ?? "/").replace(/:([a-z][a-z-]*)(?=\/|$)/g, ".$1"), ...options });
@@ -18,5 +19,6 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await app.register(mediaCatalogRoutes);
   await app.register(assetFileRoutes);
   await app.register(assetRoutesGroup);
+  await app.register(campaignRouteGroup);
   return app;
 }
