@@ -93,7 +93,7 @@ export function createAgentOrchestrator(options: {
   const prompts = options.prompts ?? promptRegistry;
   const policies = options.policies ?? modelPolicyRegistry;
   return {
-    async run<T>(input, handler) {
+    async run<T>(input: AgentTaskInput, handler?: AgentSuccessHandler<T>) {
       const prompt = prompts.resolve(input.agentCode);
       const policy = policies.forAgent(input.agentCode);
       for (const toolCode of input.requestedToolCodes ?? []) {

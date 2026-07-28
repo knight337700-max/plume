@@ -5,6 +5,8 @@ import {
   type ValidationResult,
 } from "./result-validator.js";
 
+export type { JsonSchema } from "./result-validator.js";
+
 export interface RepairRequest {
   readonly errorPaths: readonly Pick<SchemaError, "path" | "keyword" | "message">[];
 }
