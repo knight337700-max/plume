@@ -1,0 +1,6 @@
+import type { CatalogStatus, FormatProfileRecord } from "./repositories.js";
+export type CatalogAction = "QUERY" | "SELECT" | "GENERATE" | "EXPORT";
+export interface AvailabilityDecision { readonly allowed: boolean; readonly status: CatalogStatus; readonly reason?: string }
+export function canUseCatalogStatus(status: CatalogStatus, action: CatalogAction): AvailabilityDecision { if (status === "ACTIVE") return { allowed: true, status }; if (status === "LEGACY_ONLY" && action === "QUERY") return { allowed: true, status }; const reason = status === "PENDING_VERIFY" ? "Catalog format is pending verification" : status === "LEGACY_ONLY" ? "Legacy formats cannot be newly selected" : `Catalog format is ${status.toLowerCase()}`; return { allowed: false, status, reason }; }
+export function assertCatalogAvailable(profile: Pick<FormatProfileRecord, "status">, action: CatalogAction = "SELECT"): void { const decision = canUseCatalogStatus(profile.status, action); if (!decision.allowed) { const error = new Error(decision.reason); Object.assign(error, { code: "CATALOG_FORMAT_UNAVAILABLE", statusCode: 422, status: profile.status }); throw error; } }
+export function isSelectableForGeneration(profile: Pick<FormatProfileRecord, "status">): boolean { return canUseCatalogStatus(profile.status, "GENERATE").allowed; }
