@@ -556,3 +556,22 @@ ALTER TABLE audit_log ADD CONSTRAINT audit_log_actor_fk FOREIGN KEY (actor_id) R
 ALTER TABLE notification ADD CONSTRAINT notification_workspace_fk FOREIGN KEY (workspace_id) REFERENCES workspace(id) ON DELETE RESTRICT;
 ALTER TABLE notification ADD CONSTRAINT notification_user_fk FOREIGN KEY (user_id) REFERENCES user_account(id) ON DELETE RESTRICT;
 ALTER TABLE notification ADD CONSTRAINT notification_event_fk FOREIGN KEY (event_id) REFERENCES activity_event(id) ON DELETE SET NULL;
+
+-- Operational infrastructure tables intentionally excluded from the 63-entity catalog.
+CREATE TABLE outbox_message (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), workspace_id uuid NOT NULL, topic varchar(200) NOT NULL,
+  message_key varchar(500) NOT NULL, message_type varchar(200) NOT NULL, schema_version integer NOT NULL,
+  payload_json jsonb NOT NULL, headers_json jsonb NOT NULL DEFAULT '{}'::jsonb, available_at timestamptz NOT NULL DEFAULT now(),
+  published_at timestamptz, attempt_count integer NOT NULL DEFAULT 0, last_error text, lease_expires_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE message_consumption (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), workspace_id uuid NOT NULL, message_id uuid NOT NULL,
+  handler_name varchar(200) NOT NULL, handler_version varchar(100) NOT NULL, outcome_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  processed_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (workspace_id, message_id, handler_name, handler_version)
+);
+CREATE INDEX outbox_message_claim_idx ON outbox_message (available_at, created_at) WHERE published_at IS NULL;
+CREATE INDEX outbox_message_workspace_idx ON outbox_message (workspace_id, created_at);
+ALTER TABLE outbox_message ADD CONSTRAINT outbox_message_workspace_fk FOREIGN KEY (workspace_id) REFERENCES workspace(id) ON DELETE RESTRICT;
+ALTER TABLE message_consumption ADD CONSTRAINT message_consumption_workspace_fk FOREIGN KEY (workspace_id) REFERENCES workspace(id) ON DELETE RESTRICT;

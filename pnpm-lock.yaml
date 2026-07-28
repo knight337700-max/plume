@@ -68,6 +68,9 @@ importers:
       bullmq:
         specifier: 5.52.2
         version: 5.52.2(supports-color@7.2.0)
+      postgres:
+        specifier: 3.4.7
+        version: 3.4.7
 
   packages/observability: {}
 
