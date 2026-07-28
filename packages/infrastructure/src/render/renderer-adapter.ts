@@ -6,6 +6,7 @@ import {
   type CreativeElement,
 } from "../../../core/src/modules/creative/creative-document.js";
 import { hashCreativeDocument } from "../../../core/src/modules/creative/document-hash.js";
+import { optimizeRenderOutput } from "./optimize-output.js";
 
 export type RenderPurpose = "PREVIEW" | "VALIDATION" | "FINAL_EXPORT";
 export interface RenderAssetAccess {
@@ -348,14 +349,19 @@ export function renderCreativeDocument(request: RenderRequest): RenderResult {
         drawText(pixels, width, height, element, element.text ?? "", color, scaleX, scaleY);
       } else drawRect(pixels, width, height, element, color, scaleX, scaleY);
     }
-    const outputBytes = encodePng(pixels, width, height);
-    if (request.outputProfile.maxBytes && outputBytes.byteLength > request.outputProfile.maxBytes)
+    const optimized = optimizeRenderOutput({
+      bytes: encodePng(pixels, width, height),
+      mimeType: "image/png",
+      maxBytes: request.outputProfile.maxBytes,
+    });
+    if (!optimized.withinMaxBytes)
       return failed(
         request,
         "OUTPUT_SIZE_LIMIT_EXCEEDED",
-        `PNG output is ${outputBytes.byteLength} bytes`,
+        `PNG output is ${optimized.optimizedBytes} bytes`,
         warnings,
       );
+    const outputBytes = optimized.bytes;
     const checksumSha256 = createHash("sha256").update(outputBytes).digest("hex");
     const renderConfig = {
       purpose: request.purpose,
