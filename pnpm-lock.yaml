@@ -22,6 +22,55 @@ importers:
 
   packages/config: {}
 
+  packages/contracts: {}
+
+  packages/core:
+    dependencies:
+      '@plume/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/db:
+    dependencies:
+      '@plume/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/infrastructure:
+    dependencies:
+      '@plume/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@plume/core':
+        specifier: workspace:*
+        version: link:../core
+      '@plume/db':
+        specifier: workspace:*
+        version: link:../db
+
+  packages/observability: {}
+
+  packages/testkit:
+    dependencies:
+      '@plume/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@plume/core':
+        specifier: workspace:*
+        version: link:../core
+      '@plume/db':
+        specifier: workspace:*
+        version: link:../db
+      '@plume/infrastructure':
+        specifier: workspace:*
+        version: link:../infrastructure
+
+  packages/ui:
+    dependencies:
+      '@plume/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
 packages:
 
   typescript@5.9.3:
