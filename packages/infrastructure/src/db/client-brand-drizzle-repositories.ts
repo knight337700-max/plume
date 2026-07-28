@@ -23,6 +23,7 @@ export class DrizzleClientBrandRepositories implements ClientBrandRepositories {
   updateProduct(...args: Parameters<ClientBrandRepositories["updateProduct"]>) { return this.delegate.updateProduct(...args); }
   archiveProduct(...args: Parameters<ClientBrandRepositories["archiveProduct"]>) { return this.delegate.archiveProduct(...args); }
   listVariants(...args: Parameters<ClientBrandRepositories["listVariants"]>) { return this.delegate.listVariants(...args); }
+  getVariant(...args: Parameters<ClientBrandRepositories["getVariant"]>) { return this.delegate.getVariant(...args); }
   createVariant(...args: Parameters<ClientBrandRepositories["createVariant"]>) { return this.delegate.createVariant(...args); }
   updateVariant(...args: Parameters<ClientBrandRepositories["updateVariant"]>) { return this.delegate.updateVariant(...args); }
   archiveVariant(...args: Parameters<ClientBrandRepositories["archiveVariant"]>) { return this.delegate.archiveVariant(...args); }

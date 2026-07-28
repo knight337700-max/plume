@@ -26,6 +26,7 @@ export interface ClientBrandRepositories {
   updateProduct(workspaceId: string, id: string, patch: Partial<Pick<ProductRecord, "name" | "internalCode" | "categoryCode" | "landingUrl" | "description" | "sellingPoints" | "attributes" | "representativeAssetId">>): Promise<ProductRecord>;
   archiveProduct(workspaceId: string, id: string): Promise<ProductRecord>;
   listVariants(workspaceId: string, productId: string, includeArchived?: boolean): Promise<readonly ProductVariantRecord[]>;
+  getVariant(workspaceId: string, id: string): Promise<ProductVariantRecord | null>;
   createVariant(input: Omit<ProductVariantRecord, "id" | "revisionNo" | "status"> & { id?: string; status?: ProductVariantRecord["status"] }): Promise<ProductVariantRecord>;
   updateVariant(workspaceId: string, id: string, patch: Partial<Pick<ProductVariantRecord, "name" | "sku" | "attributes" | "priceMinor" | "salePriceMinor" | "currencyCode" | "availability">>): Promise<ProductVariantRecord>;
   archiveVariant(workspaceId: string, id: string): Promise<ProductVariantRecord>;
@@ -64,6 +65,7 @@ export function createInMemoryClientBrandRepositories(seed: ClientBrandSeed = {}
     async updateProduct(workspaceId, id, patch) { const current = product(workspaceId, id); const next = revision(current, { ...patch, ...(patch.name ? { normalizedName: normalize(patch.name) } : {}) }); products.set(id, next); return next; },
     async archiveProduct(workspaceId, id) { const next = revision(product(workspaceId, id), { status: "ARCHIVED" }); products.set(id, next); return next; },
     async listVariants(workspaceId, productId, includeArchived = false) { product(workspaceId, productId); return [...variants.values()].filter((item) => item.workspaceId === workspaceId && item.productId === productId && (includeArchived || item.status !== "ARCHIVED")); },
+    async getVariant(workspaceId, id) { const item = variants.get(id); return item?.workspaceId === workspaceId ? item : null; },
     async createVariant(input) { product(input.workspaceId, input.productId); const item = Object.freeze({ id: input.id ?? randomUUID(), ...input, attributes: input.attributes ?? {}, status: input.status ?? "ACTIVE", revisionNo: 1 }); if ([...variants.values()].some((other) => other.productId === item.productId && item.sku && other.sku === item.sku && other.status !== "ARCHIVED")) throw new Error("Variant SKU already exists"); variants.set(item.id, item); return item; },
     async updateVariant(workspaceId, id, patch) { const current = variants.get(id); if (!current || current.workspaceId !== workspaceId) throw notFound("Product variant"); const next = revision(current, patch); variants.set(id, next); return next; },
     async archiveVariant(workspaceId, id) { const current = variants.get(id); if (!current || current.workspaceId !== workspaceId) throw notFound("Product variant"); const next = revision(current, { status: "ARCHIVED" }); variants.set(id, next); return next; },
