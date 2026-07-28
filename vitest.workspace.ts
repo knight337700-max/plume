@@ -9,4 +9,17 @@ export default defineWorkspace([
       passWithNoTests: false,
     },
   },
+  {
+    test: {
+      name: "gate-c-unit-and-contracts",
+      include: [
+        "packages/core/src/**/*.test.ts",
+        "packages/infrastructure/src/**/*.test.ts",
+        "apps/api/src/**/*.test.ts",
+        "apps/worker/src/**/*.test.ts",
+      ],
+      exclude: ["**/node_modules/**", "**/dist/**"],
+      passWithNoTests: false,
+    },
+  },
 ]);

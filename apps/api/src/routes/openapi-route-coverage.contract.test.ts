@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import {
   compareRouteCoverage,
   type RegisteredRoute,
@@ -12,9 +12,13 @@ const registered: readonly RegisteredRoute[] = [
 ];
 const coverage = compareRouteCoverage(operationIds, registered);
 
-assert.equal(operationIds.length, 137);
-assert.equal(coverage.implemented.length, 1);
-assert.equal(coverage.pending.length, 136);
-assert.equal(coverage.unclassified.length, 0);
+describe("OpenAPI route coverage", () => {
+  it("classifies the initial foundation route and intentional pending operations", () => {
+    expect(operationIds).toHaveLength(137);
+    expect(coverage.implemented).toHaveLength(1);
+    expect(coverage.pending).toHaveLength(136);
+    expect(coverage.unclassified).toHaveLength(0);
+  });
+});
 
 export { coverage };

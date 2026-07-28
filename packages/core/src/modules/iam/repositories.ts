@@ -13,6 +13,7 @@ export interface WorkspacePolicyRecord { readonly id: string; readonly workspace
 
 export interface IamRepositories {
   getWorkspace(workspaceId: string): Promise<WorkspaceRecord | null>;
+  updateWorkspace(workspaceId: string, patch: Partial<Pick<WorkspaceRecord, "name" | "slug" | "status">>): Promise<WorkspaceRecord>;
   listWorkspacesForUser(userId: string): Promise<readonly WorkspaceRecord[]>;
   getMembership(workspaceId: string, userId: string): Promise<WorkspaceMemberRecord | null>;
   listMembers(workspaceId: string): Promise<readonly WorkspaceMemberRecord[]>;
@@ -36,6 +37,13 @@ export function createInMemoryIamRepositories(seed: IamRepositorySeed = {}): Iam
   function requireWorkspace(workspaceId: string): WorkspaceRecord { const workspace = workspaces.get(workspaceId); if (!workspace || workspace.status !== "ACTIVE") throw notFound("Workspace"); return workspace; }
   return {
     async getWorkspace(workspaceId) { return workspaces.get(workspaceId) ?? null; },
+    async updateWorkspace(workspaceId, patch) {
+      const current = workspaces.get(workspaceId);
+      if (!current) throw notFound("Workspace");
+      const next = Object.freeze({ ...current, ...patch, revisionNo: current.revisionNo + 1 });
+      workspaces.set(workspaceId, next);
+      return next;
+    },
     async listWorkspacesForUser(userId) {
       const ids = new Set([...memberships.values()].filter((item) => item.userId === userId && item.status === "ACTIVE").map((item) => item.workspaceId));
       return [...workspaces.values()].filter((item) => ids.has(item.id) && item.status === "ACTIVE");
