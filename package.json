@@ -2,6 +2,7 @@
   "name": "plume",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Plume creative workflow platform",
   "packageManager": "pnpm@11.17.0",
   "engines": {
@@ -15,6 +16,10 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "codegen:agent-schemas": "node tools/codegen/agent-schemas.ts",
+    "codegen:openapi": "pnpm --filter @plume/contracts codegen:openapi",
+    "codegen:screens": "node tools/codegen/screens.ts",
+    "contracts:check": "pnpm codegen:openapi && pnpm codegen:screens && pnpm codegen:agent-schemas && prettier --write packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts && git diff --exit-code -- packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts",
     "dev": "pnpm -r --parallel dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

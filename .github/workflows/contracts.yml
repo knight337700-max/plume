@@ -1,0 +1,35 @@
+name: Plume contract drift
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/mvp-build
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contract generation and drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node and pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify generated contracts are committed
+        run: pnpm contracts:check
