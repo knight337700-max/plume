@@ -40,8 +40,8 @@ export interface ApplyEditOperationsOptions {
 }
 
 export class EditOperationError extends Error {
-  readonly operationId?: string;
-  readonly path?: string;
+  readonly operationId: string | undefined;
+  readonly path: string | undefined;
 
   constructor(message: string, operationId?: string, path?: string) {
     super(message);
@@ -59,8 +59,13 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function cloneDocument(document: CreativeDocument): CreativeDocument {
-  return JSON.parse(JSON.stringify(document)) as CreativeDocument;
+type MutableCreativeElement = { -readonly [Key in keyof CreativeElement]: CreativeElement[Key] };
+type MutableCreativeDocument = Omit<CreativeDocument, "elements"> & {
+  elements: MutableCreativeElement[];
+};
+
+function cloneDocument(document: CreativeDocument): MutableCreativeDocument {
+  return JSON.parse(JSON.stringify(document)) as MutableCreativeDocument;
 }
 
 function valueAtPath(element: CreativeElement, path: string): unknown {
@@ -174,7 +179,10 @@ function patchElement(
   }
 }
 
-function assertCanvasBounds(document: CreativeDocument, operationId?: string): void {
+function assertCanvasBounds(
+  document: Pick<CreativeDocument, "canvas" | "elements">,
+  operationId?: string,
+): void {
   for (const element of document.elements) {
     if (
       element.x < 0 ||
@@ -228,10 +236,7 @@ export function applyEditOperations(
     throw new EditOperationError("Creative revision has changed");
   if (!batch.operations.length) throw new EditOperationError("Operation batch must not be empty");
 
-  const draft = cloneDocument(document) as {
-    elements: CreativeElement[];
-    usedAssetVersionIds: readonly string[];
-  };
+  const draft = cloneDocument(document);
   for (const operation of batch.operations) {
     if (!operation.operationId || !operation.targetIds.length)
       throw new EditOperationError(
@@ -246,12 +251,21 @@ export function applyEditOperations(
       const id = typeof candidate.id === "string" ? candidate.id : operation.targetIds[0];
       if (!id || draft.elements.some((element) => element.id === id))
         throw new EditOperationError(`Element id already exists: ${id}`, operation.operationId);
-      const added = { ...candidate, id } as CreativeElement;
-      if (added.locked === undefined) added.locked = false;
-      if (added.visible === undefined) added.visible = true;
-      draft.elements.push(
-        parseCreativeDocument({ ...draft, elements: [added], usedAssetVersionIds: [] }).elements[0],
-      );
+      const added = {
+        ...candidate,
+        id,
+        locked: candidate.locked ?? false,
+        visible: candidate.visible ?? true,
+      } as MutableCreativeElement;
+      const addedDocument = parseCreativeDocument({
+        ...draft,
+        elements: [added],
+        usedAssetVersionIds: added.assetVersionId ? [added.assetVersionId] : [],
+      });
+      const addedElement = addedDocument.elements[0];
+      if (!addedElement)
+        throw new EditOperationError("ADD did not produce an element", operation.operationId);
+      draft.elements.push(addedElement);
       continue;
     }
     const targetIds = new Set(operation.targetIds);
@@ -264,21 +278,24 @@ export function applyEditOperations(
           `Target element not found: ${targetId}`,
           operation.operationId,
         );
+      const currentElement = draft.elements[index];
+      if (!currentElement)
+        throw new EditOperationError(
+          `Target element not found: ${targetId}`,
+          operation.operationId,
+        );
       if (operation.action === "DELETE") {
         if (options.undeletableElementIds?.has(targetId))
           throw new EditOperationError(
             `Element cannot be deleted: ${targetId}`,
             operation.operationId,
           );
-        assertUnlocked(draft.elements[index], operation);
-        assertPreconditions(draft.elements[index], operation);
+        assertUnlocked(currentElement, operation);
+        assertPreconditions(currentElement, operation);
         draft.elements.splice(index, 1);
-      } else draft.elements[index] = patchElement(draft.elements[index], operation, options);
+      } else draft.elements[index] = patchElement(currentElement, operation, options);
     }
-    assertCanvasBounds(
-      { ...draft, usedAssetVersionIds: [] } as CreativeDocument,
-      operation.operationId,
-    );
+    assertCanvasBounds(draft, operation.operationId);
   }
   const used = usedAssetVersionIds(draft);
   const result = parseCreativeDocument({ ...draft, usedAssetVersionIds: used });
