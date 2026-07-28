@@ -50,7 +50,7 @@ export class DrizzleOutboxRepository implements OutboxRepository {
         (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json, available_at)
       VALUES
         (${message.workspaceId}, ${message.topic}, ${message.messageKey}, ${message.messageType}, ${message.schemaVersion},
-         ${this.sql.json(message.payloadJson)}, ${this.sql.json(message.headersJson ?? {})}, ${message.availableAt ?? new Date()})
+         ${this.sql.json(JSON.parse(JSON.stringify(message.payloadJson)))}, ${this.sql.json(JSON.parse(JSON.stringify(message.headersJson ?? {})))}, ${message.availableAt ?? new Date()})
       RETURNING *
     `;
     return mapRow(rows[0]);
