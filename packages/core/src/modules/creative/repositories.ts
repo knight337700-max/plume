@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { parseCreativeDocument } from "./creative-document.js";
+import { parseCreativeDocument, type CreativeDocument } from "./creative-document.js";
 
 export type CreativeSetStatus =
   | "DRAFT"
@@ -65,7 +65,7 @@ export interface CreativeVersionRecord {
   readonly formatProfileId: string;
   readonly layoutTemplateId?: string | null;
   readonly briefVersionId: string;
-  readonly documentJson: Readonly<Record<string, unknown>>;
+  readonly documentJson: CreativeDocument;
   readonly copyAssetsJson: Readonly<Record<string, unknown>>;
   readonly generationMetadataJson: Readonly<Record<string, unknown>>;
   readonly status: CreativeVersionStatus;

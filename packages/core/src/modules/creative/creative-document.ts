@@ -210,11 +210,14 @@ export function validateCreativeDocument(input: unknown): readonly string[] {
     new Set(input.usedAssetVersionIds).size !== input.usedAssetVersionIds.length
   )
     errors.push("$.usedAssetVersionIds");
-  else if (
-    new Set(input.usedAssetVersionIds).size !== referenced.size ||
-    [...referenced].some((id) => !input.usedAssetVersionIds.includes(id))
-  )
-    errors.push("$.usedAssetVersionIds");
+  else {
+    const usedAssetVersionIds = input.usedAssetVersionIds as unknown[];
+    if (
+      new Set(usedAssetVersionIds).size !== referenced.size ||
+      [...referenced].some((id) => !usedAssetVersionIds.includes(id))
+    )
+      errors.push("$.usedAssetVersionIds");
+  }
   if (
     !object(input.copyAssets) ||
     Object.values(input.copyAssets).some((value) => typeof value !== "string")
