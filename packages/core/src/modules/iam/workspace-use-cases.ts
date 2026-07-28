@@ -3,6 +3,7 @@ import { assertCanAssignRole, assertCanManageMembers, canManagePolicy } from "./
 
 export interface ActorContext { readonly userId: string; readonly workspaceId: string }
 export interface WorkspaceUseCases {
+  getWorkspace(actor: ActorContext): Promise<WorkspaceRecord | null>;
   updateWorkspace(actor: ActorContext, patch: Partial<Pick<WorkspaceRecord, "name" | "slug">>): Promise<WorkspaceRecord>;
   listMembers(actor: ActorContext): Promise<readonly WorkspaceMemberRecord[]>;
   inviteMember(actor: ActorContext, input: { readonly userId: string; readonly roleCode: WorkspaceRole }): Promise<WorkspaceMemberRecord>;
@@ -20,6 +21,7 @@ async function actorMembership(repositories: IamRepositories, actor: ActorContex
 
 export function createWorkspaceUseCases(repositories: IamRepositories): WorkspaceUseCases {
   return {
+    async getWorkspace(actor) { await actorMembership(repositories, actor); return repositories.getWorkspace(actor.workspaceId); },
     async updateWorkspace(actor, patch) { const member = await actorMembership(repositories, actor); assertCanManageMembers(member.roleCode); return repositories.updateWorkspace(actor.workspaceId, patch); },
     async listMembers(actor) { await actorMembership(repositories, actor); return repositories.listMembers(actor.workspaceId); },
     async inviteMember(actor, input) { const member = await actorMembership(repositories, actor); assertCanAssignRole(member.roleCode, input.roleCode); return repositories.createMembership({ workspaceId: actor.workspaceId, userId: input.userId, roleCode: input.roleCode, status: "INVITED" }); },
