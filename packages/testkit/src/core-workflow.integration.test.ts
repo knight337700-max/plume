@@ -1,19 +1,21 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createAssetUseCases } from "../../core/src/modules/asset/asset-use-cases.js";
-import { createInMemoryAssetRepositories } from "../../core/src/modules/asset/repositories.js";
 import {
+  createAssetUseCases,
   createDeterministicUploadStorage,
+  createInMemoryAssetRepositories,
   createUploadUseCases,
-} from "../../core/src/modules/asset/upload-use-cases.js";
-import { createCampaignSourceUseCases } from "../../core/src/modules/campaign/source-use-cases.js";
-import { createBriefUseCases } from "../../core/src/modules/campaign/brief-use-cases.js";
-import { createProductMatchingUseCases } from "../../core/src/modules/campaign/product-matching-use-cases.js";
-import { createCampaignAssetPoolUseCases } from "../../core/src/modules/campaign/asset-pool-use-cases.js";
-import { createMediaSelectionUseCases } from "../../core/src/modules/campaign/media-selection-use-cases.js";
-import { createGenerationUseCases } from "../../core/src/modules/campaign/generation-use-cases.js";
-import { createInMemoryCampaignRepositories } from "../../core/src/modules/campaign/repositories.js";
-import { createInMemoryCatalogRepository } from "../../core/src/modules/media-catalog/repositories.js";
+} from "@plume/core/src/modules/asset/public.js";
+import {
+  createCampaignAssetPoolUseCases,
+  createCampaignSourceUseCases,
+  createBriefUseCases,
+  createGenerationUseCases,
+  createInMemoryCampaignRepositories,
+  createMediaSelectionUseCases,
+  createProductMatchingUseCases,
+} from "@plume/core/src/modules/campaign/public.js";
+import { createInMemoryCatalogRepository } from "@plume/core/src/modules/media-catalog/public.js";
 
 describe("core workflow integration", () => {
   it("runs upload -> asset version -> brief -> matching -> selection -> generation", async () => {
