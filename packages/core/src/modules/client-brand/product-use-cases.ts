@@ -2,6 +2,7 @@ import type { ProductRecord, ProductVariantRecord, ClientBrandRepositories } fro
 import { createProductImportCommand, type ProductImportCommand, type ProductImportDependencies, type ProductImportRow } from "./product-import.js";
 
 export interface ProductUseCases {
+  get(workspaceId: string, id: string): Promise<ProductRecord | null>;
   list(workspaceId: string, brandId: string, includeArchived?: boolean): Promise<readonly ProductRecord[]>;
   create(input: Omit<ProductRecord, "id" | "normalizedName" | "revisionNo" | "status"> & { status?: ProductRecord["status"] }): Promise<ProductRecord>;
   update(workspaceId: string, id: string, patch: Partial<Pick<ProductRecord, "name" | "internalCode" | "categoryCode" | "landingUrl" | "description" | "sellingPoints" | "attributes" | "representativeAssetId">>, expectedRevision?: number): Promise<ProductRecord>;
@@ -15,6 +16,7 @@ export interface ProductUseCases {
 function assertRevision(current: { revisionNo: number }, expectedRevision?: number): void { if (expectedRevision !== undefined && current.revisionNo !== expectedRevision) { const error = new Error("Product revision has changed"); Object.assign(error, { code: "REVISION_MISMATCH", statusCode: 412 }); throw error; } }
 export function createProductUseCases(repositories: ClientBrandRepositories): ProductUseCases {
   return {
+    get: (workspaceId, id) => repositories.getProduct(workspaceId, id),
     list: (workspaceId, brandId, includeArchived) => repositories.listProducts(workspaceId, brandId, includeArchived),
     create: (input) => repositories.createProduct(input),
     async update(workspaceId, id, patch, expectedRevision) { const current = await repositories.getProduct(workspaceId, id); if (!current) throw new Error("Product not found"); assertRevision(current, expectedRevision); return repositories.updateProduct(workspaceId, id, patch); },

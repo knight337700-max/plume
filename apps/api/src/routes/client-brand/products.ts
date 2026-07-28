@@ -1,0 +1,17 @@
+import type { FastifyPluginAsync } from "fastify";
+import type { ProductUseCases } from "../../../../../packages/core/src/modules/client-brand/product-use-cases.js";
+import { etagForRevision, revisionFromEtag } from "../../concurrency/etag.js";
+
+interface Options { readonly products: ProductUseCases }
+function params(request: unknown): { workspaceId: string; brandId?: string; productId?: string } { return (request as { params: { workspaceId: string; brandId?: string; productId?: string } }).params; }
+function body(request: unknown): Record<string, unknown> { return ((request as { body?: unknown }).body ?? {}) as Record<string, unknown>; }
+function expected(request: unknown): number | undefined { const value = (request as { headers?: { "if-match"?: string } }).headers?.["if-match"]; return value ? revisionFromEtag(value) : undefined; }
+
+export const productRoutes: FastifyPluginAsync<Options> = async (app, { products }) => {
+  app.get("/api/v1/workspaces/:workspaceId/brands/:brandId/products", { config: { operationId: "listProducts" } }, async (request) => { const input = params(request); return { data: await products.list(input.workspaceId, input.brandId!) }; });
+  app.post("/api/v1/workspaces/:workspaceId/brands/:brandId/products", { config: { operationId: "createProduct", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request, reply) => { const input = params(request); const value = body(request); return reply.code(201).send({ data: await products.create({ workspaceId: input.workspaceId, brandId: input.brandId!, name: String(value.name), ...(value.internalCode ? { internalCode: String(value.internalCode) } : {}), sellingPoints: Array.isArray(value.sellingPoints) ? value.sellingPoints : [], attributes: typeof value.attributes === "object" && value.attributes ? value.attributes as Record<string, unknown> : {} }) }); });
+  app.post("/api/v1/workspaces/:workspaceId/brands/:brandId/products:import", { config: { operationId: "importProducts", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request, reply) => { const input = params(request); const result = await products.createImport(input.workspaceId, []); const location = `/api/v1/workspaces/${input.workspaceId}/jobs/${result.job.id}`; reply.header("Operation-Location", location); return reply.code(202).send({ jobId: result.job.id, operationLocation: location }); });
+  app.get("/api/v1/workspaces/:workspaceId/products/:productId", { config: { operationId: "getProduct" } }, async (request, reply) => { const input = params(request); const item = await products.get(input.workspaceId, input.productId!); if (!item) return reply.code(404).send({ code: "RESOURCE_NOT_FOUND" }); reply.header("ETag", etagForRevision(item.revisionNo)); return { data: item }; });
+  app.patch("/api/v1/workspaces/:workspaceId/products/:productId", { config: { operationId: "updateProduct", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request) => { const input = params(request); const item = await products.update(input.workspaceId, input.productId!, body(request) as never, expected(request)); return { data: item }; });
+  app.delete("/api/v1/workspaces/:workspaceId/products/:productId", { config: { operationId: "archiveProduct", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request, reply) => { const input = params(request); await products.archive(input.workspaceId, input.productId!, expected(request)); return reply.code(204).send(); });
+};
