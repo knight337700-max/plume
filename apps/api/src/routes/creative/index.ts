@@ -6,6 +6,7 @@ import {
 import { createInMemoryCreativeRepositories } from "../../../../../packages/core/src/modules/creative/repositories.js";
 import type { IdempotencyRepository } from "../../idempotency/repository.js";
 import { creativeRoutes } from "./creatives.js";
+import { creativeRenderRoutes } from "./renders.js";
 
 export interface CreativeRouteGroupOptions {
   readonly useCases?: CreativeUseCases;
@@ -21,4 +22,5 @@ export const creativeRouteGroup: FastifyPluginAsync<CreativeRouteGroupOptions> =
     useCases,
     ...(options.idempotency ? { idempotency: options.idempotency } : {}),
   });
+  await app.register(creativeRenderRoutes, { useCases });
 };

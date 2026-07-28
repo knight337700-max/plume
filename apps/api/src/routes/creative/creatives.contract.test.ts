@@ -78,6 +78,19 @@ describe("creative routes", () => {
     });
     expect(rendered.statusCode).toBe(202);
     expect(rendered.headers["operation-location"]).toContain("/jobs/");
+    await repositories.createRender({
+      workspaceId: "workspace-1",
+      creativeVersionId: version.id,
+      renderPurpose: "PREVIEW",
+      fileObjectId: "file-1",
+      renderConfigJson: {},
+    });
+    const renders = await app.inject({
+      method: "GET",
+      url: "/api/v1/workspaces/workspace-1/creative-versions/version-1/renders",
+    });
+    expect(renders.statusCode).toBe(200);
+    expect(renders.json().items).toHaveLength(1);
     await app.close();
   });
 });
