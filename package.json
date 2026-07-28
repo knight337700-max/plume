@@ -9,6 +9,7 @@
     "node": "24.15.0"
   },
   "devDependencies": {
+    "@types/node": "24.1.0",
     "eslint": "9.31.0",
     "prettier": "3.6.2",
     "typescript": "5.9.3",
@@ -19,6 +20,9 @@
     "codegen:agent-schemas": "node tools/codegen/agent-schemas.ts",
     "codegen:openapi": "pnpm --filter @plume/contracts codegen:openapi",
     "codegen:screens": "node tools/codegen/screens.ts",
+    "db:migrate:test": "node --experimental-strip-types packages/db/src/testing/reset.ts migrate",
+    "db:reset:test": "node --experimental-strip-types packages/db/src/testing/reset.ts reset",
+    "db:seed:test": "node --experimental-strip-types packages/db/src/testing/seed-base.ts",
     "contracts:check": "pnpm codegen:openapi && pnpm codegen:screens && pnpm codegen:agent-schemas && prettier --write packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts && git diff --exit-code -- packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts",
     "dev": "pnpm -r --parallel dev",
     "format": "prettier --write .",
