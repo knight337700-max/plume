@@ -1,0 +1,16 @@
+import type { FastifyPluginAsync } from "fastify";
+import type { CampaignRepositories } from "../../../../../packages/core/src/modules/campaign/repositories.js";
+import type { MediaSelectionUseCases } from "../../../../../packages/core/src/modules/campaign/media-selection-use-cases.js";
+
+interface Options { readonly selection: MediaSelectionUseCases; readonly repositories: CampaignRepositories }
+interface Params { readonly workspaceId: string; readonly campaignId: string }
+function params(request: unknown): Params { return (request as { params: Params }).params; }
+function body(request: unknown): Record<string, unknown> { return ((request as { body?: unknown }).body ?? {}) as Record<string, unknown>; }
+
+export const mediaSelectionRoutes: FastifyPluginAsync<Options> = async (app, { selection, repositories }) => {
+  app.get("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/channels", { config: { operationId: "getCampaignChannels" } }, async (request) => { const input = params(request); return { items: await repositories.listChannelSelections(input.workspaceId, input.campaignId) }; });
+  app.put("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/channels", { config: { operationId: "updateCampaignChannels", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request) => { const input = params(request); const value = body(request); const channels = Array.isArray(value.items) ? value.items as { channelCode: never }[] : []; const snapshot = await selection.validate({ channels, formats: [] }); const saved = await Promise.all(snapshot.channels.map((channel) => repositories.upsertChannelSelection({ workspaceId: input.workspaceId, campaignId: input.campaignId, channelCode: channel.channelCode, status: "SELECTED", snapshotJson: { versionId: channel.versionId } }))); return { items: saved }; });
+  app.get("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/format-options", { config: { operationId: "listCampaignFormatOptions" } }, async (request) => { const input = params(request); const channelCode = (request as { query?: { channelCode?: never } }).query?.channelCode; return { items: await selection.options(channelCode) }; });
+  app.get("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/format-selections", { config: { operationId: "getCampaignFormatSelections" } }, async (request) => { const input = params(request); return { items: await repositories.listFormatSelections(input.workspaceId, input.campaignId) }; });
+  app.put("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/format-selections", { config: { operationId: "updateCampaignFormatSelections", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (request) => { const input = params(request); const value = body(request); const formats = Array.isArray(value.items) ? value.items as { channelCode: never; formatProfileId: string }[] : []; const snapshot = await selection.validate({ channels: [], formats }); const saved = await Promise.all(snapshot.formats.map((format) => repositories.upsertFormatSelection({ workspaceId: input.workspaceId, campaignId: input.campaignId, channelCode: format.channelCode, formatProfileId: format.profileId, profileVersion: format.profileVersion, status: "SELECTED", snapshotJson: { profileId: format.profileId, profileVersion: format.profileVersion } }))); return { items: saved }; });
+};
