@@ -4,6 +4,7 @@ export async function registerHealthRoute(app: FastifyInstance): Promise<void> {
   app.get(
     "/api/v1/health",
     {
+      config: { operationId: "getHealth" },
       schema: {
         response: {
           200: {

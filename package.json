@@ -30,6 +30,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run --workspace vitest.workspace.ts",
+    "test:integration": "node --experimental-strip-types tools/test-integration.ts",
     "typecheck": "pnpm --filter @plume/config --filter @plume/web --filter @plume/api --filter @plume/worker --filter @plume/scheduler typecheck"
   }
 }
