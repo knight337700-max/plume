@@ -4,8 +4,8 @@ import {
   parseCreativeDocument,
   type CreativeDocument,
   type CreativeElement,
-} from "../../../core/src/modules/creative/creative-document.js";
-import { hashCreativeDocument } from "../../../core/src/modules/creative/document-hash.js";
+  hashCreativeDocument,
+} from "@plume/core/src/modules/creative/public.js";
 import { optimizeRenderOutput } from "./optimize-output.js";
 
 export type RenderPurpose = "PREVIEW" | "VALIDATION" | "FINAL_EXPORT";
