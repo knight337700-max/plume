@@ -13,8 +13,10 @@ import { assetPoolRoutes } from "./asset-pool.js";
 import { createMediaSelectionUseCases, type MediaSelectionUseCases } from "../../../../../packages/core/src/modules/campaign/media-selection-use-cases.js";
 import { createInMemoryCatalogRepository } from "../../../../../packages/core/src/modules/media-catalog/repositories.js";
 import { mediaSelectionRoutes } from "./media-selection.js";
+import { createGenerationUseCases, type GenerationUseCases } from "../../../../../packages/core/src/modules/campaign/generation-use-cases.js";
+import { generationRoutes } from "./generation.js";
 
-interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases }
+interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases; readonly generation?: GenerationUseCases }
 export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
   const repositories = createInMemoryCampaignRepositories();
   const campaigns = options.campaigns ?? createCampaignUseCases(repositories);
@@ -24,10 +26,12 @@ export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, optio
   const pool = options.pool ?? createCampaignAssetPoolUseCases(repositories);
   const campaignCatalog = createInMemoryCatalogRepository();
   const selection = options.selection ?? createMediaSelectionUseCases(campaignCatalog);
+  const generation = options.generation ?? createGenerationUseCases(repositories);
   await app.register(campaignRoutes, { campaigns });
   await app.register(campaignSourceRoutes, { sources });
   await app.register(campaignBriefRoutes, { briefs });
   await app.register(productMatchingRoutes, { matching });
   await app.register(assetPoolRoutes, { pool });
   await app.register(mediaSelectionRoutes, { selection, repositories });
+  await app.register(generationRoutes, { generation });
 };
