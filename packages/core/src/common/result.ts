@@ -28,5 +28,6 @@ export function isErr<T, E>(result: Result<T, E>): result is Err<E> {
 
 export function unwrap<T, E>(result: Result<T, E>): T {
   if (result.ok) return result.value;
-  throw result.error;
+  const failure = result as Err<E>;
+  throw failure.error;
 }
