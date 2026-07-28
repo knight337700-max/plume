@@ -1,0 +1,4 @@
+import { describe, expect, it } from "vitest";
+import { createInMemoryCatalogRepository } from "./repositories.js";
+import { createCatalogQueryUseCases } from "./query-use-cases.js";
+describe("catalog queries", () => { it("returns effective profile detail and validation bundle", async () => { const repo = createInMemoryCatalogRepository({ channels: [{ id: "c1", code: "KAKAO_MOMENT", name: "Kakao", status: "ACTIVE", metadata: {} }], profiles: [{ id: "p1", channelId: "c1", channelCode: "KAKAO_MOMENT", stableKey: "bizboard", version: "v1", name: "Bizboard", status: "ACTIVE", renderMode: "TEMPLATE", mediaType: "STATIC_IMAGE", spec: { placements: ["p"], rules: ["r"] }, ruleSetId: "r", exportRecipeId: "e", revisionNo: 1 }] }); const queries = createCatalogQueryUseCases(repo); expect(await queries.getProfile("p1")).toMatchObject({ placements: ["p"], templates: [] }); expect(await queries.getValidationBundle("p1")).toMatchObject({ rules: ["r"] }); }); });
