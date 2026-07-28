@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
     "codegen:openapi": "node ../../tools/codegen/openapi.ts",
     "dev": "tsc -p tsconfig.json --watch",
