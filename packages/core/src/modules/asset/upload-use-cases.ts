@@ -79,6 +79,7 @@ export interface UploadUseCases {
   complete(input: CompleteUploadInput): Promise<FileObjectRecord>;
   abort(workspaceId: string, uploadId: string): Promise<void>;
   getFile(workspaceId: string, fileId: string): Promise<FileObjectRecord>;
+  getDownloadUrl(workspaceId: string, fileId: string): Promise<{ url: string; expiresAt: string; filename: string }>;
 }
 
 const defaultVerifier: UploadVerifier = {
@@ -125,7 +126,7 @@ export function createUploadUseCases(dependencies: UploadUseCaseDependencies): U
       const mode: UploadMode = input.multipartPreferred ? "MULTIPART" : "SINGLE";
       const session: UploadSessionRecord = {
         id: createUploadId(), workspaceId: input.workspaceId, status: "CREATED", mode, filename: input.filename,
-        mimeType: input.mimeType, bytes: input.bytes, checksumSha256: input.checksumSha256 ?? undefined, purpose: input.purpose,
+        mimeType: input.mimeType, bytes: input.bytes, ...(input.checksumSha256 ? { checksumSha256: input.checksumSha256 } : {}), purpose: input.purpose,
         objectKey: dependencies.storage.createObjectKey("uploads"), bucket: dependencies.bucket, expiresAt, parts: [], createdAt, updatedAt: createdAt,
       };
       await repository.create(session);
@@ -189,6 +190,12 @@ export function createUploadUseCases(dependencies: UploadUseCaseDependencies): U
       const file = await repository.getFileObject(workspaceId, fileId);
       if (!file) throw uploadError("FILE_NOT_FOUND", "File object not found", 404);
       return file;
+    },
+    async getDownloadUrl(workspaceId, fileId) {
+      const file = await repository.getFileObject(workspaceId, fileId);
+      if (!file) throw uploadError("FILE_NOT_FOUND", "File object not found", 404);
+      const signed = await dependencies.storage.presign(file.objectKey, { method: "GET", expiresInSeconds: 300 });
+      return { url: signed.url, expiresAt: signed.expiresAt, filename: file.originalFilename };
     },
   };
 }
