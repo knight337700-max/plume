@@ -21,6 +21,7 @@ export interface EditOperation {
   readonly targetIds: readonly string[];
   readonly payload: Readonly<Record<string, unknown>>;
   readonly preconditions?: readonly Readonly<Record<string, unknown>>[];
+  readonly explanation?: string;
 }
 
 export interface EditOperationBatch {
