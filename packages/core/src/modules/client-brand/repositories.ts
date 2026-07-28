@@ -34,7 +34,7 @@ export interface ClientBrandRepositories {
 export interface ClientBrandSeed { readonly advertisers?: readonly AdvertiserRecord[]; readonly brands?: readonly BrandRecord[]; readonly profiles?: readonly BrandProfileRecord[]; readonly products?: readonly ProductRecord[]; readonly variants?: readonly ProductVariantRecord[] }
 const normalize = (value: string): string => value.trim().toLocaleLowerCase("en-US");
 function notFound(kind: string): Error { const error = new Error(`${kind} not found`); Object.assign(error, { code: "RESOURCE_NOT_FOUND", statusCode: 404 }); return error; }
-function revision<T extends { revisionNo: number }>(current: T, patch: Partial<T>): T { return Object.freeze({ ...current, ...patch, revisionNo: current.revisionNo + 1 }); }
+function revision<T extends { revisionNo: number }, P extends object>(current: T, patch: P): T & P { return Object.freeze({ ...current, ...patch, revisionNo: current.revisionNo + 1 }) as T & P; }
 
 export function createInMemoryClientBrandRepositories(seed: ClientBrandSeed = {}): ClientBrandRepositories {
   const advertisers = new Map((seed.advertisers ?? []).map((item) => [item.id, item]));
