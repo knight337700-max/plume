@@ -1,0 +1,5 @@
+import { describe, expect, it } from "vitest";
+import { createInMemoryCatalogRepository } from "./repositories.js";
+import { CatalogSeedLoader } from "./seed-loader.js";
+const source = `catalog:\n  channel:\n    code: KAKAO_MOMENT\n    name: Kakao\n  version: 0.1.0\nformat_profiles:\n  - id: kakao.bizboard.v1\n    display_name: Bizboard\n    status: ACTIVE\n    render_mode: TRANSPARENT_TEMPLATE\n    media_type: STATIC_IMAGE\n    canvas:\n      width: 1029\n      height: 258\n    rule_set_id: rules.v1\n    export_recipe_id: recipe.v1\n`;
+describe("catalog seed loader", () => { it("is idempotent and stores source hash", async () => { const repo = createInMemoryCatalogRepository(); const loader = new CatalogSeedLoader(repo); const first = await loader.load(source); const second = await loader.load(source); expect(first.inserted).toBe(1); expect(second.existing).toBe(1); expect(first.sourceHash).toHaveLength(64); expect(await repo.listFormatProfiles("KAKAO_MOMENT")).toHaveLength(1); }); });
