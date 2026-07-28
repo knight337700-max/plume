@@ -48,6 +48,7 @@ export interface CreativeUseCases {
     readonly workspaceId: string;
     readonly creativeId: string;
     readonly id?: string;
+    readonly targetCreativeSetId?: string | null;
   }): Promise<CreativeDuplicateResult>;
   listVersions(workspaceId: string, creativeId: string): Promise<readonly CreativeVersionRecord[]>;
   getVersion(workspaceId: string, versionId: string): Promise<CreativeVersionRecord | null>;
@@ -146,10 +147,17 @@ export function createCreativeUseCases(dependencies: {
         input.creativeId,
       );
       if (!source) throw notFound("Creative");
+      const targetSet = input.targetCreativeSetId
+        ? await dependencies.repositories.getCreativeSet(
+            input.workspaceId,
+            input.targetCreativeSetId,
+          )
+        : null;
+      if (input.targetCreativeSetId && !targetSet) throw notFound("Creative set");
       const creative = await dependencies.repositories.createCreative({
         ...(input.id ? { id: input.id } : {}),
         workspaceId: source.workspaceId,
-        creativeSetId: source.creativeSetId,
+        creativeSetId: targetSet?.id ?? source.creativeSetId,
         campaignId: source.campaignId,
         productId: source.productId ?? null,
         campaignFormatSelectionId: source.campaignFormatSelectionId,
