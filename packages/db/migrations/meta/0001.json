@@ -1,0 +1,9 @@
+{
+  "id": "0001_initial",
+  "version": "1.0.0",
+  "dialect": "postgresql",
+  "entityCount": 63,
+  "sqlFile": "0001_initial.sql",
+  "generatedBy": "PLM-0029",
+  "notes": "Initial schema for the Plume MVP domain model."
+}
