@@ -30,11 +30,11 @@ function jpegDimensions(bytes: Uint8Array): ImageDimensions | null {
   let offset = 2;
   while (offset + 9 < bytes.byteLength) {
     if (bytes[offset] !== 0xff) { offset += 1; continue; }
-    const marker = bytes[offset + 1];
+    const marker = bytes[offset + 1] ?? 0;
     offset += 2;
     if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) continue;
     if (offset + 2 > bytes.byteLength) return null;
-    const segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
+    const segmentLength = ((bytes[offset] ?? 0) << 8) | (bytes[offset + 1] ?? 0);
     if (segmentLength < 2 || offset + segmentLength > bytes.byteLength) return null;
     const isStartOfFrame = (marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf);
     if (isStartOfFrame && segmentLength >= 7) {
