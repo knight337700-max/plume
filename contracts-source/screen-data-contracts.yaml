@@ -1,0 +1,1034 @@
+metadata:
+  title: Screen Data Contracts
+  version: 1.0.0
+  status: confirmed-for-mvp
+  updated_at: '2026-07-27'
+roles: &id001
+- OWNER
+- ADMIN
+- EDITOR
+- REVIEWER
+- VIEWER
+screen_count: 29
+screens:
+- id: AUTH-01
+  title: 로그인
+  route: /login
+  nav_zone: PUBLIC
+  purpose: 사용자 인증과 마지막 Workspace 복구
+  roles: *id001
+  reads:
+  - auth.session
+  - auth.providers
+  inputs:
+  - email
+  - password_or_sso
+  mutations:
+  - auth.login
+  jobs: []
+  components:
+  - login_form
+  - sso_buttons
+  - error_banner
+  states:
+  - DEFAULT
+  - SUBMITTING
+  - AUTH_ERROR
+  - LOCKED
+  exits:
+  - WS-01
+  - DASH-01
+- id: WS-01
+  title: 워크스페이스 선택
+  route: /workspaces
+  nav_zone: PUBLIC
+  purpose: 접근 가능한 Workspace 선택
+  roles: *id001
+  reads:
+  - workspace.memberships
+  inputs:
+  - workspace_id
+  mutations:
+  - workspace.select
+  jobs: []
+  components:
+  - workspace_cards
+  - recent_workspace
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - ERROR
+  exits:
+  - DASH-01
+- id: DASH-01
+  title: 대시보드
+  route: /w/:workspaceId/dashboard
+  nav_zone: GLOBAL
+  purpose: 최근 캠페인·승인·출고·실패 작업 요약
+  roles: *id001
+  reads:
+  - dashboard.summary
+  - campaign.recent
+  - approval.pending
+  - job.failed
+  inputs:
+  - date_range
+  - advertiser_filter
+  mutations: []
+  jobs: []
+  components:
+  - summary_cards
+  - recent_campaigns
+  - pending_approvals
+  - failed_jobs
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - PARTIAL_ERROR
+  exits:
+  - ADV-01
+  - CAMP-01
+  - APPROVAL-01
+  - JOB-01
+- id: ADV-01
+  title: 광고주 목록
+  route: /w/:workspaceId/advertisers
+  nav_zone: GLOBAL
+  purpose: 광고주·브랜드 탐색과 생성
+  roles: *id001
+  reads:
+  - advertiser.list
+  inputs:
+  - search
+  - status_filter
+  - owner_filter
+  mutations:
+  - advertiser.create
+  - advertiser.archive
+  jobs: []
+  components:
+  - search_bar
+  - advertiser_table
+  - create_button
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - ERROR
+  exits:
+  - ADV-02
+- id: ADV-02
+  title: 광고주·브랜드 개요
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId
+  nav_zone: BRAND
+  purpose: 브랜드 캠페인·제품·에셋 현황 확인
+  roles: *id001
+  reads:
+  - brand.detail
+  - campaign.summary
+  - product.summary
+  - asset.summary
+  inputs:
+  - period
+  mutations:
+  - brand.update
+  jobs: []
+  components:
+  - brand_header
+  - campaign_cards
+  - product_stats
+  - asset_stats
+  states:
+  - LOADING
+  - READY
+  - NOT_FOUND
+  - NO_ACCESS
+  exits:
+  - PROD-01
+  - ASSET-01
+  - CAMP-02
+  - CAMP-03
+- id: PROD-01
+  title: 제품 라이브러리
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/products
+  nav_zone: BRAND
+  purpose: 제품 등록·검색·에셋 연결
+  roles: *id001
+  reads:
+  - product.list
+  - product.asset_counts
+  inputs:
+  - search
+  - category
+  - status
+  - tags
+  mutations:
+  - product.create
+  - product.bulk_update
+  - product.archive
+  jobs:
+  - product.import
+  components:
+  - filters
+  - product_grid
+  - bulk_actions
+  - import_button
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - IMPORTING
+  - ERROR
+  exits:
+  - PROD-02
+- id: PROD-02
+  title: 제품 상세
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/products/:productId
+  nav_zone: BRAND
+  purpose: 제품 메타데이터·변형·대표 에셋 관리
+  roles: *id001
+  reads:
+  - product.detail
+  - product.variants
+  - product.assets
+  - product.usage
+  inputs:
+  - name
+  - sku
+  - category
+  - attributes
+  - landing_url
+  - representative_asset
+  mutations:
+  - product.update
+  - product.variant_upsert
+  - product.asset_link
+  jobs:
+  - asset.analyze
+  components:
+  - product_form
+  - variant_table
+  - asset_selector
+  - usage_history
+  states:
+  - LOADING
+  - READY
+  - SAVING
+  - VALIDATION_ERROR
+  - NOT_FOUND
+  exits:
+  - PROD-01
+  - ASSET-01
+- id: ASSET-01
+  title: 에셋 라이브러리
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/assets
+  nav_zone: BRAND
+  purpose: 이미지·로고·가이드 파일 등록과 분류
+  roles: *id001
+  reads:
+  - asset.list
+  - asset.analysis
+  inputs:
+  - files
+  - search
+  - asset_type
+  - product
+  - ratio
+  - license_status
+  mutations:
+  - asset.upload
+  - asset.update
+  - asset.archive
+  jobs:
+  - asset.analyze
+  - asset.thumbnail
+  - asset.background_remove
+  components:
+  - upload_dropzone
+  - asset_grid
+  - filter_panel
+  - analysis_badges
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - UPLOADING
+  - ANALYZING
+  - ERROR
+  exits:
+  - PROD-02
+  - ASSET-02
+- id: CAMP-01
+  title: 캠페인 목록
+  route: /w/:workspaceId/campaigns
+  nav_zone: GLOBAL
+  purpose: 전체 캠페인 검색·필터·진행 상태 확인
+  roles: *id001
+  reads:
+  - campaign.list
+  - campaign.progress_summary
+  inputs:
+  - search
+  - advertiser
+  - brand
+  - status
+  - channel
+  - date_range
+  mutations:
+  - campaign.archive
+  - campaign.duplicate
+  jobs: []
+  components:
+  - campaign_table
+  - filters
+  - progress_badges
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - ERROR
+  exits:
+  - CAMP-02
+  - CAMP-03
+- id: CAMP-02
+  title: 캠페인 생성
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/campaigns/new
+  nav_zone: BRAND
+  purpose: 캠페인 기본 정보 생성
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  reads:
+  - brand.detail
+  - campaign.templates
+  inputs:
+  - name
+  - objective
+  - start_date
+  - end_date
+  - landing_url
+  - owner_id
+  mutations:
+  - campaign.create
+  jobs: []
+  components:
+  - campaign_form
+  - template_selector
+  states:
+  - DEFAULT
+  - SUBMITTING
+  - VALIDATION_ERROR
+  - ERROR
+  exits:
+  - CAMP-03
+  - BRIEF-01
+- id: CAMP-03
+  title: 캠페인 개요
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId
+  nav_zone: CAMPAIGN
+  purpose: 캠페인 전체 진행과 다음 행동 안내
+  roles: *id001
+  reads:
+  - campaign.detail
+  - campaign.progress
+  - campaign.activity
+  - creative.summary
+  inputs: []
+  mutations:
+  - campaign.update
+  - campaign.complete
+  jobs: []
+  components:
+  - campaign_header
+  - workflow_stepper
+  - status_cards
+  - activity_feed
+  states:
+  - LOADING
+  - READY
+  - INCOMPLETE
+  - NOT_FOUND
+  - NO_ACCESS
+  exits:
+  - BRIEF-01
+  - BRIEF-02
+  - MATCH-01
+  - ASSET-02
+  - MEDIA-01
+  - CREATIVE-01
+- id: BRIEF-01
+  title: 캠페인 자료 업로드
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/sources
+  nav_zone: CAMPAIGN
+  purpose: 기획서·브랜드 가이드·프로모션 자료 등록
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  reads:
+  - campaign.sources
+  - source.analysis_status
+  inputs:
+  - files
+  - source_type
+  - notes
+  mutations:
+  - source.upload
+  - source.delete
+  - brief.analysis_request
+  jobs:
+  - brief.analyze
+  components:
+  - upload_dropzone
+  - source_list
+  - analysis_progress
+  states:
+  - READY
+  - UPLOADING
+  - ANALYZING
+  - PARTIAL_FAILURE
+  - ERROR
+  exits:
+  - BRIEF-02
+- id: BRIEF-02
+  title: AI 브리프 검토
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/brief
+  nav_zone: CAMPAIGN
+  purpose: AI 브리프 수정·버전·확정
+  roles: *id001
+  reads:
+  - brief.current
+  - brief.versions
+  - source.citations
+  inputs:
+  - objective
+  - target
+  - benefits
+  - brand_message
+  - campaign_message
+  - products
+  - forbidden_expressions
+  - landing_url
+  mutations:
+  - brief.update
+  - brief.create_version
+  - brief.confirm
+  - brief.reanalyze
+  jobs:
+  - brief.reanalyze
+  components:
+  - brief_form
+  - source_citations
+  - version_compare
+  - confirm_button
+  states:
+  - LOADING
+  - DRAFT
+  - SAVING
+  - ANALYZING
+  - CONFIRMED
+  - ERROR
+  exits:
+  - MATCH-01
+  - CAMP-03
+- id: MATCH-01
+  title: 제품 매칭
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/product-matching
+  nav_zone: CAMPAIGN
+  purpose: 브리프 제품명과 Product Library 연결
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  - REVIEWER
+  reads:
+  - brief.products
+  - product.match_candidates
+  - campaign.products
+  inputs:
+  - selected_product_id
+  - new_product
+  - exclude_product
+  - match_reason
+  mutations:
+  - campaign.product_match_confirm
+  - product.create
+  jobs:
+  - product.match
+  components:
+  - extracted_products
+  - candidate_cards
+  - confidence_badges
+  - create_product_modal
+  states:
+  - LOADING
+  - MATCHING
+  - REVIEW_REQUIRED
+  - CONFIRMED
+  - ERROR
+  exits:
+  - ASSET-02
+  - PROD-02
+- id: ASSET-02
+  title: 캠페인 에셋 풀
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/assets
+  nav_zone: CAMPAIGN
+  purpose: 제품별 추천 에셋 검토와 사용 범위 확정
+  roles: *id001
+  reads:
+  - campaign.products
+  - campaign.asset_pool
+  - asset.recommendations
+  inputs:
+  - asset_selection
+  - preferred_asset
+  - excluded_asset
+  - asset_notes
+  mutations:
+  - campaign.asset_pool_update
+  - asset.recommendation_request
+  jobs:
+  - asset.recommend
+  components:
+  - product_columns
+  - asset_cards
+  - recommendation_score
+  - license_warning
+  states:
+  - LOADING
+  - RECOMMENDING
+  - READY
+  - INSUFFICIENT_ASSETS
+  - ERROR
+  exits:
+  - MEDIA-01
+  - ASSET-01
+- id: MEDIA-01
+  title: 채널 선택
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/channel
+  nav_zone: CAMPAIGN
+  purpose: 캠페인 제작 채널 선택
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  reads:
+  - media.channels
+  - campaign.channel_selections
+  - catalog.availability
+  inputs:
+  - channel_codes
+  mutations:
+  - campaign.channel_selection_update
+  jobs: []
+  components:
+  - channel_cards
+  - coverage_badges
+  - unsupported_notice
+  states:
+  - LOADING
+  - READY
+  - NO_AVAILABLE_CHANNEL
+  - ERROR
+  exits:
+  - MEDIA-02
+- id: MEDIA-02
+  title: 상품·지면·규격 선택
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/format
+  nav_zone: CAMPAIGN
+  purpose: 카탈로그 기반 광고 상품·규격·템플릿 확정
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  reads:
+  - catalog.product_tree
+  - catalog.format_profile
+  - catalog.rules
+  - catalog.export_recipe
+  inputs:
+  - purchase_type
+  - product_family_id
+  - ad_product_id
+  - placement_ids
+  - format_profile_id
+  - template_variant
+  mutations:
+  - campaign.format_selection_update
+  jobs: []
+  components:
+  - product_tree
+  - placement_selector
+  - format_cards
+  - requirements_panel
+  - preview
+  states:
+  - LOADING
+  - READY
+  - PENDING_VERIFY
+  - LEGACY_BLOCKED
+  - UNAVAILABLE
+  - ERROR
+  exits:
+  - GEN-01
+  - CATALOG-01
+- id: GEN-01
+  title: 생성 설정
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/generate
+  nav_zone: CAMPAIGN
+  purpose: 제품·에셋·카피·생성 수·방식 확정
+  roles:
+  - OWNER
+  - ADMIN
+  - EDITOR
+  reads:
+  - campaign.brief
+  - campaign.products
+  - campaign.asset_pool
+  - campaign.format_selection
+  - generation.defaults
+  inputs:
+  - generation_mode
+  - product_ids
+  - variant_count
+  - copy_options
+  - asset_strategy
+  - template_strategy
+  mutations:
+  - creative_set.create
+  - generation.request
+  jobs:
+  - creative.generate
+  components:
+  - generation_mode_cards
+  - product_selector
+  - asset_preview
+  - copy_options
+  - cost_estimate
+  - run_button
+  states:
+  - LOADING
+  - READY
+  - INVALID_CONFIGURATION
+  - SUBMITTING
+  - ERROR
+  exits:
+  - GEN-02
+- id: GEN-02
+  title: 생성 진행
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/generation/:jobId
+  nav_zone: CAMPAIGN
+  purpose: 제품별 생성 단계·진행률·실패 확인
+  roles: *id001
+  reads:
+  - job.detail
+  - generation.items
+  - generation.logs
+  inputs: []
+  mutations:
+  - job.cancel
+  - job.retry_failed
+  jobs:
+  - creative.generate
+  components:
+  - progress_stepper
+  - product_job_rows
+  - log_drawer
+  - cancel_button
+  states:
+  - QUEUED
+  - RUNNING
+  - PARTIAL_SUCCESS
+  - FAILED
+  - CANCELLED
+  - COMPLETED
+  exits:
+  - CREATIVE-01
+  - JOB-01
+- id: CREATIVE-01
+  title: 소재 결과 갤러리
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/creatives
+  nav_zone: CAMPAIGN
+  purpose: Creative 비교·선택·일괄 행동
+  roles: *id001
+  reads:
+  - creative_set.list
+  - creative.preview
+  - validation.summary
+  - approval.summary
+  inputs:
+  - product_filter
+  - format_filter
+  - status_filter
+  - selected_creatives
+  mutations:
+  - creative.duplicate
+  - creative.archive
+  - validation.bulk_request
+  - approval.bulk_request
+  jobs:
+  - validation.run
+  - preview.render
+  components:
+  - creative_grid
+  - comparison_mode
+  - bulk_action_bar
+  - status_badges
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - RENDERING
+  - PARTIAL_ERROR
+  exits:
+  - EDITOR-01
+  - VALID-01
+  - APPROVAL-02
+  - EXPORT-01
+- id: EDITOR-01
+  title: 소재 편집기
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/creatives/:creativeId/versions/:versionId/edit
+  nav_zone: CREATIVE
+  purpose: 캔버스·카피·에셋·레이어·자연어 편집
+  roles: *id001
+  reads:
+  - creative.version
+  - creative.document
+  - asset.available
+  - catalog.template
+  - validation.latest
+  - comment.list
+  inputs:
+  - canvas_operations
+  - text_edits
+  - asset_replacements
+  - natural_language_command
+  - comments
+  mutations:
+  - creative.autosave
+  - creative.version_create
+  - creative.operation_apply
+  - comment.create
+  - validation.request
+  jobs:
+  - creative.render
+  - natural_language_edit
+  - validation.run
+  components:
+  - canvas
+  - layers_panel
+  - asset_panel
+  - property_panel
+  - ai_command
+  - validation_panel
+  - version_timeline
+  states:
+  - LOADING
+  - READY
+  - DIRTY
+  - AUTOSAVING
+  - RENDERING
+  - VALIDATING
+  - READ_ONLY
+  - CONFLICT
+  - ERROR
+  exits:
+  - VALID-01
+  - CREATIVE-01
+  - APPROVAL-02
+- id: VALID-01
+  title: 검수 상세
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/creatives/:creativeId/versions/:versionId/validation
+  nav_zone: CREATIVE
+  purpose: 확정형·AI 검수 결과와 수정 안내 확인
+  roles: *id001
+  reads:
+  - validation.run
+  - validation.results
+  - creative.preview
+  - rule.sources
+  inputs:
+  - severity_filter
+  - rule_type_filter
+  - warning_acknowledgement
+  mutations:
+  - validation.rerun
+  - validation.warning_acknowledge
+  - creative.open_fix
+  jobs:
+  - validation.run
+  components:
+  - validation_summary
+  - result_list
+  - canvas_markers
+  - source_links
+  - rerun_button
+  states:
+  - LOADING
+  - RUNNING
+  - PASS
+  - WARNING
+  - ERROR_FOUND
+  - FAILED
+  exits:
+  - EDITOR-01
+  - APPROVAL-02
+- id: APPROVAL-01
+  title: 승인 큐
+  route: /w/:workspaceId/approvals
+  nav_zone: GLOBAL
+  purpose: 검토 대기 소재 검색·우선순위·일괄 처리
+  roles:
+  - OWNER
+  - ADMIN
+  - REVIEWER
+  - VIEWER
+  reads:
+  - approval.queue
+  - approval.metrics
+  inputs:
+  - advertiser
+  - campaign
+  - requester
+  - age
+  - severity
+  - status
+  mutations:
+  - approval.bulk_assign
+  jobs: []
+  components:
+  - queue_table
+  - filters
+  - sla_badges
+  - assignee_selector
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - ERROR
+  exits:
+  - APPROVAL-02
+- id: APPROVAL-02
+  title: 승인 상세
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/approvals/:approvalId
+  nav_zone: CAMPAIGN
+  purpose: 버전·검수·코멘트 확인 후 승인·반려
+  roles:
+  - OWNER
+  - ADMIN
+  - REVIEWER
+  - VIEWER
+  reads:
+  - approval.detail
+  - creative.version
+  - validation.latest
+  - comment.list
+  - version.diff
+  inputs:
+  - decision
+  - comment
+  - warning_reason
+  mutations:
+  - approval.approve
+  - approval.reject
+  - approval.comment
+  jobs: []
+  components:
+  - creative_preview
+  - validation_summary
+  - version_diff
+  - decision_panel
+  states:
+  - LOADING
+  - PENDING
+  - APPROVED
+  - REJECTED
+  - SUPERSEDED
+  - NO_ACCESS
+  exits:
+  - EDITOR-01
+  - EXPORT-01
+  - APPROVAL-01
+- id: EXPORT-01
+  title: 출고 설정
+  route: /w/:workspaceId/a/:advertiserId/b/:brandId/c/:campaignId/exports/new
+  nav_zone: CAMPAIGN
+  purpose: 승인 소재·파일명·패키지·최적화 설정
+  roles:
+  - OWNER
+  - ADMIN
+  - REVIEWER
+  reads:
+  - creative.approved_versions
+  - export.recipe
+  - export.filename_preview
+  inputs:
+  - creative_version_ids
+  - filename_pattern
+  - include_manifest
+  - include_validation_report
+  - compression
+  mutations:
+  - export.request
+  jobs:
+  - export.render_and_package
+  components:
+  - approved_creative_list
+  - file_tree_preview
+  - options_form
+  - export_button
+  states:
+  - LOADING
+  - READY
+  - INVALID_SELECTION
+  - SUBMITTING
+  - ERROR
+  exits:
+  - EXPORT-02
+- id: EXPORT-02
+  title: 출고 이력·상세
+  route: /w/:workspaceId/exports/:exportJobId
+  nav_zone: GLOBAL
+  purpose: 출고 진행·결과·다운로드·재출고
+  roles: *id001
+  reads:
+  - export.job
+  - export.files
+  - export.manifest
+  - export.validation_snapshot
+  inputs: []
+  mutations:
+  - export.cancel
+  - export.retry
+  - export.download_log
+  jobs:
+  - export.render_and_package
+  components:
+  - export_progress
+  - file_list
+  - download_button
+  - manifest_viewer
+  states:
+  - QUEUED
+  - RUNNING
+  - FAILED
+  - CANCELLED
+  - COMPLETED
+  - EXPIRED
+  exits:
+  - CREATIVE-01
+  - JOB-01
+- id: CATALOG-01
+  title: 미디어 카탈로그 관리
+  route: /w/:workspaceId/media-catalog
+  nav_zone: ADMIN
+  purpose: 채널·상품·지면·규격·규칙·출고 레시피 관리
+  roles:
+  - OWNER
+  - ADMIN
+  - VIEWER
+  reads:
+  - catalog.channels
+  - catalog.products
+  - catalog.formats
+  - catalog.rules
+  - catalog.templates
+  - catalog.sources
+  inputs:
+  - channel
+  - status
+  - verification_status
+  - search
+  mutations:
+  - catalog.version_create
+  - catalog.status_update
+  - catalog.verify
+  jobs:
+  - catalog.integrity_check
+  components:
+  - catalog_tree
+  - profile_detail
+  - rule_links
+  - source_panel
+  - integrity_badge
+  states:
+  - LOADING
+  - READY
+  - VALIDATING
+  - INVALID
+  - ERROR
+  exits:
+  - MEDIA-02
+  - JOB-01
+- id: JOB-01
+  title: 작업 센터
+  route: /w/:workspaceId/jobs
+  nav_zone: GLOBAL
+  purpose: 생성·분석·렌더·검수·출고 Job 통합 관리
+  roles: *id001
+  reads:
+  - job.list
+  - job.metrics
+  inputs:
+  - job_type
+  - status
+  - owner
+  - date_range
+  mutations:
+  - job.retry
+  - job.cancel
+  jobs: []
+  components:
+  - job_table
+  - filters
+  - log_drawer
+  - retry_button
+  states:
+  - LOADING
+  - READY
+  - EMPTY
+  - ERROR
+  exits:
+  - GEN-02
+  - EXPORT-02
+- id: SET-01
+  title: 워크스페이스 설정
+  route: /w/:workspaceId/settings
+  nav_zone: ADMIN
+  purpose: 워크스페이스·권한·승인·파일 정책 관리
+  roles:
+  - OWNER
+  - ADMIN
+  reads:
+  - workspace.detail
+  - workspace.members
+  - workspace.policies
+  inputs:
+  - workspace_name
+  - members
+  - roles
+  - self_approval_allowed
+  - retention_policy
+  - filename_policy
+  mutations:
+  - workspace.update
+  - membership.invite
+  - membership.role_update
+  - workspace.policy_update
+  jobs: []
+  components:
+  - workspace_form
+  - member_table
+  - policy_form
+  - danger_zone
+  states:
+  - LOADING
+  - READY
+  - SAVING
+  - VALIDATION_ERROR
+  - ERROR
+  exits:
+  - DASH-01
