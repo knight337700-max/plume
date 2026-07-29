@@ -23,4 +23,12 @@ export default defineWorkspace([
       passWithNoTests: false,
     },
   },
+  {
+    test: {
+      name: "gate-g-api-e2e",
+      include: ["apps/api/e2e/jacomo-flow.spec.ts"],
+      exclude: ["**/node_modules/**", "**/dist/**"],
+      passWithNoTests: false,
+    },
+  },
 ]);
