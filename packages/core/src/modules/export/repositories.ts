@@ -89,6 +89,7 @@ export interface ExportRepositories {
   updateItem(workspaceId: string, id: string, patch: Partial<Pick<ExportItemRecord, "status" | "errorJson" | "checkpointJson">>): Promise<ExportItemRecord>;
   appendFile(input: CreateExportFileInput): Promise<ExportFileRecord>;
   listFiles(workspaceId: string, exportJobId: string): Promise<readonly ExportFileRecord[]>;
+  getFile(workspaceId: string, id: string): Promise<ExportFileRecord | null>;
 }
 
 function clone<T>(value: T): T {
@@ -179,6 +180,9 @@ export function createInMemoryExportRepositories(seed: {
       if (!job || job.workspaceId !== workspaceId) throw notFound("Export job");
       return [...files.values()].filter((file) => file.workspaceId === workspaceId && file.exportJobId === exportJobId).sort((left, right) => left.relativePath.localeCompare(right.relativePath));
     },
+    async getFile(workspaceId, id) {
+      const file = files.get(id);
+      return file?.workspaceId === workspaceId ? file : null;
+    },
   };
 }
-

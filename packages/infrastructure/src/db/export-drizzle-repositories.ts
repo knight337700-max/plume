@@ -14,5 +14,5 @@ export class DrizzleExportRepositories implements ExportRepositories {
   updateItem(...args: Parameters<ExportRepositories["updateItem"]>) { return this.delegate.updateItem(...args); }
   appendFile(...args: Parameters<ExportRepositories["appendFile"]>) { return this.delegate.appendFile(...args); }
   listFiles(...args: Parameters<ExportRepositories["listFiles"]>) { return this.delegate.listFiles(...args); }
+  getFile(...args: Parameters<ExportRepositories["getFile"]>) { return this.delegate.getFile(...args); }
 }
-

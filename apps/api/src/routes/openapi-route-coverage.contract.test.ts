@@ -12,8 +12,8 @@ const coverage = compareRouteCoverage(operationIds, registered);
 describe("OpenAPI route coverage", () => {
   it("classifies implemented routes and intentional pending operations", () => {
     expect(operationIds).toHaveLength(137);
-    expect(coverage.implemented).toHaveLength(108);
-    expect(coverage.pending).toHaveLength(29);
+    expect(coverage.implemented).toHaveLength(126);
+    expect(coverage.pending).toHaveLength(11);
     expect(coverage.unclassified).toHaveLength(0);
   });
 });
