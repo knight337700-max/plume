@@ -51,7 +51,12 @@ export function createValidationWorkerHandler(dependencies: { readonly repositor
     await dependencies.repositories.updateRun(input.workspaceId, run.id, { status: "RUNNING", summaryJson: {}, completedAt: null });
     try {
       const compiled = compileValidationRuleBundle(input.ruleSnapshot as ValidationRuleBundleInput, { snapshotId: `validation-${run.id}` });
-      const deterministic = runDeterministicValidation({ creativeDocument: input.creativeDocument, rules: compiled.rules, file: input.file, formatProfile: input.formatSnapshot });
+      const deterministic = runDeterministicValidation({
+        creativeDocument: input.creativeDocument,
+        rules: compiled.rules,
+        ...(input.file === undefined ? {} : { file: input.file }),
+        ...(input.formatSnapshot === undefined ? {} : { formatProfile: input.formatSnapshot }),
+      });
       const aggregate = aggregateValidationFindings(deterministic.findings, input.aiFindings ?? []);
       const saved = await dependencies.repositories.appendResults(aggregate.findings.map((finding) => ({
         workspaceId: input.workspaceId,

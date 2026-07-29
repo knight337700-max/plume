@@ -49,10 +49,12 @@ function expectedDimension(rule: ValidationRuleDefinition, context: Deterministi
   const value = valueRecord(rule.value);
   const profile = valueRecord(context.formatProfile);
   const spec = valueRecord(profile.spec);
-  return {
-    width: numeric(value.width ?? spec.width ?? profile.width),
-    height: numeric(value.height ?? spec.height ?? profile.height),
-  };
+  const result: { width?: number; height?: number } = {};
+  const width = numeric(value.width ?? spec.width ?? profile.width);
+  const height = numeric(value.height ?? spec.height ?? profile.height);
+  if (width !== undefined) result.width = width;
+  if (height !== undefined) result.height = height;
+  return result;
 }
 
 function textValue(element: CreativeElement): string {
