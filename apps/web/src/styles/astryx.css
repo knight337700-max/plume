@@ -1,0 +1,5 @@
+@layer astryx-reset, astryx-core, astryx-theme;
+
+@import "@astryxdesign/core/reset.css" layer(astryx-reset);
+@import "@astryxdesign/core/astryx.css" layer(astryx-core);
+@import "@astryxdesign/theme-neutral/theme.css" layer(astryx-theme);

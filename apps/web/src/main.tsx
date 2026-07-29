@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
+import "./styles/astryx.css";
 import { queryClient } from "./app/query-client";
 import { createAppRouter } from "./app/router";
 

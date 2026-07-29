@@ -1,0 +1,19 @@
+metadata:
+  title: Astryx Runtime Lock
+  version: 1.0.0
+  updated_at: '2026-07-29'
+  status: VERIFIED
+packages:
+  '@astryxdesign/core': 0.1.9
+  '@astryxdesign/theme-neutral': 0.1.9
+  '@astryxdesign/cli': 0.1.9
+rules:
+  exact_version: true
+  all_astryx_packages_same_version: true
+  reverify_before_first_install: true
+  run_astryx_doctor_in_ci: true
+  upgrade_in_separate_pull_request: true
+verification:
+  registry: PASS
+  cli_init_all: PASS
+  cli_doctor: PASS
