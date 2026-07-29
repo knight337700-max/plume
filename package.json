@@ -27,6 +27,7 @@
     "db:reset:test": "node --experimental-strip-types packages/db/src/testing/reset.ts reset",
     "db:seed:test": "node --experimental-strip-types packages/db/src/testing/seed-base.ts",
     "contracts:check": "pnpm codegen:openapi && pnpm codegen:screens && pnpm codegen:agent-schemas && prettier --write packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts && git diff --exit-code -- packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts",
+    "integrity": "node --experimental-strip-types tools/integrity/architecture.ts && node --experimental-strip-types tools/integrity/ui-imports.ts && node --experimental-strip-types tools/integrity/task-traceability.ts && node --experimental-strip-types tools/integrity/verify-contract-manifest.ts && node --experimental-strip-types tools/integrity/list-fastify-routes.ts --check",
     "dev": "pnpm -r --parallel dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
