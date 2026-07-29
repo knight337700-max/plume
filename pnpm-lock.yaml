@@ -158,6 +158,10 @@ importers:
       postgres:
         specifier: 3.4.7
         version: 3.4.7
+    devDependencies:
+      fastify:
+        specifier: 5.3.3
+        version: 5.3.3
 
   packages/ui:
     dependencies:

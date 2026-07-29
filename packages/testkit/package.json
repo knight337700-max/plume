@@ -15,5 +15,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node -e \"console.log('No testkit tests yet')\""
+  },
+  "devDependencies": {
+    "fastify": "5.3.3"
   }
 }
