@@ -33,6 +33,7 @@ function activation(rule: ValidationRuleDefinition, asOf: Date): "INFO" | "WARNI
   const metadata = rule.metadata ?? {};
   const effectiveFrom = rule.effectiveFrom ?? String(metadata.effective_from ?? "");
   const warningFrom = rule.warningFrom ?? String(metadata.warning_from ?? "");
+  if (!effectiveFrom && !warningFrom) return rule.severity === "SCHEDULED" ? "ERROR" : rule.severity;
   const effective = effectiveFrom ? new Date(effectiveFrom).getTime() : Number.POSITIVE_INFINITY;
   const warning = warningFrom ? new Date(warningFrom).getTime() : effective;
   const now = asOf.getTime();

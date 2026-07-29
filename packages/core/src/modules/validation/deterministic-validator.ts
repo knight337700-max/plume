@@ -9,6 +9,8 @@ import {
   visibleElements,
 } from "./rules/index.js";
 
+export type { ValidationFileMetadata } from "./rules/index.js";
+
 export interface DeterministicValidationInput extends DeterministicRuleContext {
   readonly rules?: readonly (EffectiveValidationRule | ValidationRuleDefinition)[];
   readonly ruleBundle?: { readonly rules: readonly (EffectiveValidationRule | ValidationRuleDefinition)[] };
