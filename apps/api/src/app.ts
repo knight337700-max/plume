@@ -7,6 +7,7 @@ import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
 import { assetFileRoutes, assetRoutesGroup } from "./routes/asset/index.js";
 import { campaignRouteGroup } from "./routes/campaign/index.js";
 import { creativeRouteGroup } from "./routes/creative/index.js";
+import { validationRouteGroup } from "./routes/validation/index.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -26,5 +27,6 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await app.register(assetRoutesGroup);
   await app.register(campaignRouteGroup);
   await app.register(creativeRouteGroup);
+  await app.register(validationRouteGroup);
   return app;
 }
