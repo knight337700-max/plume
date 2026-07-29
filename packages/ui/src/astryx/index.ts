@@ -27,6 +27,7 @@ export {
   Popover as AstryxPopover,
   ProgressBar as AstryxProgressBar,
   RadioList as AstryxRadioList,
+  ResizeHandle as AstryxResizeHandle,
   SelectableCard as AstryxSelectableCard,
   Selector as AstryxSelector,
   SegmentedControl as AstryxSegmentedControl,
