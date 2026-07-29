@@ -13,6 +13,7 @@ import { exportRouteGroup } from "./routes/export/index.js";
 import { operationsRouteGroup } from "./routes/operations/index.js";
 import { installTracingHooks } from "./plugins/tracing.js";
 import { registerMetricsRoute } from "./routes/system/metrics.js";
+import { registerDashboardRoute } from "./routes/system/dashboard.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -26,6 +27,7 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await installTracingHooks(app);
   await registerHealthRoute(app);
   await registerMetricsRoute(app);
+  await registerDashboardRoute(app);
   await app.register(authRoutes);
   await app.register(workspaceRoutes);
   await app.register(clientBrandRoutes);

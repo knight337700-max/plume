@@ -35,15 +35,15 @@ export const approvalRoutes: FastifyPluginAsync<ApprovalRouteOptions> = async (a
     reply.header("ETag", `W/\"approval-${item.id}-${item.status}\"`);
     return { data: item };
   });
-  const decide = (operationId: "approveRequest" | "rejectRequest", decision: "APPROVED" | "REJECTED") => app.post(`/api/v1/workspaces/:workspaceId/approval-requests/:approvalId.${decision === "APPROVED" ? "approve" : "reject"}`, { config: { operationId, roles: ["OWNER", "ADMIN", "REVIEWER"] } }, async (value) => {
+  const decide = (decision: "APPROVED" | "REJECTED") => async (value: unknown) => {
     const input = request(value);
     const payload = body(value);
     const item = await options.useCases.getRequest(input.params.workspaceId, input.params.approvalId);
     if (!item) return { code: "RESOURCE_NOT_FOUND" };
     return { data: await options.useCases.decide({ workspaceId: input.params.workspaceId, approvalRequestId: input.params.approvalId, decision, actorId: actor(value), actorRole: role(value), selfApprovalAllowed: header(value, "x-self-approval") === "true", currentCreativeVersionId: item.creativeVersionId, ...(payload.comment === undefined ? {} : { comment: payload.comment as string | null }), ...(payload.warningReason === undefined ? {} : { warningReason: payload.warningReason as string | null }) }) };
-  });
-  decide("approveRequest", "APPROVED");
-  decide("rejectRequest", "REJECTED");
+  };
+  app.post("/api/v1/workspaces/:workspaceId/approval-requests/:approvalId.approve", { config: { operationId: "approveRequest", roles: ["OWNER", "ADMIN", "REVIEWER"] } }, decide("APPROVED"));
+  app.post("/api/v1/workspaces/:workspaceId/approval-requests/:approvalId.reject", { config: { operationId: "rejectRequest", roles: ["OWNER", "ADMIN", "REVIEWER"] } }, decide("REJECTED"));
   app.post("/api/v1/workspaces/:workspaceId/approval-requests/:approvalId.cancel", { config: { operationId: "cancelApprovalRequest", roles: ["OWNER", "ADMIN", "EDITOR"] } }, async (value) => {
     const input = request(value);
     return { data: await options.useCases.cancel({ workspaceId: input.params.workspaceId, approvalRequestId: input.params.approvalId, actorId: actor(value) }) };

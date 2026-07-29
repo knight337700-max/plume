@@ -10,10 +10,10 @@ const registered = await readRegisteredRoutes();
 const coverage = compareRouteCoverage(operationIds, registered);
 
 describe("OpenAPI route coverage", () => {
-  it("classifies implemented routes and intentional pending operations", () => {
+  it("classifies every OpenAPI operation as implemented", () => {
     expect(operationIds).toHaveLength(137);
-    expect(coverage.implemented).toHaveLength(134);
-    expect(coverage.pending).toHaveLength(3);
+    expect(coverage.implemented).toHaveLength(137);
+    expect(coverage.pending).toHaveLength(0);
     expect(coverage.unclassified).toHaveLength(0);
   });
 });
