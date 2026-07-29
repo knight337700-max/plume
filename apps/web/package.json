@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --config ../../apps/web/vite.config.ts src",
     "preview": "vite preview",
     "astryx:doctor": "astryx doctor"
   },

@@ -6,8 +6,9 @@ describe("application router", () => {
     const rootRoute = routes[0];
 
     expect(rootRoute?.path).toBe("/");
-    expect(rootRoute?.children).toHaveLength(1);
-    expect(rootRoute?.children?.[0]?.index).toBe(true);
+    expect(rootRoute?.children).toHaveLength(2);
+    expect(rootRoute?.children?.some((child) => child.index)).toBe(true);
+    expect(rootRoute?.children?.some((child) => child.path === "e2e/jacomo")).toBe(true);
     expect(rootRoute?.errorElement).toBeDefined();
   });
 
