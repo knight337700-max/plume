@@ -19,3 +19,10 @@ export {
   type DomainModuleDefinition,
   type DomainModuleName,
 } from "./module.js";
+export {
+  createExportPackagePlan,
+  planExportPackage,
+  type ExportPackagePlan,
+  type ExportPackagePlanInput,
+  type ExportRecipePlanInput,
+} from "./modules/export/package-plan.js";
