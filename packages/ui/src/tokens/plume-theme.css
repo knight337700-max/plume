@@ -1,0 +1,84 @@
+@layer plume-theme {
+  :root {
+    color-scheme: light;
+
+    --plume-surface-app-body: var(--color-background-body);
+    --plume-surface-primary: var(--color-background-surface);
+    --plume-surface-card: var(--color-background-card);
+    --plume-surface-popover: var(--color-background-popover);
+    --plume-surface-muted: var(--color-background-muted);
+    --plume-surface-overlay: var(--color-overlay);
+
+    --plume-content-text-primary: var(--color-text-primary);
+    --plume-content-text-secondary: var(--color-text-secondary);
+    --plume-content-text-disabled: var(--color-text-disabled);
+    --plume-content-icon-primary: var(--color-icon-primary);
+    --plume-content-icon-secondary: var(--color-icon-secondary);
+    --plume-content-icon-disabled: var(--color-icon-disabled);
+
+    --plume-border-default: var(--color-border);
+    --plume-border-emphasized: var(--color-border-emphasized);
+
+    --plume-color-accent: var(--color-data-blue-4);
+    --plume-color-accent-hover: var(--color-data-blue-5);
+    --plume-color-accent-muted: var(--color-background-blue);
+    --plume-color-accent-border: var(--color-border-blue);
+    --plume-color-accent-text: var(--color-text-blue);
+    --plume-color-on-accent: var(--color-on-dark);
+
+    --plume-color-success: var(--color-success);
+    --plume-color-success-muted: var(--color-success-muted);
+    --plume-color-warning: var(--color-warning);
+    --plume-color-warning-muted: var(--color-warning-muted);
+    --plume-color-error: var(--color-error);
+    --plume-color-error-muted: var(--color-error-muted);
+    --plume-color-processing-surface: var(--color-background-blue);
+    --plume-color-processing-border: var(--color-border-blue);
+    --plume-color-processing-text: var(--color-text-blue);
+    --plume-color-neutral-surface: var(--color-background-gray);
+    --plume-color-neutral-border: var(--color-border-gray);
+    --plume-color-neutral-text: var(--color-text-gray);
+
+    --plume-spacing-0: var(--spacing-0);
+    --plume-spacing-0-5: var(--spacing-0-5);
+    --plume-spacing-1: var(--spacing-1);
+    --plume-spacing-1-5: var(--spacing-1-5);
+    --plume-spacing-2: var(--spacing-2);
+    --plume-spacing-3: var(--spacing-3);
+    --plume-spacing-4: var(--spacing-4);
+    --plume-spacing-5: var(--spacing-5);
+    --plume-spacing-6: var(--spacing-6);
+    --plume-spacing-7: var(--spacing-7);
+    --plume-spacing-8: var(--spacing-8);
+    --plume-spacing-9: var(--spacing-9);
+    --plume-spacing-10: var(--spacing-10);
+    --plume-spacing-11: var(--spacing-11);
+    --plume-spacing-12: var(--spacing-12);
+
+    --plume-size-element-sm: var(--size-element-sm);
+    --plume-size-element-md: var(--size-element-md);
+    --plume-size-element-lg: var(--size-element-lg);
+
+    --plume-radius-none: var(--radius-none);
+    --plume-radius-inner: var(--radius-inner);
+    --plume-radius-element: var(--radius-element);
+    --plume-radius-container: var(--radius-container);
+    --plume-radius-page: var(--radius-page);
+    --plume-radius-full: var(--radius-full);
+
+    --plume-shadow-low: var(--shadow-low);
+    --plume-shadow-medium: var(--shadow-med);
+    --plume-shadow-high: var(--shadow-high);
+    --plume-shadow-focus-selected: var(--shadow-inset-selected);
+    --plume-shadow-focus-warning: var(--shadow-inset-warning);
+    --plume-shadow-focus-error: var(--shadow-inset-error);
+
+    --plume-duration-micro: var(--duration-fast);
+    --plume-duration-panel: var(--duration-medium);
+    --plume-duration-continuous: var(--duration-slow);
+    --plume-easing-standard: var(--ease-standard);
+
+    --plume-font-body:
+      Figtree, Pretendard, "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  }
+}
