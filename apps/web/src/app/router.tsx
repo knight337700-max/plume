@@ -1,8 +1,5 @@
-import {
-  createBrowserRouter,
-  Outlet,
-  type RouteObject,
-} from "react-router-dom";
+import { createBrowserRouter, Outlet, type RouteObject } from "react-router-dom";
+import { JacomoWorkflowScreen } from "../screens/e2e/jacomo-workflow-screen";
 
 type ViteImportMeta = ImportMeta & {
   env?: Record<string, string | undefined>;
@@ -49,7 +46,10 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppLayout />,
     errorElement: <RouteErrorPage />,
-    children: [{ index: true, element: <HomePage /> }],
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: "e2e/jacomo", element: <JacomoWorkflowScreen /> },
+    ],
   },
 ];
 
