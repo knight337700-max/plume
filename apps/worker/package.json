@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@plume/observability": "workspace:*"
+    "@plume/observability": "workspace:*",
+    "bullmq": "5.52.2"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",
