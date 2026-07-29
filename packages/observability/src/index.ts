@@ -16,3 +16,4 @@ export {
   type TraceSpan,
   type TraceSpanHandle,
 } from "./tracing.js";
+export { MetricRegistry, defaultMetricsRegistry, type MetricKind, type MetricLabels } from "./metrics.js";
