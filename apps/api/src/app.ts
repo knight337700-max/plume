@@ -10,6 +10,7 @@ import { creativeRouteGroup } from "./routes/creative/index.js";
 import { validationRouteGroup } from "./routes/validation/index.js";
 import { approvalRouteGroup } from "./routes/approval/index.js";
 import { exportRouteGroup } from "./routes/export/index.js";
+import { operationsRouteGroup } from "./routes/operations/index.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -32,5 +33,6 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await app.register(validationRouteGroup);
   await app.register(approvalRouteGroup);
   await app.register(exportRouteGroup);
+  await app.register(operationsRouteGroup);
   return app;
 }
