@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
@@ -17,6 +19,6 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 120_000,
   },
-  outputDir: "C:/Users/Lenovo/AppData/Local/Temp/plume-gate-g-results",
+  outputDir: join(tmpdir(), "plume-gate-g-results"),
   snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{arg}{ext}",
 });

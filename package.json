@@ -35,6 +35,15 @@
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run --workspace vitest.workspace.ts",
     "test:integration": "node --experimental-strip-types tools/test-integration.ts",
-    "typecheck": "pnpm --filter @plume/config --filter @plume/web --filter @plume/api --filter @plume/worker --filter @plume/scheduler typecheck"
+    "typecheck": "pnpm --filter @plume/config --filter @plume/web --filter @plume/api --filter @plume/worker --filter @plume/scheduler typecheck",
+    "e2e:api:jacomo": "vitest run --workspace vitest.workspace.ts apps/api/e2e/jacomo-flow.spec.ts",
+    "e2e:web:jacomo": "playwright test --config playwright.config.ts apps/web/e2e/jacomo-representative-flow.spec.ts",
+    "e2e:visual": "playwright test --config playwright.config.ts apps/web/e2e/visual-regression.spec.ts",
+    "e2e:a11y": "playwright test --config playwright.config.ts apps/web/e2e/accessibility.spec.ts",
+    "test:delivery": "vitest run --workspace vitest.workspace.ts packages/infrastructure/src/export/build-package.golden.test.ts packages/infrastructure/src/images/create-thumbnail.golden.test.ts",
+    "test:sse": "vitest run --workspace vitest.workspace.ts apps/api/src/routes/operations/sse.integration.test.ts",
+    "screen:contracts": "node tools/codegen/screens.ts && prettier --write packages/contracts/src/generated/screens.ts && git diff --exit-code -- packages/contracts/src/generated/screens.ts",
+    "deployment:check": "node --experimental-strip-types tools/integrity/deployment-manifest.test.ts",
+    "release:check": "node --experimental-strip-types tools/release/release-check.ts"
   }
 }
