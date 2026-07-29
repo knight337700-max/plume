@@ -11,6 +11,7 @@ import { validationRouteGroup } from "./routes/validation/index.js";
 import { approvalRouteGroup } from "./routes/approval/index.js";
 import { exportRouteGroup } from "./routes/export/index.js";
 import { operationsRouteGroup } from "./routes/operations/index.js";
+import { installTracingHooks } from "./plugins/tracing.js";
 
 export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -21,6 +22,7 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);
   });
+  await installTracingHooks(app);
   await registerHealthRoute(app);
   await app.register(authRoutes);
   await app.register(workspaceRoutes);

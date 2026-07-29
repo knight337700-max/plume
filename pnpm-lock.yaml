@@ -43,7 +43,11 @@ importers:
 
   apps/web: {}
 
-  apps/worker: {}
+  apps/worker:
+    dependencies:
+      '@plume/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
 
   packages/config: {}
 
