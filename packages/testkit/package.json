@@ -7,7 +7,8 @@
     "@plume/contracts": "workspace:*",
     "@plume/core": "workspace:*",
     "@plume/db": "workspace:*",
-    "@plume/infrastructure": "workspace:*"
+    "@plume/infrastructure": "workspace:*",
+    "postgres": "3.4.7"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",

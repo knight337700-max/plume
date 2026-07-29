@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@axe-core/playwright':
+        specifier: 4.10.2
+        version: 4.10.2(playwright-core@1.55.0)
+      '@playwright/test':
+        specifier: 1.55.0
+        version: 1.55.0
       '@types/node':
         specifier: 24.1.0
         version: 24.1.0
@@ -143,6 +149,9 @@ importers:
       '@plume/infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
+      postgres:
+        specifier: 3.4.7
+        version: 3.4.7
 
   packages/ui:
     dependencies:
@@ -199,6 +208,11 @@ packages:
     peerDependencies:
       '@astryxdesign/core': 0.1.9
       react: '>=19'
+
+  '@axe-core/playwright@4.10.2':
+    resolution: {integrity: sha512-6/b5BJjG6hDaRNtgzLIfKr5DfwyiLHO4+ByTLB0cJgWSM8Ll7KqtdblIS6bEkwSF642/Ex91vNqIl3GLXGlceg==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -706,6 +720,11 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
+  '@playwright/test@1.55.0':
+    resolution: {integrity: sha512-04IXzPwHrW69XusN/SIdDdKZBzMfOT9UNT/YiJit/xpy2VuAoB8NHc8Aplb96zsWDddLnbkPL3TsmrS04ZU2xQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1110,6 +1129,10 @@ packages:
   avvio@9.3.0:
     resolution: {integrity: sha512-g2tQ7LE7oOSqDfwEm3M+ZCMTJc7KiZCdJ4UwyZJb5ckTKyYu50OYmvv0mCFXPuYXoM4zkSt8zM9XQ9KCvxA74A==}
 
+  axe-core@4.10.3:
+    resolution: {integrity: sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==}
+    engines: {node: '>=4'}
+
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
@@ -1488,6 +1511,11 @@ packages:
   flow-parser@0.324.0:
     resolution: {integrity: sha512-0+8EOQ3qagZGO+0Hw6L4PN23vzL6OSrRODp7BZJwirkJxOZCAgJYUdRIQO/VSklUpOPaR7Zf+SAnlnYD9FI+Mg==}
     engines: {node: '>=0.4.0'}
+
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -1873,6 +1901,16 @@ packages:
   pkg-dir@3.0.0:
     resolution: {integrity: sha512-/E57AYkoeQ25qkxMj5PBOVgF8Kiu/h7cYS30Z5+R7WaiCCBfLq58ZI/dSeaEKb9WVJV5n/03QwrN3IeWIFllvw==}
     engines: {node: '>=6'}
+
+  playwright-core@1.55.0:
+    resolution: {integrity: sha512-GvZs4vU3U5ro2nZpeiwyb0zuFaqb9sUiAJuyrWpcGouD8y9/HLgGbNRjIph7zU9D3hnPaisMl9zG9CgFi/biIg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.55.0:
+    resolution: {integrity: sha512-sdCWStblvV1YU909Xqx0DhOjPZE4/5lJsIS84IfN9dAZfcl/CIZ5O8l3o0j7hPMjDvqoTF8ZUcc+i/GL5erstA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   postcss@8.5.23:
     resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
@@ -2318,6 +2356,11 @@ snapshots:
       '@astryxdesign/core': 0.1.9(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react: 1.27.0(react@19.2.8)
       react: 19.2.8
+
+  '@axe-core/playwright@4.10.2(playwright-core@1.55.0)':
+    dependencies:
+      axe-core: 4.10.3
+      playwright-core: 1.55.0
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -2818,6 +2861,10 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
+  '@playwright/test@1.55.0':
+    dependencies:
+      playwright: 1.55.0
+
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true
 
@@ -3133,6 +3180,8 @@ snapshots:
     dependencies:
       '@fastify/error': 4.2.0
       fastq: 1.20.1
+
+  axe-core@4.10.3: {}
 
   balanced-match@1.0.2: {}
 
@@ -3478,6 +3527,9 @@ snapshots:
     dependencies:
       flow-estree: 0.324.0
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -3822,6 +3874,14 @@ snapshots:
   pkg-dir@3.0.0:
     dependencies:
       find-up: 3.0.0
+
+  playwright-core@1.55.0: {}
+
+  playwright@1.55.0:
+    dependencies:
+      playwright-core: 1.55.0
+    optionalDependencies:
+      fsevents: 2.3.2
 
   postcss@8.5.23:
     dependencies:
