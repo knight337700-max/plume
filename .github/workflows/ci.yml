@@ -45,5 +45,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Start test infrastructure
+        run: docker compose -f infra/compose/docker-compose.yml up -d
+
       - name: Test
         run: pnpm test
+
+      - name: Stop test infrastructure
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.yml down
