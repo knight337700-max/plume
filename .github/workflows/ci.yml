@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
+
       - name: Lint
         run: pnpm lint
 

@@ -37,6 +37,7 @@ const pnpm = (name: string, ...args: string[]): CommandSpec => ({
 
 const commands: readonly CommandSpec[] = [
   pnpm("Frozen install", "install", "--frozen-lockfile", "--ignore-scripts"),
+  pnpm("Build UI package", "--filter", "@plume/ui", "build"),
   pnpm("Contract manifest and codegen drift", "contracts:check"),
   pnpm("Lint", "lint"),
   pnpm("Typecheck", "typecheck"),

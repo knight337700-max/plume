@@ -31,6 +31,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
       - name: Contract drift
         run: pnpm contracts:check
       - name: Lint
@@ -54,6 +56,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
       - name: Start test infrastructure
         run: docker compose -f infra/compose/docker-compose.yml up -d
       - name: Database migration
@@ -112,6 +116,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run 1440px Jacomo browser flow
@@ -133,6 +139,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run approved snapshots without update
@@ -154,6 +162,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build UI package
+        run: pnpm --filter @plume/ui build
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run axe and keyboard checks
