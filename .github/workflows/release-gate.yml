@@ -91,7 +91,7 @@ jobs:
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start test infrastructure
-        run: docker compose -f infra/compose/docker-compose.yml up -d
+        run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
       - name: Apply test migration
         run: pnpm db:migrate:test
       - name: Run deterministic Jacomo API flow
