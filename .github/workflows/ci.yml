@@ -48,6 +48,9 @@ jobs:
       - name: Start test infrastructure
         run: docker compose -f infra/compose/docker-compose.yml up -d
 
+      - name: Prepare test database
+        run: pnpm db:migrate:test
+
       - name: Test
         run: pnpm test
 
