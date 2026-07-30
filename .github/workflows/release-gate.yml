@@ -296,6 +296,8 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Start release-gate test infrastructure
         run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
+      - name: Apply release-gate test migration
+        run: pnpm db:migrate:test
       - name: Run complete local release gate
         run: pnpm release:check
       - name: Stop release-gate test infrastructure
