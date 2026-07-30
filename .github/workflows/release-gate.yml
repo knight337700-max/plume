@@ -59,7 +59,7 @@ jobs:
       - name: Build UI package
         run: pnpm --filter @plume/ui build
       - name: Start test infrastructure
-        run: docker compose -f infra/compose/docker-compose.yml up -d
+        run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
       - name: Database migration
         run: pnpm db:migrate:test
       - name: Unit and regression tests
@@ -230,7 +230,7 @@ jobs:
       - name: Validate staging service contract
         run: pnpm deployment:check
       - name: Start staging-like infrastructure
-        run: docker compose -f infra/compose/docker-compose.yml up -d
+        run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
       - name: Apply staging smoke migration
         run: pnpm db:migrate:test
       - name: Run deterministic staging smoke

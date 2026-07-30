@@ -46,7 +46,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Start test infrastructure
-        run: docker compose -f infra/compose/docker-compose.yml up -d
+        run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
 
       - name: Prepare test database
         run: pnpm db:migrate:test
