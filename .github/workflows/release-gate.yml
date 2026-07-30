@@ -21,13 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Contract drift
@@ -43,13 +44,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start test infrastructure
@@ -74,13 +76,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start test infrastructure
@@ -99,13 +102,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install Chromium
@@ -119,13 +123,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install Chromium
@@ -139,13 +144,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install Chromium
@@ -159,13 +165,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Architecture and contract integrity
@@ -200,13 +207,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Validate staging service contract
@@ -250,13 +258,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
       - name: Frozen install
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install Chromium
