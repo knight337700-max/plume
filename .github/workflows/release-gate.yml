@@ -126,7 +126,12 @@ jobs:
   visual:
     name: Visual Regression
     needs: jacomo-browser-e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.55.0-noble
+    env:
+      TZ: UTC
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -141,10 +146,19 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build UI package
         run: pnpm --filter @plume/ui build
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
       - name: Run approved snapshots without update
         run: pnpm e2e:visual
+      - name: Upload visual regression diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/plume-gate-g-results/**
+            test-results/**
+            playwright-report/**
+          if-no-files-found: warn
+          retention-days: 7
 
   accessibility:
     name: Accessibility
