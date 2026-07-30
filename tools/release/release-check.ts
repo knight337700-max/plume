@@ -72,7 +72,7 @@ const commands: readonly CommandSpec[] = [
   pnpm("Jacomo API E2E", "e2e:api:jacomo"),
   pnpm("Jacomo browser E2E", "e2e:web:jacomo"),
   pnpm("Visual regression", "e2e:visual"),
-  pnpm("Accessibility E2E", "e2e:a11y"),
+  pnpm("Accessibility E2E", "e2e:a11y", "--workers=1"),
   pnpm("Architecture integrity", "integrity"),
   pnpm("Deployment manifest integrity", "deployment:check"),
   {
