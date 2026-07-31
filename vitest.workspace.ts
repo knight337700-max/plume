@@ -18,6 +18,7 @@ export default defineWorkspace([
         "packages/observability/src/**/*.test.ts",
         "apps/api/src/**/*.test.ts",
         "apps/worker/src/**/*.test.ts",
+        "tools/codegen/**/*.unit.test.ts",
       ],
       exclude: ["**/node_modules/**", "**/dist/**"],
       passWithNoTests: false,

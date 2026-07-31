@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { hashContractText } from "../codegen/contract-text.ts";
 
 const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const manifestPath = join(repositoryRoot, "contracts-source", "manifest.yaml");
@@ -29,8 +30,8 @@ const copiedContracts = [
 ];
 
 function sha256(relativePath) {
-  const contents = readFileSync(join(repositoryRoot, relativePath));
-  return createHash("sha256").update(contents).digest("hex").toUpperCase();
+  const contents = readFileSync(join(repositoryRoot, relativePath), "utf8");
+  return hashContractText(contents);
 }
 
 function manifestEntry(id) {

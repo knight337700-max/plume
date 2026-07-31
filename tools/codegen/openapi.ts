@@ -1,13 +1,14 @@
-import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { hashContractText } from "./contract-text.ts";
 
 const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const sourcePath = join(repositoryRoot, "contracts-source", "openapi-v1.yaml");
 const targetPath = join(repositoryRoot, "packages", "contracts", "src", "generated", "openapi.ts");
 const source = readFileSync(sourcePath, "utf8");
-const sourceHash = createHash("sha256").update(source).digest("hex").toUpperCase();
+const sourceHash = hashContractText(source);
 const operationIds = [...source.matchAll(/^\s+operationId:\s*([A-Za-z0-9_.-]+)\s*$/gm)].map(
   (match) => match[1],
 );
