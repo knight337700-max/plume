@@ -37,6 +37,16 @@ const network = asRecord(services.network, "network");
 const privateNetwork = asRecord(network.private, "network.private");
 const publicNetwork = asRecord(network.public, "network.public");
 const imageMap = asRecord(services.images, "images");
+const environment = asRecord(services.environment, "environment");
+
+for (const [key, expected] of Object.entries({
+  NODE_ENV: "production",
+  APP_ENV: "staging",
+  QUEUE_PREFIX: "plume-staging",
+  OPENAI_PROVIDER_MODE: "mock",
+})) {
+  if (environment[key] !== expected) throw new Error(`environment.${key} must be ${expected}`);
+}
 
 const requiredServices = [
   "web",
@@ -97,9 +107,31 @@ for (const name of ["web", "api", "worker", "scheduler"]) {
 }
 for (const name of ["web", "api", "worker", "scheduler"]) {
   const image = asRecord(imageMap[name], `images.${name}`);
-  if (image.tag !== "${IMAGE_TAG}")
-    throw new Error(`${name} must use an immutable release image tag placeholder`);
+  if (typeof image.repository !== "string" || image.repository.includes("<"))
+    throw new Error(`${name} image repository must be concrete`);
+  if (typeof image.digest !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(image.digest))
+    throw new Error(`${name} must use a sha256 image digest`);
+  if (typeof image.ref !== "string" || image.ref !== `${image.repository}@${image.digest}`)
+    throw new Error(`${name} image ref must be repository@digest`);
+  if ("tag" in image || image.ref.includes(":latest"))
+    throw new Error(`${name} must not use a mutable tag`);
 }
+
+if (asRecord(api.health, "services.api.health").liveness?.path !== "/api/v1/health/live")
+  throw new Error("API liveness path must use /api/v1/health/live");
+if (asRecord(api.health, "services.api.health").readiness?.path !== "/api/v1/health/ready")
+  throw new Error("API readiness path must use /api/v1/health/ready");
+for (const [name, service] of Object.entries({ web, api, worker })) {
+  const scaling = asRecord(asRecord(service, `services.${name}`).scaling, `services.${name}.scaling`);
+  if (scaling.minReplicas !== 1) throw new Error(`${name} initial staging replicas must be 1`);
+}
+if (asRecord(asRecord(serviceMap.worker, "services.worker").config, "services.worker.config").OPENAI_PROVIDER_MODE !== "mock")
+  throw new Error("worker must start in mock provider mode");
+if (asArray(asRecord(serviceMap.worker, "services.worker").secretRefs, "services.worker.secretRefs").some((value) =>
+  asArray(asRecord(value, "worker secret ref").keys, "worker secret ref keys").includes("OPENAI_API_KEY")))
+  throw new Error("mock worker must not require OPENAI_API_KEY");
+if (asRecord(asRecord(services.database, "database").migration, "database.migration").command !== "pnpm db:migrate:staging")
+  throw new Error("staging must use the staging-safe migration command");
 
 const secretContract = asRecord(secrets.secrets, "secrets.secrets");
 const requiredSecretKeys = asArray(

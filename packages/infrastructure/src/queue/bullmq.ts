@@ -54,7 +54,7 @@ export class BullMqAdapter {
     const name = this.queueName(queue);
     const existing = this.queues.get(name);
     if (existing) return existing;
-    const created = new Queue(name, { connection: this.connection });
+    const created = new Queue(queue, { connection: this.connection, prefix: this.prefix });
     this.queues.set(name, created);
     return created;
   }
@@ -73,9 +73,9 @@ export class BullMqAdapter {
     options: { readonly concurrency?: number } = {},
   ): Worker {
     const worker = new Worker(
-      this.queueName(queue),
+      queue,
       async (job) => handler(job.data as T, job as Job<T>),
-      { connection: this.connection, concurrency: options.concurrency ?? 1 },
+      { connection: this.connection, prefix: this.prefix, concurrency: options.concurrency ?? 1 },
     );
     this.workers.add(worker);
     return worker;

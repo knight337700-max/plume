@@ -8,11 +8,11 @@ is intentionally not a Kubernetes, Compose, or vendor-specific manifest.
 
 ```text
 Public ingress
-  ├── Web (2–4 replicas, TLS)
-  └── API (2–8 replicas, TLS, SSE)
+  ├── Web (1–4 replicas, TLS)
+  └── API (1–8 replicas, TLS, SSE)
 
 Private network
-  ├── Worker (2–12 replicas, independent API scale)
+  ├── Worker (1–12 replicas, independent API scale)
   ├── Scheduler (1 replica, lease singleton)
   ├── PostgreSQL (managed or persistent)
   ├── Redis (cache and queue backplane)
@@ -26,10 +26,12 @@ coupling HTTP capacity to consumer capacity.
 
 ## Platform adapter responsibilities
 
-- Resolve each image repository and the `${IMAGE_TAG}` placeholder.
+- Pull the exact digest-pinned image references in `services.yaml`; mutable
+  tags and `latest` are not accepted.
 - Create or attach the private network and managed data services.
 - Mount `plume-staging-runtime` from the platform secret manager.
-- Run the database migration before shifting traffic to a new API image.
+- Run `pnpm db:migrate:staging` with the release backup confirmation before
+  shifting traffic to a new API image.
 - Configure TLS, the API CORS origin, secure SameSite cookies, and the signed
   URL host for the staging domain.
 - Expose OTLP and metrics destinations without placing credentials in the
@@ -53,9 +55,10 @@ only after it finishes the current item or releases its lease.
 
 ## Staging smoke and approval
 
-After deployment, run the smoke checks listed in `services.yaml`: Web TLS,
-API health, database/Redis/storage readiness, queue consumption, SSE
-reconnect, and signed URL access. Staging E2E must be green before the GitHub
+After deployment, `/api/v1/health/live` is the process probe and
+`/api/v1/health/ready` is the dependency probe. Run the smoke checks listed in
+`services.yaml`: Web TLS, API liveness/readiness, database/Redis/storage
+readiness, queue consumption, SSE reconnect, and signed URL access. Staging E2E must be green before the GitHub
 Environment manual approval gate can unlock a release candidate. Reviewer
 assignment and environment protection are configured in GitHub, not in this
 repository.

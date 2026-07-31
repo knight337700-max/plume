@@ -47,6 +47,7 @@
     "test:sse": "vitest run --workspace vitest.workspace.ts apps/api/src/routes/operations/sse.integration.test.ts",
     "screen:contracts": "node tools/codegen/screens.ts && prettier --write packages/contracts/src/generated/screens.ts && git diff --exit-code -- packages/contracts/src/generated/screens.ts",
     "deployment:check": "node --experimental-strip-types tools/integrity/deployment-manifest.test.ts",
+    "staging:runtime:check": "node --experimental-strip-types tools/integrity/staging-runtime.test.ts",
     "release:check": "node --experimental-strip-types tools/release/release-check.ts"
   }
 }

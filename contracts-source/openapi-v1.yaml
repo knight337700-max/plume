@@ -74,6 +74,52 @@ paths:
               schema:
                 type: string
       security: []
+  /api/v1/health/live:
+    get:
+      operationId: getHealthLive
+      summary: 프로세스 liveness 조회
+      tags:
+      - System
+      x-roles: []
+      x-module: OPS
+      x-execution: SYNC
+      x-entities: []
+      x-screen-ids: []
+      parameters: []
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+      security: []
+  /api/v1/health/ready:
+    get:
+      operationId: getHealthReady
+      summary: 의존성 readiness 조회
+      tags:
+      - System
+      x-roles: []
+      x-module: OPS
+      x-execution: SYNC
+      x-entities: []
+      x-screen-ids: []
+      parameters: []
+      responses:
+        '200':
+          description: Dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: A dependency is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+      security: []
   /api/v1/auth/session:
     get:
       operationId: getAuthSession

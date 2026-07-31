@@ -60,8 +60,10 @@ async function checkRedis(redisUrl: string): Promise<void> {
     maxRetriesPerRequest: 1,
     connectTimeout: 2_000,
     enableOfflineQueue: false,
+    lazyConnect: true,
   });
   try {
+    await redis.connect();
     await redis.ping();
   } finally {
     redis.disconnect();
@@ -69,8 +71,9 @@ async function checkRedis(redisUrl: string): Promise<void> {
 }
 
 async function checkQueue(redisUrl: string, queuePrefix: string): Promise<void> {
-  const queue = new Queue(`${queuePrefix}:readiness`, {
+  const queue = new Queue("readiness", {
     connection: redisConnectionOptions(redisUrl),
+    prefix: queuePrefix,
   });
   try {
     await queue.waitUntilReady();
