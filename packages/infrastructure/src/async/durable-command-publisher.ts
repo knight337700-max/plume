@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports -- Infrastructure composes source-level ports during the monorepo build. */
 import { createHash, randomUUID } from "node:crypto";
 import type { Sql } from "postgres";
 import {

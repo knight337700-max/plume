@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports -- The real-process harness composes source-level runtime adapters. */
 import { randomUUID } from "node:crypto";
 import { connect } from "node:net";
 import postgres, { type Sql } from "postgres";
