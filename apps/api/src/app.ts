@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { authRoutes } from "./routes/auth/index.js";
-import { registerHealthRoute } from "./routes/system/health.js";
+import { registerHealthRoute, type ReadinessChecks } from "./routes/system/health.js";
 import { workspaceRoutes } from "./routes/workspace/index.js";
 import { clientBrandRoutes } from "./routes/client-brand/index.js";
 import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
@@ -15,17 +15,22 @@ import { installTracingHooks } from "./plugins/tracing.js";
 import { registerMetricsRoute } from "./routes/system/metrics.js";
 import { registerDashboardRoute } from "./routes/system/dashboard.js";
 
-export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
+export interface BuildAppOptions extends FastifyServerOptions {
+  readonly readinessChecks?: ReadinessChecks;
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const { readinessChecks, ...fastifyOptions } = options;
   const app = Fastify({
     logger: false,
     rewriteUrl: (request) => (request.url ?? "/").replace(/:([a-z][a-z-]*)(?=\/|$)/g, ".$1"),
-    ...options,
+    ...fastifyOptions,
   });
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);
   });
   await installTracingHooks(app);
-  await registerHealthRoute(app);
+  await registerHealthRoute(app, readinessChecks ? { readinessChecks } : {});
   await registerMetricsRoute(app);
   await registerDashboardRoute(app);
   await app.register(authRoutes);

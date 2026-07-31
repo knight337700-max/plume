@@ -25,4 +25,17 @@ describe("worker bootstrap readiness", () => {
     await expect(bootstrap.start()).resolves.toMatchObject({ status: "ready", activeHandlers: 1 });
     await expect(bootstrap.stop()).resolves.toMatchObject({ status: "stopped" });
   });
+
+  it("does not report ready when a dependency check fails", async () => {
+    const bootstrap = createWorkerBootstrap({
+      adapter: fakeAdapter(),
+      handlers: [{ queue: "default", messageTypes: ["job.retry"], handler: async () => undefined }],
+      requiredHandlerTypes: ["job.retry"],
+      readinessChecks: [{ name: "redis", check: () => { throw new Error("down"); } }],
+    });
+    await expect(bootstrap.start()).resolves.toMatchObject({
+      status: "not-ready",
+      failedChecks: ["redis"],
+    });
+  });
 });

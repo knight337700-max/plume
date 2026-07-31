@@ -14,6 +14,11 @@ export interface WorkerHandlerRegistration {
   readonly concurrency?: number;
 }
 
+export interface WorkerReadinessCheck {
+  readonly name: string;
+  readonly check: () => Promise<void> | void;
+}
+
 export interface WorkerBootstrap {
   start(): Promise<WorkerHealth>;
   stop(): Promise<WorkerHealth>;
@@ -25,6 +30,7 @@ export function createWorkerBootstrap(
     readonly adapter?: BullMqAdapter;
     readonly handlers?: readonly WorkerHandlerRegistration[];
     readonly requiredHandlerTypes?: readonly string[];
+    readonly readinessChecks?: readonly WorkerReadinessCheck[];
   } = {},
 ): WorkerBootstrap {
   const adapter = options.adapter ?? createBullMqAdapter();
@@ -37,6 +43,7 @@ export function createWorkerBootstrap(
     status: "starting",
     activeHandlers: 0,
     missingHandlerTypes,
+    failedChecks: [],
     checkedAt: new Date().toISOString(),
   });
   const workers: WorkerHandle[] = [];
@@ -49,25 +56,57 @@ export function createWorkerBootstrap(
           status: "not-ready" as const,
           activeHandlers: 0,
           missingHandlerTypes,
+          failedChecks: ["runtime-handlers"],
           checkedAt: new Date().toISOString(),
         });
         return state;
       }
-      for (const registration of handlers) {
-        workers.push(
-          adapter.consume(
-            registration.queue,
-            registration.handler,
-            registration.concurrency === undefined
-              ? {}
-              : { concurrency: registration.concurrency },
-          ),
-        );
+      const failedChecks: string[] = [];
+      for (const readinessCheck of options.readinessChecks ?? []) {
+        try {
+          await readinessCheck.check();
+        } catch {
+          failedChecks.push(readinessCheck.name);
+        }
+      }
+      if (failedChecks.length > 0) {
+        state = Object.freeze({
+          status: "not-ready" as const,
+          activeHandlers: 0,
+          missingHandlerTypes,
+          failedChecks: Object.freeze(failedChecks),
+          checkedAt: new Date().toISOString(),
+        });
+        return state;
+      }
+      try {
+        for (const registration of handlers) {
+          workers.push(
+            adapter.consume(
+              registration.queue,
+              registration.handler,
+              registration.concurrency === undefined
+                ? {}
+                : { concurrency: registration.concurrency },
+            ),
+          );
+        }
+      } catch {
+        await adapter.close();
+        state = Object.freeze({
+          status: "not-ready" as const,
+          activeHandlers: 0,
+          missingHandlerTypes,
+          failedChecks: ["queue-consumer"],
+          checkedAt: new Date().toISOString(),
+        });
+        return state;
       }
       state = Object.freeze({
         status: "ready" as const,
         activeHandlers: workers.length,
         missingHandlerTypes,
+        failedChecks: [],
         checkedAt: new Date().toISOString(),
       });
       return state;
@@ -81,6 +120,7 @@ export function createWorkerBootstrap(
         status: "stopped" as const,
         activeHandlers: 0,
         missingHandlerTypes,
+        failedChecks: state.failedChecks,
         checkedAt: new Date().toISOString(),
       });
       return state;

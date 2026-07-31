@@ -5,24 +5,76 @@ export interface SchedulerBootstrap {
   start(): Promise<boolean>;
   stop(): Promise<void>;
   isRunning(): boolean;
+  health(): SchedulerHealth;
+}
+
+export interface SchedulerHealth {
+  readonly status: "starting" | "ready" | "not-ready" | "stopping" | "stopped";
+  readonly failedChecks: readonly string[];
+  readonly checkedAt: string;
+}
+
+export interface SchedulerReadinessCheck {
+  readonly name: string;
+  readonly check: () => Promise<void> | void;
 }
 
 export function createSchedulerBootstrap(
   jobs: readonly ScheduledJobDefinition[] = scheduledJobs,
   lease = createSchedulerLease(),
+  readinessChecks: readonly SchedulerReadinessCheck[] = [],
 ): SchedulerBootstrap {
   const timers: ReturnType<typeof setInterval>[] = [];
   let heartbeat: ReturnType<typeof setInterval> | undefined;
   let running = false;
+  let health: SchedulerHealth = Object.freeze({
+    status: "starting" as const,
+    failedChecks: [],
+    checkedAt: new Date().toISOString(),
+  });
 
   return {
     async start() {
-      if (running || !(await lease.acquire())) return running;
+      if (running) return true;
+      const failedChecks: string[] = [];
+      for (const readinessCheck of readinessChecks) {
+        try {
+          await readinessCheck.check();
+        } catch {
+          failedChecks.push(readinessCheck.name);
+        }
+      }
+      if (failedChecks.length > 0) {
+        health = Object.freeze({
+          status: "not-ready" as const,
+          failedChecks: Object.freeze(failedChecks),
+          checkedAt: new Date().toISOString(),
+        });
+        return false;
+      }
+      if (!(await lease.acquire())) {
+        health = Object.freeze({
+          status: "not-ready" as const,
+          failedChecks: ["lease"],
+          checkedAt: new Date().toISOString(),
+        });
+        return false;
+      }
       running = true;
+      health = Object.freeze({
+        status: "ready" as const,
+        failedChecks: [],
+        checkedAt: new Date().toISOString(),
+      });
       heartbeat = setInterval(() => {
         void lease.renew().then((owned) => {
           if (!owned) {
             running = false;
+            health = Object.freeze({
+              status: "not-ready" as const,
+              failedChecks: ["lease"],
+              checkedAt: new Date().toISOString(),
+            });
             for (const timer of timers) clearInterval(timer);
             timers.length = 0;
           }
@@ -42,6 +94,11 @@ export function createSchedulerBootstrap(
       return true;
     },
     async stop() {
+      health = Object.freeze({
+        status: "stopping" as const,
+        failedChecks: health.failedChecks,
+        checkedAt: new Date().toISOString(),
+      });
       for (const timer of timers) clearInterval(timer);
       timers.length = 0;
       if (heartbeat) clearInterval(heartbeat);
@@ -49,9 +106,17 @@ export function createSchedulerBootstrap(
       await lease.release();
       await lease.close();
       running = false;
+      health = Object.freeze({
+        status: "stopped" as const,
+        failedChecks: health.failedChecks,
+        checkedAt: new Date().toISOString(),
+      });
     },
     isRunning() {
       return running && lease.isOwner();
+    },
+    health() {
+      return health;
     },
   };
 }

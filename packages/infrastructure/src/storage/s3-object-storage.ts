@@ -102,10 +102,23 @@ export class S3ObjectStorage implements ObjectStorage {
       bucket: this.options.bucket,
       objectKey,
       bytes: Number(response.headers.get("content-length") ?? 0),
-      contentType: response.headers.get("content-type") ?? undefined,
-      etag: response.headers.get("etag")?.replaceAll('"', "") ?? undefined,
-      checksumSha256: response.headers.get("x-amz-checksum-sha256") ?? undefined,
+      ...(response.headers.get("content-type")
+        ? { contentType: response.headers.get("content-type")! }
+        : {}),
+      ...(response.headers.get("etag")
+        ? { etag: response.headers.get("etag")!.replaceAll('"', "") }
+        : {}),
+      ...(response.headers.get("x-amz-checksum-sha256")
+        ? { checksumSha256: response.headers.get("x-amz-checksum-sha256")! }
+        : {}),
     };
+  }
+
+  public async checkBucket(): Promise<void> {
+    const response = await this.request("HEAD", "", {
+      "x-amz-content-sha256": sha256(new Uint8Array()),
+    });
+    if (!response.ok) throw errorForResponse(response, "S3 bucket readiness");
   }
 
   public async presign(objectKey: string, options: { method?: "GET" | "PUT"; expiresInSeconds?: number } = {}): Promise<PresignedUrl> {
@@ -180,7 +193,11 @@ export class S3ObjectStorage implements ObjectStorage {
     requestHeaders.set("authorization", authorization);
     const url = new URL(this.endpoint.toString());
     url.pathname = path;
-    return fetch(url, { method, headers: requestHeaders, body: body as unknown as BodyInit });
+    return fetch(url, {
+      method,
+      headers: requestHeaders,
+      ...(body ? { body: body as unknown as ArrayBuffer } : {}),
+    });
   }
 
   private objectPath(objectKey: string): string {
