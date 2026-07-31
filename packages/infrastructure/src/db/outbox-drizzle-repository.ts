@@ -50,7 +50,7 @@ export class DrizzleOutboxRepository implements OutboxRepository {
         (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json, available_at)
       VALUES
         (${message.workspaceId}, ${message.topic}, ${message.messageKey}, ${message.messageType}, ${message.schemaVersion},
-         ${this.sql.json(JSON.parse(JSON.stringify(message.payloadJson)))}, ${this.sql.json(JSON.parse(JSON.stringify(message.headersJson ?? {})))}, ${message.availableAt ?? new Date()})
+         ${this.sql.json(JSON.parse(JSON.stringify(message.payloadJson)))}, ${this.sql.json(JSON.parse(JSON.stringify(message.headersJson ?? {})))}, ${(message.availableAt ?? new Date()).toISOString()})
       RETURNING *
     `;
     const row = rows[0];
@@ -63,7 +63,7 @@ export class DrizzleOutboxRepository implements OutboxRepository {
     const expires = new Date(Date.now() + Math.max(1000, leaseMs));
     const rows = await this.sql<OutboxRow[]>`
       UPDATE outbox_message
-      SET lease_expires_at = ${expires}, attempt_count = attempt_count + 1
+      SET lease_expires_at = ${expires.toISOString()}, attempt_count = attempt_count + 1
       WHERE id IN (
         SELECT id FROM outbox_message
         WHERE published_at IS NULL
@@ -80,11 +80,11 @@ export class DrizzleOutboxRepository implements OutboxRepository {
 
   async markPublished(id: string, publishedAt = new Date()): Promise<void> {
     await this
-      .sql`UPDATE outbox_message SET published_at = ${publishedAt}, lease_expires_at = NULL, last_error = NULL WHERE id = ${id}`;
+      .sql`UPDATE outbox_message SET published_at = ${publishedAt.toISOString()}, lease_expires_at = NULL, last_error = NULL WHERE id = ${id}`;
   }
 
   async markFailed(id: string, error: string, availableAt: Date): Promise<void> {
     await this
-      .sql`UPDATE outbox_message SET last_error = ${error.slice(0, 2000)}, available_at = ${availableAt}, lease_expires_at = NULL WHERE id = ${id}`;
+      .sql`UPDATE outbox_message SET last_error = ${error.slice(0, 2000)}, available_at = ${availableAt.toISOString()}, lease_expires_at = NULL WHERE id = ${id}`;
   }
 }
