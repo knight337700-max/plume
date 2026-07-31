@@ -15,6 +15,17 @@ export const secretEnvironmentKeys = new Set([
   "TEST_DATABASE_URL",
 ]);
 
+export const openAiProviderModes = Object.freeze(["mock", "live"]);
+export const cookieSameSiteValues = Object.freeze(["lax", "strict", "none"]);
+
+/**
+ * @param {string} value
+ * @returns {value is ("development" | "test" | "staging" | "production")}
+ */
+export function isAppEnvironment(value = "") {
+  return value === "development" || value === "test" || value === "staging" || value === "production";
+}
+
 /**
  * @param {string} value
  * @returns {value is ("development" | "test" | "production")}
