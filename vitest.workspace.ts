@@ -15,6 +15,7 @@ export default defineWorkspace([
       include: [
         "packages/core/src/**/*.test.ts",
         "packages/config/src/**/*.test.ts",
+        "packages/db/src/**/*.test.ts",
         "packages/infrastructure/src/**/*.test.ts",
         "packages/observability/src/**/*.test.ts",
         "apps/api/src/**/*.test.ts",
