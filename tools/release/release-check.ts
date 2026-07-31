@@ -35,6 +35,36 @@ const pnpm = (name: string, ...args: string[]): CommandSpec => ({
   shell: isWindows,
 });
 
+const canonicalVisualRegression = (): CommandSpec => {
+  if (!isWindows) return pnpm("Visual regression", "e2e:visual");
+
+  return {
+    name: "Visual regression (canonical Linux)",
+    command: "docker",
+    args: [
+      "run",
+      "--rm",
+      "--ipc=host",
+      "--env",
+      "CI=true",
+      "--env",
+      "TZ=UTC",
+      "--env",
+      "LANG=C.UTF-8",
+      "--env",
+      "LC_ALL=C.UTF-8",
+      "--volume",
+      `${repositoryRoot.replaceAll("\\", "/")}:/source:ro`,
+      "--workdir",
+      "/work",
+      "mcr.microsoft.com/playwright:v1.55.0-noble",
+      "bash",
+      "-lc",
+      "mkdir -p /work && tar --exclude=./node_modules --exclude=./.git -cf - -C /source . | tar -xf - -C /work && curl --fail --silent --show-error --location https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.gz --output /tmp/node.tar.gz && tar -xzf /tmp/node.tar.gz -C /tmp && export PATH=/tmp/node-v24.15.0-linux-x64/bin:$PATH && node --version && corepack enable && corepack prepare pnpm@11.17.0 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter @plume/ui build && pnpm e2e:visual",
+    ],
+  };
+};
+
 const commands: readonly CommandSpec[] = [
   pnpm("Frozen install", "install", "--frozen-lockfile", "--ignore-scripts"),
   pnpm("Build UI package", "--filter", "@plume/ui", "build"),
@@ -71,8 +101,8 @@ const commands: readonly CommandSpec[] = [
   pnpm("Screen contract tests", "screen:contracts"),
   pnpm("Jacomo API E2E", "e2e:api:jacomo"),
   pnpm("Jacomo browser E2E", "e2e:web:jacomo"),
-  pnpm("Visual regression", "e2e:visual"),
-  pnpm("Accessibility E2E", "e2e:a11y"),
+  canonicalVisualRegression(),
+  pnpm("Accessibility E2E", "e2e:a11y", "--workers=1"),
   pnpm("Architecture integrity", "integrity"),
   pnpm("Deployment manifest integrity", "deployment:check"),
   {
