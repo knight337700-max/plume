@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createExportPackagePlan, type ExportPackagePlan, type ExportRecipePlanInput } from "@plume/core/src/public.js";
+import { createExportPackagePlan, type ExportPackagePlan, type ExportRecipePlanInput } from "../../../core/src/public.js";
 import { buildExportManifest, sha256, stableJson, type ExportManifest, type ExportManifestFile } from "./manifest.js";
 
 export type PackageFileRole = "CREATIVE" | "MANIFEST" | "VALIDATION_REPORT" | "COPY_CSV" | "PACKAGE";

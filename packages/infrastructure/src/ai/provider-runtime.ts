@@ -1,4 +1,4 @@
-import type { AgentProviderGateway } from "@plume/core/src/public.js";
+import type { AgentProviderGateway } from "../../../core/src/public.js";
 import {
   createOpenAIProviderGateway,
   type OpenAIProviderGateway,

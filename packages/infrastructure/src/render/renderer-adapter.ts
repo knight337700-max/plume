@@ -5,7 +5,7 @@ import {
   type CreativeDocument,
   type CreativeElement,
   hashCreativeDocument,
-} from "@plume/core/src/modules/creative/public.js";
+} from "../../../core/src/modules/creative/public.js";
 import { optimizeRenderOutput } from "./optimize-output.js";
 
 export type RenderPurpose = "PREVIEW" | "VALIDATION" | "FINAL_EXPORT";
