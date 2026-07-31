@@ -33,3 +33,8 @@ export {
   type AgentProviderGateway,
   createAgentOrchestrator,
 } from "./agents/public.js";
+export {
+  type AsyncCommandPublisher,
+  type EnqueueCommandInput,
+  type EnqueuedCommand,
+} from "./async/command-publisher.js";

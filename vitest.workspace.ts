@@ -14,6 +14,7 @@ export default defineWorkspace([
       name: "gate-c-unit-and-contracts",
       include: [
         "packages/core/src/**/*.test.ts",
+        "packages/contracts/src/**/*.test.ts",
         "packages/config/src/**/*.test.ts",
         "packages/db/src/**/*.test.ts",
         "packages/infrastructure/src/**/*.test.ts",

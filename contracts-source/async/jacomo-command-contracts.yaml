@@ -1,0 +1,42 @@
+version: 1
+catalog_source: packages/core/src/async/queue-routing.ts
+commands:
+  - command: brief.analyze
+    queue: document-analysis
+    activation: optional
+  - command: brief.reanalyze
+    queue: document-analysis
+    activation: optional
+  - command: product.match
+    queue: ai-standard
+    activation: optional
+  - command: asset.recommend
+    queue: ai-standard
+    activation: optional
+  - command: creative.generate
+    queue: ai-standard
+    activation: external-entry
+  - command: natural_language.edit
+    queue: ai-high
+    activation: optional
+  - command: validation.ai_review
+    queue: ai-standard
+    activation: optional
+  - command: creative.render
+    queue: render
+    activation: internal-step
+  - command: creative.preview.render
+    queue: render
+    activation: optional
+  - command: validation.render
+    queue: render
+    activation: optional
+  - command: export.render
+    queue: render
+    activation: internal-step
+  - command: validation.run
+    queue: validation
+    activation: internal-step
+  - command: export.render_and_package
+    queue: export
+    activation: internal-step

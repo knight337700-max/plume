@@ -114,13 +114,13 @@ importers:
 
   packages/config: {}
 
-  packages/contracts: {}
-
-  packages/core:
+  packages/contracts:
     dependencies:
-      '@plume/contracts':
+      '@plume/core':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../core
+
+  packages/core: {}
 
   packages/db:
     dependencies:
