@@ -60,7 +60,11 @@ export class BullMqAdapter {
   }
 
   async enqueue<T>(queue: string, message: QueueMessage<T>): Promise<Job<T>> {
-    return this.getQueue(queue).add(message.name ?? "message", message.data, message.options);
+    return this.getQueue(queue).add(message.name ?? "message", message.data, {
+      attempts: message.options?.attempts ?? 3,
+      backoff: message.options?.backoff ?? { type: "exponential", delay: 5_000 },
+      ...message.options,
+    });
   }
 
   consume<T>(

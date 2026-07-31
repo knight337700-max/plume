@@ -21,4 +21,10 @@ export interface InboxRepository {
     handlerVersion: string;
     outcome: unknown;
   }): Promise<void>;
+  release(input: {
+    workspaceId: string;
+    messageId: string;
+    handlerName: string;
+    handlerVersion: string;
+  }): Promise<void>;
 }
