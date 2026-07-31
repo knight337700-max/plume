@@ -4,10 +4,13 @@ import type { ValidationUseCases } from "../../../../../packages/core/src/module
 import type { IdempotencyRepository } from "../../idempotency/repository.js";
 import { InMemoryIdempotencyRepository } from "../../idempotency/repository.js";
 import { runIdempotent } from "../../idempotency/middleware.js";
+import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
+import { jobTypeNotEnabled } from "../../async/route-policy.js";
 
 export interface ValidationRouteOptions {
   readonly useCases: ValidationUseCases;
   readonly idempotency?: IdempotencyRepository;
+  readonly asyncCommands?: AsyncCommandPublisher;
 }
 interface RequestParams { readonly workspaceId: string; readonly versionId: string; readonly validationRunId: string; readonly resultId: string }
 interface RequestLike { readonly params: RequestParams; readonly body?: unknown; readonly query?: Record<string, unknown>; readonly headers?: Record<string, string | string[] | undefined>; readonly session?: { readonly userId?: string } }
@@ -22,6 +25,7 @@ export const validationRoutes: FastifyPluginAsync<ValidationRouteOptions> = asyn
   app.post("/api/v1/workspaces/:workspaceId/creative-versions/:versionId/validation-runs", { config: { operationId: "createValidationRun", roles: ["OWNER", "ADMIN", "EDITOR", "REVIEWER"] } }, async (requestValue, reply) => {
     const input = request(requestValue);
     const value = body(requestValue);
+    if (options.asyncCommands) jobTypeNotEnabled("validation.run");
     const result = await runIdempotent(idempotency, { workspaceId: input.params.workspaceId, key: header(requestValue, "idempotency-key") ?? "", body: value }, async () => {
       const run = await options.useCases.run({ workspaceId: input.params.workspaceId, creativeVersionId: input.params.versionId, ...(value.ruleSetMode ? { ruleSnapshotJson: { mode: value.ruleSetMode } } : {}), requestedBy: userId(requestValue) });
       const location = `/api/v1/workspaces/${input.params.workspaceId}/jobs/${run.id}`;

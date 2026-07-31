@@ -81,23 +81,30 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
             return { jobId: prior.id, jobItemId: prior.item_id, messageId: prior.message_id, status: "QUEUED" as const, correlationId: prior.correlation_id };
           }
         }
-        await transaction`
-          INSERT INTO async_job
-            (id, workspace_id, job_type, status, subject_type, requested_by, correlation_id, idempotency_key, payload_hash, payload_json)
-          VALUES
-            (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, ${transaction.json({ command: input.command, schemaVersion: input.schemaVersion })})
-        `;
+        if (!input.jobId) {
+          await transaction`
+            INSERT INTO async_job
+              (id, workspace_id, job_type, status, subject_type, requested_by, correlation_id, idempotency_key, payload_hash, payload_json)
+            VALUES
+              (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, ${transaction.json({ command: input.command, schemaVersion: input.schemaVersion })})
+          `;
+        } else {
+          const roots = await transaction<{ id: string; workspace_id: string; correlation_id: string }[]>`
+            SELECT id, workspace_id, correlation_id FROM async_job WHERE id = ${jobId} FOR UPDATE
+          `;
+          if (!roots[0] || roots[0].workspace_id !== workspaceId) throw new Error("ASYNC_ROOT_JOB_NOT_FOUND");
+        }
         await transaction`
           INSERT INTO async_job_item
             (id, workspace_id, async_job_id, item_key, command, message_id, causation_id, status)
           VALUES
-            (${jobItemId}, ${workspaceId}, ${jobId}, ${input.command}, ${input.command}, ${messageId}, ${input.causationId ?? null}, 'QUEUED')
+            (${jobItemId}, ${workspaceId}, ${jobId}, ${jobItemId}, ${input.command}, ${messageId}, ${input.causationId ?? null}, 'QUEUED')
         `;
         await transaction`
           INSERT INTO outbox_message
             (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json)
           VALUES
-            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${transaction.json(safeJson(envelope.payload))}, ${transaction.json({
+            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${transaction.json(safeJson(envelope.payload) as never)}, ${transaction.json({
               messageId,
               correlationId,
               ...(input.causationId === undefined ? {} : { causationId: input.causationId }),

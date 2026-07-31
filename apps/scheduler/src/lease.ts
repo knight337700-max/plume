@@ -19,6 +19,24 @@ export interface RedisLeaseClient {
   quit(): Promise<unknown>;
 }
 
+type RedisRuntimeClient = RedisLeaseClient & {
+  readonly status?: string;
+  connect?: () => Promise<unknown>;
+  disconnect?: () => void;
+  once?: (event: string, listener: (...args: unknown[]) => void) => unknown;
+};
+
+async function ensureReady(client: RedisLeaseClient): Promise<void> {
+  const runtime = client as RedisRuntimeClient;
+  if (runtime.status === undefined || runtime.status === "ready") return;
+  if (runtime.status === "wait" && runtime.connect) await runtime.connect();
+  if (runtime.status === "ready" || !runtime.once) return;
+  await new Promise<void>((resolve, reject) => {
+    runtime.once?.("ready", () => resolve());
+    runtime.once?.("error", (error) => reject(error));
+  });
+}
+
 export interface SchedulerLease {
   readonly key: string;
   readonly owner: string;
@@ -42,10 +60,10 @@ export function createSchedulerLease(options: SchedulerLeaseOptions = {}): Sched
   const key = options.key ?? `${process.env.QUEUE_PREFIX?.trim() || "development"}:scheduler:lease`;
   const owner = options.owner ?? crypto.randomUUID();
   const ttlMs = Math.max(5_000, options.ttlMs ?? 90_000);
-  const client = options.client ?? new Redis(options.redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379", {
+  const client = (options.client ?? new Redis(options.redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379", {
     maxRetriesPerRequest: 1,
     enableOfflineQueue: false,
-  });
+  })) as RedisLeaseClient;
   let owned = false;
 
   return {
@@ -53,6 +71,7 @@ export function createSchedulerLease(options: SchedulerLeaseOptions = {}): Sched
     owner,
     ttlMs,
     async acquire() {
+      await ensureReady(client);
       const result = await client.set(key, owner, "PX", ttlMs, "NX");
       owned = result === "OK";
       return owned;
@@ -71,7 +90,13 @@ export function createSchedulerLease(options: SchedulerLeaseOptions = {}): Sched
       return owned;
     },
     async close() {
-      await client.quit();
+      const runtime = client as RedisRuntimeClient;
+      if (runtime.status === "end") return;
+      try {
+        await client.quit();
+      } catch {
+        runtime.disconnect?.();
+      }
     },
   };
 }

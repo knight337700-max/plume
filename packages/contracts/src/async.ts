@@ -33,6 +33,9 @@ export interface CreativeGeneratePayload {
 
 export interface CreativeRenderPayload {
   readonly creativeVersionId: string;
+  readonly campaignId?: string;
+  readonly productId?: string;
+  readonly creativeDocument: Readonly<Record<string, unknown>>;
   readonly purpose: "PREVIEW" | "VALIDATION" | "FINAL_EXPORT";
   readonly outputProfile: {
     readonly mimeType: "image/png";
@@ -108,7 +111,7 @@ function validateCreativeGenerate(payload: unknown): payload is CreativeGenerate
 }
 
 function validateRender(payload: unknown): payload is CreativeRenderPayload {
-  if (!isRecord(payload) || !isString(payload.creativeVersionId)) return false;
+  if (!isRecord(payload) || !isString(payload.creativeVersionId) || !isRecord(payload.creativeDocument)) return false;
   const profile = payload.outputProfile;
   return (
     (payload.purpose === "PREVIEW" || payload.purpose === "VALIDATION" || payload.purpose === "FINAL_EXPORT") &&

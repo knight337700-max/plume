@@ -141,7 +141,7 @@ services:
       readiness:
         {
           type: queue-consumer,
-          queues: [default, ai-high, ai-standard, render, validation, export],
+          queues: [ai-standard, render, validation, export],
         }
     shutdown:
       signal: SIGTERM

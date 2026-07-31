@@ -18,6 +18,13 @@ export const RUNTIME_JOB_TYPES = Object.freeze([
   ...Object.keys(COMMAND_QUEUE_ROUTES),
   "dead-letter",
 ]);
+export const CATALOG_JOB_TYPES = Object.freeze([...Object.keys(COMMAND_QUEUE_ROUTES)]);
+export const STAGING_ENABLED_JOB_TYPES = Object.freeze([
+  "creative.generate",
+  "creative.render",
+  "validation.run",
+  "export.render_and_package",
+]);
 
 export interface RuntimeHandlerRegistry {
   readonly registrations: readonly WorkerHandlerRegistration[];
@@ -45,9 +52,11 @@ function registrationHandler(
 
 export function createRuntimeHandlerRegistry(
   handlers: Readonly<Record<string, RuntimeJobHandler>>,
+  requiredJobTypes: readonly string[] = RUNTIME_JOB_TYPES,
+  enabledJobTypes: readonly string[] = RUNTIME_JOB_TYPES,
 ): RuntimeHandlerRegistry {
   const byQueue = new Map<QueueName, string[]>();
-  for (const messageType of RUNTIME_JOB_TYPES) {
+  for (const messageType of enabledJobTypes) {
     const queue = queueForType(messageType);
     const messageTypes = byQueue.get(queue) ?? [];
     messageTypes.push(messageType);
@@ -60,9 +69,9 @@ export function createRuntimeHandlerRegistry(
       messageTypes,
       handler: registrationHandler(messageTypes, handlers),
     });
-  });
+  }).filter((registration) => registration.messageTypes.length > 0);
   return Object.freeze({
     registrations: Object.freeze(registrations),
-    missingJobTypes: Object.freeze(RUNTIME_JOB_TYPES.filter((messageType) => handlers[messageType] === undefined)),
+    missingJobTypes: Object.freeze(requiredJobTypes.filter((messageType) => handlers[messageType] === undefined)),
   });
 }

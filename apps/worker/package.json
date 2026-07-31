@@ -4,8 +4,14 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@plume/config": "workspace:*",
+    "@plume/contracts": "workspace:*",
+    "@plume/core": "workspace:*",
+    "@plume/db": "workspace:*",
+    "@plume/infrastructure": "workspace:*",
     "@plume/observability": "workspace:*",
-    "bullmq": "5.52.2"
+    "bullmq": "5.52.2",
+    "postgres": "3.4.7"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",

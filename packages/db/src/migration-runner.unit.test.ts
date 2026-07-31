@@ -11,7 +11,7 @@ import {
 describe("staging migration runner contract", () => {
   it("detects the repository migrations without hardcoded test targets", async () => {
     const migrations = await readMigrationDefinitions();
-    expect(migrations.map((migration) => migration.id)).toEqual(["0001_initial"]);
+    expect(migrations.map((migration) => migration.id)).toEqual(["0001_initial", "0002_durable_async_command_metadata"]);
     expect(migrations[0]?.destructive).toBe(false);
     expect(migrations[0]?.checksum).toBe(migrationChecksum(migrations[0]?.sql ?? ""));
   });

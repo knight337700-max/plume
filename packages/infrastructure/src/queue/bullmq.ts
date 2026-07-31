@@ -14,6 +14,16 @@ export interface QueueMessage<T = unknown> {
 
 export type QueueHandler<T> = (data: T, job: Job<T>) => Promise<unknown> | unknown;
 
+export interface DeadLetterPayload {
+  readonly sourceQueue: string;
+  readonly sourceJobId: string;
+  readonly sourceJobName: string;
+  readonly attemptsMade: number;
+  readonly failedReason: string;
+  readonly data: unknown;
+  readonly failedAt: string;
+}
+
 function redisConnection(redisUrl: string): ConnectionOptions {
   const parsed = new URL(redisUrl);
   const database = parsed.pathname.replace(/^\//, "");
@@ -77,6 +87,22 @@ export class BullMqAdapter {
       async (job) => handler(job.data as T, job as Job<T>),
       { connection: this.connection, prefix: this.prefix, concurrency: options.concurrency ?? 1 },
     );
+    worker.on("failed", (job, error) => {
+      if (!job || job.attemptsMade < (job.opts.attempts ?? 1)) return;
+      void this.enqueue<DeadLetterPayload>("dead-letter", {
+        name: "dead-letter",
+        data: {
+          sourceQueue: queue,
+          sourceJobId: String(job.id),
+          sourceJobName: job.name,
+          attemptsMade: job.attemptsMade,
+          failedReason: error instanceof Error ? error.message : String(error),
+          data: job.data,
+          failedAt: new Date().toISOString(),
+        },
+        options: { attempts: 1, jobId: `dead-letter-${this.prefix}-${String(job.id).replace(/[^a-z0-9_-]/gi, "-")}` },
+      }).catch(() => undefined);
+    });
     this.workers.add(worker);
     return worker;
   }

@@ -34,6 +34,7 @@ export interface ObjectStorage {
   createObjectKey(purpose?: string): string;
   put(input: StoragePutInput): Promise<StorageObject>;
   head(objectKey: string): Promise<StorageHead | null>;
+  get(objectKey: string): Promise<Uint8Array>;
   presign(objectKey: string, options?: { method?: "GET" | "PUT"; expiresInSeconds?: number }): Promise<PresignedUrl>;
   deleteTemp(objectKey: string): Promise<void>;
 }
@@ -112,6 +113,13 @@ export class S3ObjectStorage implements ObjectStorage {
         ? { checksumSha256: response.headers.get("x-amz-checksum-sha256")! }
         : {}),
     };
+  }
+
+  public async get(objectKey: string): Promise<Uint8Array> {
+    const signed = await this.presign(objectKey, { method: "GET", expiresInSeconds: 60 });
+    const response = await fetch(signed.url);
+    if (!response.ok) throw errorForResponse(response, "S3 get");
+    return new Uint8Array(await response.arrayBuffer());
   }
 
   public async checkBucket(): Promise<void> {

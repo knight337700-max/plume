@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
 import { describe, it } from "vitest";
 import { createJacomoFixture } from "../../../packages/testkit/src/factories/jacomo-factory.js";
-import { requestMockOpenAI } from "../../../packages/testkit/src/ai/mock-openai-server.js";
+import { seedJacomoFixture } from "../../../packages/testkit/src/fixtures/jacomo.js";
 import {
   startProcessHarness,
   type ProcessHarness,
@@ -31,10 +30,33 @@ function expect(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+async function waitForCompletedJob(
+  harness: ProcessHarness,
+  workspaceId: string,
+  jobId: string,
+): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + 20_000;
+  let lastStatus = "UNKNOWN";
+  while (Date.now() < deadline) {
+    const response = await harness.request(`/api/v1/workspaces/${workspaceId}/jobs/${jobId}`);
+    const body = (await response.json()) as { data?: Record<string, unknown> };
+    if (response.status !== 200) throw new Error(`job polling failed: ${response.status}`);
+    const job = body.data ?? {};
+    lastStatus = String(job.status ?? "UNKNOWN");
+    if (lastStatus === "COMPLETED") return job;
+    if (["FAILED", "PARTIAL_SUCCESS", "CANCELLED"].includes(lastStatus)) {
+      throw new Error(`JACOMO job ended in ${lastStatus}: ${JSON.stringify(job)}`);
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`JACOMO job did not complete; last status=${lastStatus}`);
+}
+
 async function runJacomoFlow(): Promise<void> {
   const fixture = createJacomoFixture();
   const harness = await startProcessHarness();
   try {
+    await seedJacomoFixture(harness.database, fixture);
     expect(
       Object.values(harness.services).every(({ status }) => status === "ready"),
       "all harness services must be ready",
@@ -96,12 +118,6 @@ async function runJacomoFlow(): Promise<void> {
       { method: "POST", headers: workspaceRoleHeaders, body: "{}" },
       200,
     );
-    await jsonRequest(
-      harness,
-      `/api/v1/workspaces/${fixture.workspace.id}/campaigns/${campaign.id}/product-matching.run`,
-      { method: "POST", headers: workspaceRoleHeaders, body: "{}" },
-      202,
-    );
     const confirmedProducts = await jsonRequest(
       harness,
       `/api/v1/workspaces/${fixture.workspace.id}/campaigns/${campaign.id}/products`,
@@ -159,112 +175,74 @@ async function runJacomoFlow(): Promise<void> {
       },
       202,
     );
-    const generationResource = (generationResponse.resource ?? {}) as { id: string };
-    const generation = await jsonRequest(
+    const generationJob = (generationResponse.job ?? {}) as { id?: string; status?: string };
+    expect(typeof generationJob.id === "string", "generation must return a durable job id");
+    expect(generationJob.status === "QUEUED", "generation must be queued before worker delivery");
+    const job = await waitForCompletedJob(harness, fixture.workspace.id, generationJob.id);
+    const itemsResponse = await jsonRequest(
       harness,
-      `/api/v1/workspaces/${fixture.workspace.id}/campaigns/${campaign.id}/generation-requests/${generationResource.id}`,
+      `/api/v1/workspaces/${fixture.workspace.id}/jobs/${generationJob.id}/items`,
       {},
       200,
     );
-    const generationData = (generation.data ?? {}) as { items?: unknown[] };
-    expect(
-      generationData.items?.length === 3,
-      "generation must create exactly three ordered items",
-    );
-    const layout = await requestMockOpenAI(harness.mockOpenAI, "Layout Planner");
-    expect(layout.width === 1029 && layout.height === 258, "layout must be 1029x258");
-    const creatives = fixture.products.map((product, index) => ({
-      id: `creative-jacomo-${index + 1}`,
-      productId: product.id,
-      versionNo: 1,
-      fileBytes: product.asset.bytes,
-      status: "GENERATED" as const,
-    }));
-    expect(
-      creatives.length === 3 &&
-        creatives.map(({ productId }) => productId).join(",") ===
-          fixture.products.map(({ id }) => id).join(","),
-      "three creatives must preserve product order",
-    );
-    for (const creative of creatives) {
-      expect(
-        creative.fileBytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])),
-        "render must be PNG",
-      );
-      expect(creative.fileBytes.byteLength <= 307_200, "render must be below 307200 bytes");
+    const items = (itemsResponse.items ?? []) as Array<{ command?: string; status?: string; messageId?: string; result?: Record<string, unknown> }>;
+    const commands = items.map((item) => item.command);
+    expect(items.length === 8, "JACOMO must persist one root, three render, three validation, and one export item");
+    expect(commands.filter((command) => command === "creative.generate").length === 1, "root command item missing");
+    expect(commands.filter((command) => command === "creative.render").length === 3, "render worker item count mismatch");
+    expect(commands.filter((command) => command === "validation.run").length === 3, "validation worker item count mismatch");
+    expect(commands.filter((command) => command === "export.render_and_package").length === 1, "export worker item missing");
+    expect(items.every((item) => item.status === "COMPLETED"), "every queued JACOMO item must complete");
+    const renderItems = items.filter((item) => item.command === "creative.render");
+    for (const item of renderItems) {
+      const objectKey = item.result?.objectKey;
+      expect(typeof objectKey === "string", "render result must contain a durable object key");
+      const bytes = await harness.getObject(objectKey);
+      expect(bytes.byteLength > 100, "render artifact must be non-empty");
+      expect(Array.from(bytes.subarray(0, 8)).join(",") === "137,80,78,71,13,10,26,10", "render artifact must be PNG");
     }
-    const originalVersionIds = creatives.map(({ id }) => `${id}-v01`);
-    const editedVersionIds = creatives.map(({ id }) => `${id}-v02`);
+    const exportItem = items.find((item) => item.command === "export.render_and_package");
+    const exportObjectKey = exportItem?.result?.objectKey;
+    expect(typeof exportObjectKey === "string", "export result must contain a durable object key");
+    const packageBytes = await harness.getObject(exportObjectKey);
+    expect(packageBytes[0] === 0x50 && packageBytes[1] === 0x4b, "export artifact must be a ZIP");
+    const replay = await jsonRequest(
+      harness,
+      `/api/v1/workspaces/${fixture.workspace.id}/jobs/${generationJob.id}`,
+      {},
+      200,
+    );
+    const replayData = replay.data as { status?: string } | undefined;
+    expect(replayData?.status === "COMPLETED", "durable job status must remain completed after delivery");
+    const rootItem = items.find((item) => item.command === "creative.generate");
+    expect(typeof rootItem?.messageId === "string", "root command message id must be durable");
+    await harness.replayMessage(rootItem.messageId);
+    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    const replayItems = await jsonRequest(
+      harness,
+      `/api/v1/workspaces/${fixture.workspace.id}/jobs/${generationJob.id}/items`,
+      {},
+      200,
+    );
     expect(
-      originalVersionIds.every((id, index) => id !== editedVersionIds[index]),
-      "natural language edit must create a new version",
+      (replayItems.items as Array<{ status?: string }>).every((item) => item.status === "COMPLETED"),
+      "duplicate command delivery must be absorbed by the idempotency guard",
     );
-    const edit = await requestMockOpenAI(harness.mockOpenAI, "Natural Language Editor");
-    expect(Array.isArray(edit.operations), "edit operation preview must be structured");
-    const validationRuns = creatives.map((creative, index) => ({
-      id: `${creative.id}-validation-2`,
-      creativeId: creative.id,
-      runNo: 2,
-      status: "PASS",
-      errorCount: 0,
-      previousRunId: `${creative.id}-validation-1`,
-      sequence: index + 1,
-    }));
-    expect(
-      validationRuns.every(
-        (run) => run.status === "PASS" && run.errorCount === 0 && run.runNo === 2,
-      ),
-      "revalidation must pass with zero errors",
-    );
-    const policy = await requestMockOpenAI(harness.mockOpenAI, "AI Policy Reviewer");
-    expect(policy.errorCount === 0, "AI policy review must have zero errors");
-    const approved = creatives.map((creative) => ({
-      creativeId: creative.id,
-      versionId: `${creative.id}-v02`,
-      status: "APPROVED",
-    }));
-    expect(
-      approved.every(({ status }) => status === "APPROVED"),
-      "all creatives must be approved",
-    );
-    const exportNames = creatives.map(
-      (creative, index) =>
-        `JACOMO-2026-FALL-${fixture.products[index]?.internalCode ?? creative.productId}-V02.png`,
-    );
-    const manifest = {
-      campaignId: campaign.id,
-      format: { width: 1029, height: 258, mimeType: "image/png" },
-      files: exportNames,
-      validationRunIds: validationRuns.map(({ id }) => id),
-      versions: approved.map(({ versionId }) => versionId),
-    };
-    const report = { status: "PASS", errorCount: 0, warningCount: 0, validationRuns };
-    const zip = Buffer.from(JSON.stringify({ manifest, report, files: exportNames }), "utf8");
-    const checksum = createHash("sha256").update(zip).digest("hex");
-    expect(
-      exportNames.length === 3 && exportNames.every((name) => name.endsWith(".png")),
-      "export manifest must contain three safe PNG names",
-    );
-    expect(checksum.length === 64 && zip.byteLength > 0, "export ZIP must have a checksum");
+    expect(await harness.exerciseDeadLetter(), "exhausted worker delivery must be recorded in dead-letter queue");
     const sse = await harness.request(`/api/v1/workspaces/${fixture.workspace.id}/events/stream`, {
       headers: { accept: "text/event-stream", "last-event-id": "evt_0000000000000000" },
     });
     expect(sse.ok && (await sse.text()).includes("heartbeat"), "SSE endpoint must be available");
-    const restState = "COMPLETED";
-    const deduplicatedStates = [...new Set([restState, restState])];
-    expect(
-      deduplicatedStates.length === 1 && deduplicatedStates[0] === restState,
-      "REST/SSE state updates must be deduplicated",
-    );
     console.log(
       JSON.stringify(
         {
           status: "PASS",
           services: Object.keys(harness.services),
           campaignId: campaign.id,
-          creatives: creatives.length,
-          validationRuns: validationRuns.length,
-          exportChecksum: checksum,
+          jobId: generationJob.id,
+          items: items.length,
+          exportBytes: packageBytes.byteLength,
+          statusFromApi: job.status,
           logs: harness.logs.length,
         },
         null,

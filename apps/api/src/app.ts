@@ -14,13 +14,17 @@ import { operationsRouteGroup } from "./routes/operations/index.js";
 import { installTracingHooks } from "./plugins/tracing.js";
 import { registerMetricsRoute } from "./routes/system/metrics.js";
 import { registerDashboardRoute } from "./routes/system/dashboard.js";
+import type { AsyncCommandPublisher } from "../../../packages/core/src/async/command-publisher.js";
+import type { JobUseCases } from "../../../packages/core/src/modules/operations/job-use-cases.js";
 
 export interface BuildAppOptions extends FastifyServerOptions {
   readonly readinessChecks?: ReadinessChecks;
+  readonly asyncCommandPublisher?: AsyncCommandPublisher;
+  readonly jobs?: JobUseCases;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
-  const { readinessChecks, ...fastifyOptions } = options;
+  const { readinessChecks, asyncCommandPublisher, jobs, ...fastifyOptions } = options;
   const app = Fastify({
     logger: false,
     rewriteUrl: (request) => (request.url ?? "/").replace(/:([a-z][a-z-]*)(?=\/|$)/g, ".$1"),
@@ -39,11 +43,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(mediaCatalogRoutes);
   await app.register(assetFileRoutes);
   await app.register(assetRoutesGroup);
-  await app.register(campaignRouteGroup);
-  await app.register(creativeRouteGroup);
-  await app.register(validationRouteGroup);
+  await app.register(campaignRouteGroup, {
+    ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
+  });
+  await app.register(creativeRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
+  await app.register(validationRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
   await app.register(approvalRouteGroup);
-  await app.register(exportRouteGroup);
-  await app.register(operationsRouteGroup);
+  await app.register(exportRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
+  await app.register(operationsRouteGroup, { ...(jobs ? { jobs } : {}) });
   return app;
 }

@@ -24,6 +24,13 @@ Worker, and Scheduler have no direct public ingress. The API and Worker each
 declare their own scaling bounds so queue depth can be handled without
 coupling HTTP capacity to consumer capacity.
 
+The Worker process is the single owner of the PostgreSQL Outbox dispatcher.
+It claims leased Outbox rows, validates and publishes canonical command
+envelopes to BullMQ, and marks a row published only after queue acceptance.
+API replicas create durable Jobs, JobItems, and Outbox rows transactionally;
+they never publish directly to BullMQ. This ownership rule prevents duplicate
+dispatcher loops when API or Worker replicas scale independently.
+
 ## Platform adapter responsibilities
 
 - Pull the exact digest-pinned image references in `services.yaml`; mutable
@@ -46,6 +53,13 @@ PostgreSQL is the system of record and requires encrypted daily backups with a
 encryption, versioning, and a 90-day retention policy. Redis persistence is
 required for recovery, while queue delivery remains at-least-once and worker
 handlers must remain idempotent.
+
+The staging activation set is intentionally narrow: `creative.generate` is
+the external entry command, while `creative.render`, `validation.run`, and
+`export.render_and_package` are Worker-owned internal steps. Other catalog
+commands remain disabled until their producer, handler, and end-to-end
+contract are implemented. Exhausted BullMQ deliveries are recorded on the
+`dead-letter` queue with the source command, job ID, attempt count, and error.
 
 For rollback, redeploy the previous immutable image tag. Do not perform an
 automatic destructive database rollback: restore a verified backup and apply a

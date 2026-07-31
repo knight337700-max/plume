@@ -15,8 +15,9 @@ import { createInMemoryCatalogRepository } from "../../../../../packages/core/sr
 import { mediaSelectionRoutes } from "./media-selection.js";
 import { createGenerationUseCases, type GenerationUseCases } from "../../../../../packages/core/src/modules/campaign/generation-use-cases.js";
 import { generationRoutes } from "./generation.js";
+import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
 
-interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases; readonly generation?: GenerationUseCases }
+interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases; readonly generation?: GenerationUseCases; readonly asyncCommands?: AsyncCommandPublisher }
 export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
   const repositories = createInMemoryCampaignRepositories();
   const campaigns = options.campaigns ?? createCampaignUseCases(repositories);
@@ -29,9 +30,9 @@ export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, optio
   const generation = options.generation ?? createGenerationUseCases(repositories);
   await app.register(campaignRoutes, { campaigns });
   await app.register(campaignSourceRoutes, { sources });
-  await app.register(campaignBriefRoutes, { briefs });
-  await app.register(productMatchingRoutes, { matching });
-  await app.register(assetPoolRoutes, { pool });
+  await app.register(campaignBriefRoutes, { briefs, ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}) });
+  await app.register(productMatchingRoutes, { matching, ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}) });
+  await app.register(assetPoolRoutes, { pool, ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}) });
   await app.register(mediaSelectionRoutes, { selection, repositories });
-  await app.register(generationRoutes, { generation });
+  await app.register(generationRoutes, { generation, ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}) });
 };
