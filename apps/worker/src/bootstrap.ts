@@ -10,6 +10,7 @@ type WorkerHandle = { close(): Promise<void> };
 export interface WorkerHandlerRegistration {
   readonly queue: string;
   readonly handler: QueueHandler<unknown>;
+  readonly messageTypes?: readonly string[];
   readonly concurrency?: number;
 }
 
@@ -23,13 +24,19 @@ export function createWorkerBootstrap(
   options: {
     readonly adapter?: BullMqAdapter;
     readonly handlers?: readonly WorkerHandlerRegistration[];
+    readonly requiredHandlerTypes?: readonly string[];
   } = {},
 ): WorkerBootstrap {
   const adapter = options.adapter ?? createBullMqAdapter();
   const handlers = options.handlers ?? [];
+  const registeredHandlerTypes = new Set(handlers.flatMap((registration) => registration.messageTypes ?? []));
+  const missingHandlerTypes = Object.freeze(
+    [...new Set(options.requiredHandlerTypes ?? [])].filter((type) => !registeredHandlerTypes.has(type)),
+  );
   let state: WorkerHealth = Object.freeze({
     status: "starting",
     activeHandlers: 0,
+    missingHandlerTypes,
     checkedAt: new Date().toISOString(),
   });
   const workers: WorkerHandle[] = [];
@@ -37,6 +44,15 @@ export function createWorkerBootstrap(
   return {
     async start() {
       if (state.status === "ready") return state;
+      if (handlers.length === 0 || missingHandlerTypes.length > 0) {
+        state = Object.freeze({
+          status: "not-ready" as const,
+          activeHandlers: 0,
+          missingHandlerTypes,
+          checkedAt: new Date().toISOString(),
+        });
+        return state;
+      }
       for (const registration of handlers) {
         workers.push(
           adapter.consume(
@@ -49,8 +65,9 @@ export function createWorkerBootstrap(
         );
       }
       state = Object.freeze({
-        status: "ready",
+        status: "ready" as const,
         activeHandlers: workers.length,
+        missingHandlerTypes,
         checkedAt: new Date().toISOString(),
       });
       return state;
@@ -61,8 +78,9 @@ export function createWorkerBootstrap(
       await adapter.close();
       workers.length = 0;
       state = Object.freeze({
-        status: "stopped",
+        status: "stopped" as const,
         activeHandlers: 0,
+        missingHandlerTypes,
         checkedAt: new Date().toISOString(),
       });
       return state;

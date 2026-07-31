@@ -3,6 +3,7 @@ import { Job, Queue, Worker, type ConnectionOptions, type JobsOptions } from "bu
 export interface BullMqAdapterOptions {
   readonly redisUrl?: string;
   readonly environmentPrefix?: string;
+  readonly prefix?: string;
 }
 
 export interface QueueMessage<T = unknown> {
@@ -35,10 +36,14 @@ export class BullMqAdapter {
     this.connection = redisConnection(
       options.redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379",
     );
-    this.prefix = (options.environmentPrefix ?? process.env.NODE_ENV ?? "development").replace(
+    this.prefix = (options.prefix ?? options.environmentPrefix ?? process.env.QUEUE_PREFIX?.trim() ?? "development").replace(
       /[^a-z0-9_-]/gi,
       "-",
     );
+  }
+
+  get queuePrefix(): string {
+    return this.prefix;
   }
 
   queueName(queue: string): string {
