@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { hashContractText } from "../codegen/contract-text.ts";
 
 type TableOwner = { table: string; module: string; file: string };
 
@@ -236,10 +237,7 @@ function checkManifestHashes() {
     ["ui-component-catalog", "contracts-source/ui-component-catalog.yaml"],
   ] as const) {
     const entry = manifest.match(new RegExp(`- id: ${id}[\\s\\S]*?(?=\\n  - id:|$)`))?.[0] ?? "";
-    const expected = createHash("sha256")
-      .update(readRepository(sourcePath))
-      .digest("hex")
-      .toUpperCase();
+    const expected = hashContractText(readRepository(sourcePath));
     const declared = entry.match(/sha256:\s*["']([A-F0-9]{64})["']/i)?.[1]?.toUpperCase();
     if (declared !== expected) failures.push(`${id} contract hash drifted`);
   }
