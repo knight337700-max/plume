@@ -1,3 +1,5 @@
+import OpenAI from "openai";
+
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
   readonly content:
@@ -62,9 +64,47 @@ interface ResponsePayload {
 }
 
 export interface OpenAIProviderGatewayOptions {
+  readonly client?: OpenAI;
   readonly endpoint?: string;
   readonly fetchImpl?: typeof fetch;
   readonly environment?: Readonly<Record<string, string | undefined>>;
+}
+
+const RESPONSE_METADATA = {
+  environment: "staging",
+  gate: "H_PHASE_2C",
+  customer_data: "synthetic",
+} as const;
+
+function inputText(messages: readonly SafeMessage[]): string {
+  return messages
+    .map((message) => {
+      const content =
+        typeof message.content === "string"
+          ? message.content
+          : message.content.map((part) => part.text ?? "").join("\n");
+      return `${message.role}: ${content}`;
+    })
+    .join("\n\n");
+}
+
+function requestBody(request: AIExecutionRequest, model: string): Record<string, unknown> {
+  return {
+    model,
+    input: inputText(request.messages),
+    text: {
+      format: {
+        type: "json_schema",
+        name: `${request.metadata.agentCode.toLowerCase()}_result`,
+        strict: true,
+        schema: request.outputSchema,
+      },
+    },
+    max_output_tokens: 1200,
+    store: false,
+    background: false,
+    metadata: RESPONSE_METADATA,
+  };
 }
 
 function providerError(
@@ -83,6 +123,61 @@ function outputText(payload: ResponsePayload): string | undefined {
     .find((part) => part.type === "output_text" || part.text)?.text;
 }
 
+function normalizeResponse(
+  payload: ResponsePayload,
+  model: string,
+  startedAt: number,
+): AIExecutionResult {
+  const text = outputText(payload);
+  if (!text)
+    return {
+      provider: "OpenAI",
+      model,
+      status: "FAILED",
+      latencyMs: Date.now() - startedAt,
+      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      error: providerError(
+        "INVALID_RESPONSE",
+        "OpenAI response did not contain structured output",
+        false,
+      ),
+    };
+  try {
+    return {
+      provider: "OpenAI",
+      model,
+      status: "COMPLETED",
+      outputJson: JSON.parse(text),
+      latencyMs: Date.now() - startedAt,
+      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      ...((payload.incomplete_details?.reason ?? payload.status)
+        ? { finishReason: payload.incomplete_details?.reason ?? payload.status }
+        : {}),
+      ...(payload.usage
+        ? {
+            usage: {
+              inputUnits: payload.usage.input_tokens ?? 0,
+              outputUnits: payload.usage.output_tokens ?? 0,
+            },
+          }
+        : {}),
+    };
+  } catch {
+    return {
+      provider: "OpenAI",
+      model,
+      status: "FAILED",
+      latencyMs: Date.now() - startedAt,
+      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      error: providerError(
+        "INVALID_RESPONSE",
+        "OpenAI structured output was not valid JSON",
+        false,
+      ),
+    };
+  }
+}
+
 export interface OpenAIProviderGateway {
   execute(request: AIExecutionRequest, signal?: AbortSignal): Promise<AIExecutionResult>;
 }
@@ -97,8 +192,17 @@ export function createOpenAIProviderGateway(
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const requestFetch = options.fetchImpl ?? fetch;
   const endpoint = (options.endpoint ?? "https://api.openai.com/v1/responses").replace(/\/$/u, "");
+  const client = options.fetchImpl || options.client ? options.client : new OpenAI({ apiKey });
   return {
     async execute(request, signal) {
+      if (request.imageInputs.length)
+        return {
+          provider: "OpenAI",
+          model,
+          status: "FAILED",
+          latencyMs: 0,
+          error: providerError("PROVIDER_ERROR", "Image inputs are disabled for Phase 2C", false),
+        };
       const startedAt = Date.now();
       const controller = new AbortController();
       const timeout = setTimeout(
@@ -108,24 +212,16 @@ export function createOpenAIProviderGateway(
       const abort = () => controller.abort();
       signal?.addEventListener("abort", abort, { once: true });
       try {
+        if (client) {
+          const response = await client.responses.create(requestBody(request, model) as never, {
+            signal: controller.signal,
+          });
+          return normalizeResponse(response as unknown as ResponsePayload, model, startedAt);
+        }
         const response = await requestFetch(endpoint, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model,
-            input: request.messages,
-            text: {
-              format: {
-                type: "json_schema",
-                name: `${request.metadata.agentCode.toLowerCase()}_result`,
-                strict: true,
-                schema: request.outputSchema,
-              },
-            },
-            ...(request.imageInputs.length
-              ? { metadata: { imageFileIds: request.imageInputs.map((file) => file.fileId) } }
-              : {}),
-          }),
+          body: JSON.stringify(requestBody(request, model)),
           signal: controller.signal,
         });
         if (response.status === 429)
@@ -161,54 +257,7 @@ export function createOpenAIProviderGateway(
             error: providerError("INVALID_RESPONSE", "OpenAI response was not JSON", false),
           };
         }
-        const text = outputText(payload);
-        if (!text)
-          return {
-            provider: "OpenAI",
-            model,
-            status: "FAILED",
-            latencyMs: Date.now() - startedAt,
-            ...(payload.id ? { providerRequestId: payload.id } : {}),
-            error: providerError(
-              "INVALID_RESPONSE",
-              "OpenAI response did not contain structured output",
-              false,
-            ),
-          };
-        try {
-          return {
-            provider: "OpenAI",
-            model,
-            status: "COMPLETED",
-            outputJson: JSON.parse(text),
-            latencyMs: Date.now() - startedAt,
-            ...(payload.id ? { providerRequestId: payload.id } : {}),
-            ...((payload.incomplete_details?.reason ?? payload.status)
-              ? { finishReason: payload.incomplete_details?.reason ?? payload.status }
-              : {}),
-            ...(payload.usage
-              ? {
-                  usage: {
-                    inputUnits: payload.usage.input_tokens ?? 0,
-                    outputUnits: payload.usage.output_tokens ?? 0,
-                  },
-                }
-              : {}),
-          };
-        } catch {
-          return {
-            provider: "OpenAI",
-            model,
-            status: "FAILED",
-            latencyMs: Date.now() - startedAt,
-            ...(payload.id ? { providerRequestId: payload.id } : {}),
-            error: providerError(
-              "INVALID_RESPONSE",
-              "OpenAI structured output was not valid JSON",
-              false,
-            ),
-          };
-        }
+        return normalizeResponse(payload, model, startedAt);
       } catch (error) {
         if (controller.signal.aborted)
           return {
@@ -225,8 +274,13 @@ export function createOpenAIProviderGateway(
           latencyMs: Date.now() - startedAt,
           error: providerError(
             "PROVIDER_ERROR",
-            error instanceof Error ? error.message : "OpenAI request failed",
-            true,
+            "OpenAI request failed",
+            typeof error === "object" && error !== null && "status" in error
+              ? Number(error.status) >= 500
+              : true,
+            typeof error === "object" && error !== null && "status" in error
+              ? Number(error.status)
+              : undefined,
           ),
         };
       } finally {

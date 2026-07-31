@@ -41,6 +41,13 @@ describe("OpenAI provider gateway", () => {
     expect(
       (receivedBody?.text as { format: { type: string; strict: boolean } }).format,
     ).toMatchObject({ type: "json_schema", strict: true });
+    expect(receivedBody?.store).toBe(false);
+    expect(receivedBody?.background).toBe(false);
+    expect(receivedBody?.metadata).toEqual({
+      environment: "staging",
+      gate: "H_PHASE_2C",
+      customer_data: "synthetic",
+    });
     expect(result).toMatchObject({
       provider: "OpenAI",
       model: "mock-model",

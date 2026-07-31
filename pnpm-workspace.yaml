@@ -7,3 +7,6 @@ allowBuilds:
   '@astryxdesign/core': true
   esbuild: true
   msgpackr-extract: true
+
+minimumReleaseAgeExclude:
+  - openai@7.3.0
