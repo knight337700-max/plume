@@ -11,9 +11,15 @@
     "test:contracts": "node --experimental-strip-types ../../tools/integrity/list-fastify-routes.ts --check"
   },
   "dependencies": {
+    "@plume/config": "workspace:*",
+    "@plume/core": "workspace:*",
+    "@plume/db": "workspace:*",
+    "@plume/infrastructure": "workspace:*",
+    "@plume/observability": "workspace:*",
     "@fastify/cookie": "11.0.2",
     "@fastify/session": "11.1.0",
     "bullmq": "5.52.2",
+    "drizzle-orm": "0.44.5",
     "fastify": "5.3.3",
     "ioredis": "5.11.1",
     "postgres": "3.4.7"
