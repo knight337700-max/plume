@@ -53,7 +53,9 @@ export class DrizzleOutboxRepository implements OutboxRepository {
          ${this.sql.json(JSON.parse(JSON.stringify(message.payloadJson)))}, ${this.sql.json(JSON.parse(JSON.stringify(message.headersJson ?? {})))}, ${message.availableAt ?? new Date()})
       RETURNING *
     `;
-    return mapRow(rows[0]);
+    const row = rows[0];
+    if (!row) throw new Error("OUTBOX_INSERT_DID_NOT_RETURN_ROW");
+    return mapRow(row);
   }
 
   async claim(limit: number, leaseMs: number): Promise<readonly OutboxMessage[]> {

@@ -3,11 +3,30 @@ import type {
   OutboxMessage,
   OutboxRepository,
 } from "../../../../../packages/core/src/modules/operations/outbox-repository.js";
+import { getAsyncCommandDefinition, validateCommandEnvelope } from "../../../../../packages/contracts/src/async.js";
 
 export interface OutboxPublishResult {
   readonly claimed: number;
   readonly published: number;
   readonly failed: number;
+}
+
+export function outboxToCommandEnvelope(message: OutboxMessage) {
+  const definition = getAsyncCommandDefinition(message.messageType);
+  if (definition.queue !== message.topic) throw new Error("OUTBOX_QUEUE_ROUTE_MISMATCH");
+  const headers = message.headersJson;
+  return validateCommandEnvelope({
+    messageId: String(headers.messageId ?? message.messageKey),
+    schemaVersion: message.schemaVersion,
+    workspaceId: message.workspaceId,
+    correlationId: String(headers.correlationId ?? message.messageKey),
+    ...(headers.causationId === undefined ? {} : { causationId: String(headers.causationId) }),
+    jobId: String(headers.jobId ?? message.messageKey),
+    ...(headers.jobItemId === undefined ? {} : { jobItemId: String(headers.jobItemId) }),
+    createdAt: String(headers.createdAt ?? message.createdAt.toISOString()),
+    command: message.messageType,
+    payload: message.payloadJson,
+  });
 }
 
 function retryAt(attemptCount: number): Date {
@@ -27,10 +46,11 @@ export async function publishOutbox(
   let failed = 0;
   for (const message of messages) {
     try {
+      const envelope = outboxToCommandEnvelope(message);
       await queue.enqueue(message.topic, {
         name: message.messageType,
-        data: message,
-        options: { jobId: message.id, attempts: 1 },
+        data: envelope,
+        options: { jobId: message.messageKey, attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
       });
       await repository.markPublished(message.id);
       published += 1;

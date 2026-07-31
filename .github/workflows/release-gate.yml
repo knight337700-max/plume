@@ -203,6 +203,8 @@ jobs:
         run: pnpm integrity
       - name: Staging manifest integrity
         run: pnpm deployment:check
+      - name: Staging runtime contract
+        run: pnpm staging:runtime:check
 
   docker:
     name: Production Docker images

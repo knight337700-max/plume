@@ -10,6 +10,7 @@ export const QUEUE_NAMES = Object.freeze([
   "export",
   "maintenance",
   "notifications",
+  "dead-letter",
   "default",
 ] as const);
 

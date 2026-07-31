@@ -7,10 +7,12 @@ import { createInMemoryCreativeRepositories } from "../../../../../packages/core
 import type { IdempotencyRepository } from "../../idempotency/repository.js";
 import { creativeRoutes } from "./creatives.js";
 import { creativeRenderRoutes } from "./renders.js";
+import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
 
 export interface CreativeRouteGroupOptions {
   readonly useCases?: CreativeUseCases;
   readonly idempotency?: IdempotencyRepository;
+  readonly asyncCommands?: AsyncCommandPublisher;
 }
 export const creativeRouteGroup: FastifyPluginAsync<CreativeRouteGroupOptions> = async (
   app,
@@ -21,6 +23,7 @@ export const creativeRouteGroup: FastifyPluginAsync<CreativeRouteGroupOptions> =
   await app.register(creativeRoutes, {
     useCases,
     ...(options.idempotency ? { idempotency: options.idempotency } : {}),
+    ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}),
   });
   await app.register(creativeRenderRoutes, { useCases });
 };

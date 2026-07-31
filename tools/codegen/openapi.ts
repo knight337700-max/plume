@@ -13,8 +13,8 @@ const operationIds = [...source.matchAll(/^\s+operationId:\s*([A-Za-z0-9_.-]+)\s
   (match) => match[1],
 );
 
-if (operationIds.length !== 137) {
-  throw new Error(`Expected 137 OpenAPI operations, found ${operationIds.length}`);
+if (operationIds.length !== 139) {
+  throw new Error(`Expected 139 OpenAPI operations, found ${operationIds.length}`);
 }
 
 if (new Set(operationIds).size !== operationIds.length) {

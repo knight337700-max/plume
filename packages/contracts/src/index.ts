@@ -12,3 +12,18 @@ export {
   isApiErrorCode,
 } from "./error-codes.js";
 export { createFieldError, createProblem, unknownServerProblem } from "./problem.js";
+export {
+  ASYNC_COMMAND_DEFINITIONS,
+  JACOMO_EXTERNAL_COMMANDS,
+  JACOMO_INTERNAL_COMMANDS,
+  JACOMO_OPTIONAL_COMMANDS,
+  getAsyncCommandDefinition,
+  validateCommandEnvelope,
+  AsyncContractError,
+  type AsyncCommandDefinition,
+  type AsyncCommandPayload,
+  type CreativeGeneratePayload,
+  type CreativeRenderPayload,
+  type ExportPackagePayload,
+  type ValidationRunPayload,
+} from "./async.js";

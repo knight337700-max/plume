@@ -3,8 +3,10 @@ import type { ExportUseCases } from "../../../../../packages/core/src/modules/ex
 import type { IdempotencyRepository } from "../../idempotency/repository.js";
 import { InMemoryIdempotencyRepository } from "../../idempotency/repository.js";
 import { runIdempotent } from "../../idempotency/middleware.js";
+import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
+import { jobTypeNotEnabled } from "../../async/route-policy.js";
 
-export interface ExportRouteOptions { readonly useCases: ExportUseCases; readonly idempotency?: IdempotencyRepository }
+export interface ExportRouteOptions { readonly useCases: ExportUseCases; readonly idempotency?: IdempotencyRepository; readonly asyncCommands?: AsyncCommandPublisher }
 interface Params { readonly workspaceId: string; readonly campaignId: string; readonly exportJobId: string; readonly fileId: string }
 interface RequestLike { readonly params: Params; readonly body?: unknown; readonly query?: Record<string, unknown>; readonly headers?: Record<string, string | string[] | undefined>; readonly session?: { readonly userId?: string } }
 function request(value: unknown): RequestLike { return value as RequestLike; }
@@ -18,6 +20,7 @@ function stringMap(value: unknown): Record<string, string> { return value && typ
 export const exportRoutes: FastifyPluginAsync<ExportRouteOptions> = async (app, options) => {
   const idempotency = options.idempotency ?? new InMemoryIdempotencyRepository();
   app.post("/api/v1/workspaces/:workspaceId/campaigns/:campaignId/export-jobs", { config: { operationId: "createExportJob", roles: ["OWNER", "ADMIN", "REVIEWER"] } }, async (value, reply) => {
+    if (options.asyncCommands) jobTypeNotEnabled("export.render_and_package");
     const input = request(value);
     const payload = body(value);
     const result = await runIdempotent(idempotency, { workspaceId: input.params.workspaceId, key: header(value, "idempotency-key") ?? "", body: payload }, async () => {

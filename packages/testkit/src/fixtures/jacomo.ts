@@ -27,7 +27,7 @@ async function upsert(
     .join(", ");
   await sql.unsafe(
     `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${parameters}) ON CONFLICT (id) DO UPDATE SET ${updates}`,
-    values as unknown[],
+    values as never[],
   );
 }
 

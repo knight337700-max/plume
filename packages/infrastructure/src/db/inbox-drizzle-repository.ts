@@ -39,4 +39,17 @@ export class DrizzleInboxRepository implements InboxRepository {
         AND handler_name = ${input.handlerName} AND handler_version = ${input.handlerVersion}
     `;
   }
+
+  async release(input: {
+    workspaceId: string;
+    messageId: string;
+    handlerName: string;
+    handlerVersion: string;
+  }): Promise<void> {
+    await this.sql`
+      DELETE FROM message_consumption
+      WHERE workspace_id = ${input.workspaceId} AND message_id = ${input.messageId}
+        AND handler_name = ${input.handlerName} AND handler_version = ${input.handlerVersion}
+    `;
+  }
 }

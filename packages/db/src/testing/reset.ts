@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
+import { readdir, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import postgres from "postgres";
 
 const defaultAdminUrl = "postgresql://plume:plume_local_only@localhost:5432/plume";
@@ -60,8 +61,19 @@ async function ensureDatabase(target: TestDatabaseTarget, adminUrl: string): Pro
   }
 }
 
-async function migrationSql(): Promise<string> {
-  return readFile(new URL("../../migrations/0001_initial.sql", import.meta.url), "utf8");
+async function migrationFiles(): Promise<readonly { readonly id: string; readonly sql: string }[]> {
+  const directory = fileURLToPath(new URL("../../migrations/", import.meta.url));
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map(async (entry) => ({
+        id: entry.name.replace(/\.sql$/u, ""),
+        sql: await readFile(resolve(directory, entry.name), "utf8"),
+      })),
+  );
+  return files;
 }
 
 /** Provisions the local test database and applies the initial migration once. */
@@ -74,14 +86,15 @@ export async function migrateTestDatabase(
   const db = postgres(target.url, { max: 1 });
   try {
     await db`CREATE TABLE IF NOT EXISTS plume_schema_migrations (id varchar(100) PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
-    const applied = await db`SELECT id FROM plume_schema_migrations WHERE id = '0001_initial'`;
-    if (applied.length > 0) return;
-
-    const sql = await migrationSql();
-    await db.begin(async (transaction) => {
-      await transaction.unsafe(sql);
-      await transaction`INSERT INTO plume_schema_migrations (id) VALUES ('0001_initial')`;
-    });
+    const applied = await db<{ id: string }[]>`SELECT id FROM plume_schema_migrations`;
+    const appliedIds = new Set(applied.map((row) => row.id));
+    for (const migration of await migrationFiles()) {
+      if (appliedIds.has(migration.id)) continue;
+      await db.begin(async (transaction) => {
+        await transaction.unsafe(migration.sql);
+        await transaction`INSERT INTO plume_schema_migrations (id) VALUES (${migration.id})`;
+      });
+    }
   } finally {
     await db.end({ timeout: 5 });
   }

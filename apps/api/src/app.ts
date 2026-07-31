@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { authRoutes } from "./routes/auth/index.js";
-import { registerHealthRoute } from "./routes/system/health.js";
+import { registerHealthRoute, type ReadinessChecks } from "./routes/system/health.js";
 import { workspaceRoutes } from "./routes/workspace/index.js";
 import { clientBrandRoutes } from "./routes/client-brand/index.js";
 import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
@@ -14,18 +14,27 @@ import { operationsRouteGroup } from "./routes/operations/index.js";
 import { installTracingHooks } from "./plugins/tracing.js";
 import { registerMetricsRoute } from "./routes/system/metrics.js";
 import { registerDashboardRoute } from "./routes/system/dashboard.js";
+import type { AsyncCommandPublisher } from "../../../packages/core/src/async/command-publisher.js";
+import type { JobUseCases } from "../../../packages/core/src/modules/operations/job-use-cases.js";
 
-export async function buildApp(options: FastifyServerOptions = {}): Promise<FastifyInstance> {
+export interface BuildAppOptions extends FastifyServerOptions {
+  readonly readinessChecks?: ReadinessChecks;
+  readonly asyncCommandPublisher?: AsyncCommandPublisher;
+  readonly jobs?: JobUseCases;
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const { readinessChecks, asyncCommandPublisher, jobs, ...fastifyOptions } = options;
   const app = Fastify({
     logger: false,
     rewriteUrl: (request) => (request.url ?? "/").replace(/:([a-z][a-z-]*)(?=\/|$)/g, ".$1"),
-    ...options,
+    ...fastifyOptions,
   });
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);
   });
   await installTracingHooks(app);
-  await registerHealthRoute(app);
+  await registerHealthRoute(app, readinessChecks ? { readinessChecks } : {});
   await registerMetricsRoute(app);
   await registerDashboardRoute(app);
   await app.register(authRoutes);
@@ -34,11 +43,13 @@ export async function buildApp(options: FastifyServerOptions = {}): Promise<Fast
   await app.register(mediaCatalogRoutes);
   await app.register(assetFileRoutes);
   await app.register(assetRoutesGroup);
-  await app.register(campaignRouteGroup);
-  await app.register(creativeRouteGroup);
-  await app.register(validationRouteGroup);
+  await app.register(campaignRouteGroup, {
+    ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
+  });
+  await app.register(creativeRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
+  await app.register(validationRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
   await app.register(approvalRouteGroup);
-  await app.register(exportRouteGroup);
-  await app.register(operationsRouteGroup);
+  await app.register(exportRouteGroup, { ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}) });
+  await app.register(operationsRouteGroup, { ...(jobs ? { jobs } : {}) });
   return app;
 }

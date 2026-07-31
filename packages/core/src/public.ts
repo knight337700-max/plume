@@ -26,3 +26,15 @@ export {
   type ExportPackagePlanInput,
   type ExportRecipePlanInput,
 } from "./modules/export/package-plan.js";
+export {
+  AGENT_CODES,
+  type AgentCode,
+  type AgentOrchestrator,
+  type AgentProviderGateway,
+  createAgentOrchestrator,
+} from "./agents/public.js";
+export {
+  type AsyncCommandPublisher,
+  type EnqueueCommandInput,
+  type EnqueuedCommand,
+} from "./async/command-publisher.js";

@@ -168,7 +168,7 @@ export function createOpenAIProviderGateway(
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
-            providerRequestId: payload.id,
+            ...(payload.id ? { providerRequestId: payload.id } : {}),
             error: providerError(
               "INVALID_RESPONSE",
               "OpenAI response did not contain structured output",
@@ -182,8 +182,10 @@ export function createOpenAIProviderGateway(
             status: "COMPLETED",
             outputJson: JSON.parse(text),
             latencyMs: Date.now() - startedAt,
-            providerRequestId: payload.id,
-            finishReason: payload.incomplete_details?.reason ?? payload.status,
+            ...(payload.id ? { providerRequestId: payload.id } : {}),
+            ...((payload.incomplete_details?.reason ?? payload.status)
+              ? { finishReason: payload.incomplete_details?.reason ?? payload.status }
+              : {}),
             ...(payload.usage
               ? {
                   usage: {
@@ -199,7 +201,7 @@ export function createOpenAIProviderGateway(
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
-            providerRequestId: payload.id,
+            ...(payload.id ? { providerRequestId: payload.id } : {}),
             error: providerError(
               "INVALID_RESPONSE",
               "OpenAI structured output was not valid JSON",

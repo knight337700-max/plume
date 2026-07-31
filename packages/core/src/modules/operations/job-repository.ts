@@ -4,6 +4,8 @@ import type { AsyncJobStatus } from "./async-job.js";
 export interface JobRecord {
   readonly id: string;
   readonly workspaceId: string;
+  readonly jobType?: string;
+  readonly correlationId?: string | null;
   readonly status: AsyncJobStatus;
   readonly progressPercent: number;
   readonly attemptNo: number;
@@ -14,6 +16,9 @@ export interface JobItemRecord {
   readonly id: string;
   readonly jobId: string;
   readonly itemKey: string;
+  readonly command?: string | null;
+  readonly messageId?: string | null;
+  readonly causationId?: string | null;
   readonly status: AsyncJobItemStatus;
   readonly progressPercent: number;
   readonly result?: unknown;

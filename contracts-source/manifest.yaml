@@ -5,7 +5,7 @@ contracts:
     upstream_path: "10_api/openapi-v1.yaml"
     source_path: "contracts-source/openapi-v1.yaml"
     version: 1.0.0
-    sha256: "FC1B5971DDDB674E91CFB88878D14D1D8509AAE0D0CD8966FB0E25D8725A3C20"
+    sha256: "ACB16C2FE2E7C3AEBBC7D527E189BE8C9E58AAC4DF73D5492C6873B5F045ADDF"
   - id: screen-data
     upstream_path: "06_product-design/screen-data-contracts.yaml"
     source_path: "contracts-source/screen-data-contracts.yaml"

@@ -7,20 +7,32 @@ metadata:
   description: Platform-neutral service contract for the Plume MVP candidate.
 
 # This is an interface contract, not a Kubernetes manifest. A platform adapter
-# supplies the image registry, managed services, ingress, and secret provider.
+# supplies managed services, ingress, and the secret provider. Images below are
+# pinned to the Phase 1 GHCR digests; changing one is an intentional release
+# operation.
+environment:
+  NODE_ENV: production
+  APP_ENV: staging
+  QUEUE_PREFIX: plume-staging
+  OPENAI_PROVIDER_MODE: mock
+
 images:
   web:
-    repository: "<registry>/plume-web"
-    tag: "${IMAGE_TAG}"
+    repository: "ghcr.io/knight337700-max/plume-web"
+    digest: "sha256:67fe7192f4897f0f50efb08d26b0e2ed13ca187a12824201b8d7e788c62a1304"
+    ref: "ghcr.io/knight337700-max/plume-web@sha256:67fe7192f4897f0f50efb08d26b0e2ed13ca187a12824201b8d7e788c62a1304"
   api:
-    repository: "<registry>/plume-api"
-    tag: "${IMAGE_TAG}"
+    repository: "ghcr.io/knight337700-max/plume-api"
+    digest: "sha256:d1fe891395db9810796c8962ce951e232da9aecf96fea9a15c461f4438d1f47f"
+    ref: "ghcr.io/knight337700-max/plume-api@sha256:d1fe891395db9810796c8962ce951e232da9aecf96fea9a15c461f4438d1f47f"
   worker:
-    repository: "<registry>/plume-worker"
-    tag: "${IMAGE_TAG}"
+    repository: "ghcr.io/knight337700-max/plume-worker"
+    digest: "sha256:ce5a2e17ac10a16ff4f4063fe12731f0c7b6cf71b6293c510fa5a024dc1a64ef"
+    ref: "ghcr.io/knight337700-max/plume-worker@sha256:ce5a2e17ac10a16ff4f4063fe12731f0c7b6cf71b6293c510fa5a024dc1a64ef"
   scheduler:
-    repository: "<registry>/plume-scheduler"
-    tag: "${IMAGE_TAG}"
+    repository: "ghcr.io/knight337700-max/plume-scheduler"
+    digest: "sha256:bac79f720e0911ca1c4df4275cf9c99cc4a6f95a2be8f1e8da00b79d82a9bb90"
+    ref: "ghcr.io/knight337700-max/plume-scheduler@sha256:bac79f720e0911ca1c4df4275cf9c99cc4a6f95a2be8f1e8da00b79d82a9bb90"
 
 network:
   public:
@@ -49,7 +61,7 @@ services:
       http: 8080
     scaling:
       mode: horizontal
-      minReplicas: 2
+      minReplicas: 1
       maxReplicas: 4
       independentScaleKey: web
     resources:
@@ -74,7 +86,7 @@ services:
       http: 3000
     scaling:
       mode: horizontal
-      minReplicas: 2
+      minReplicas: 1
       maxReplicas: 8
       independentScaleKey: api
       independentFrom: [worker]
@@ -82,8 +94,8 @@ services:
       requests: { cpu: 250m, memory: 512Mi }
       limits: { cpu: 1000m, memory: 1Gi }
     health:
-      liveness: { type: http, path: /api/v1/health, port: 3000 }
-      readiness: { type: http, path: /api/v1/health, port: 3000 }
+      liveness: { type: http, path: /api/v1/health/live, port: 3000 }
+      readiness: { type: http, path: /api/v1/health/ready, port: 3000 }
     shutdown:
       signal: SIGTERM
       gracePeriodSeconds: 45
@@ -101,11 +113,14 @@ services:
             SESSION_SECRET,
           ]
     config:
-      NODE_ENV: staging
+      NODE_ENV: production
+      APP_ENV: staging
       CORS_ORIGINS: "https://<staging-web-host>"
+      CORS_ALLOWED_ORIGINS: "https://<staging-web-host>"
       COOKIE_SECURE: "true"
       COOKIE_SAME_SITE: lax
       QUEUE_PREFIX: plume-staging
+      OPENAI_PROVIDER_MODE: mock
 
   worker:
     role: async-job-consumer
@@ -114,7 +129,7 @@ services:
     publicEntry: false
     scaling:
       mode: horizontal
-      minReplicas: 2
+      minReplicas: 1
       maxReplicas: 12
       independentScaleKey: worker
       independentFrom: [api]
@@ -126,7 +141,7 @@ services:
       readiness:
         {
           type: queue-consumer,
-          queues: [default, ai-high, ai-standard, render, validation, export],
+          queues: [ai-standard, render, validation, export],
         }
     shutdown:
       signal: SIGTERM
@@ -143,11 +158,12 @@ services:
             S3_ACCESS_KEY_ID,
             S3_SECRET_ACCESS_KEY,
             S3_BUCKET,
-            OPENAI_API_KEY,
           ]
     config:
-      NODE_ENV: staging
+      NODE_ENV: production
+      APP_ENV: staging
       QUEUE_PREFIX: plume-staging
+      OPENAI_PROVIDER_MODE: mock
 
   scheduler:
     role: scheduled-maintenance
@@ -159,14 +175,14 @@ services:
       minReplicas: 1
       maxReplicas: 1
       policy: lease_singleton
-      leaseName: plume-staging-scheduler
+      leaseName: plume-staging:scheduler:lease
       leaseTtlSeconds: 90
     resources:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { cpu: 500m, memory: 512Mi }
     health:
       liveness: { type: process, entrypoint: scheduler-main }
-      readiness: { type: lease, leaseName: plume-staging-scheduler }
+      readiness: { type: lease, leaseName: plume-staging:scheduler:lease }
     shutdown:
       signal: SIGTERM
       gracePeriodSeconds: 60
@@ -176,8 +192,10 @@ services:
         keys:
           [DATABASE_URL, REDIS_URL, S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET]
     config:
-      NODE_ENV: staging
+      NODE_ENV: production
+      APP_ENV: staging
       QUEUE_PREFIX: plume-staging
+      OPENAI_PROVIDER_MODE: mock
 
   postgres:
     role: primary-database
@@ -258,7 +276,7 @@ database:
   backingService: postgres
   migration:
     owner: release-job
-    command: pnpm db:migrate:test
+    command: pnpm db:migrate:staging
     target: staging-database
     beforeTraffic: true
     rollback: restore-backup-and-forward-fix

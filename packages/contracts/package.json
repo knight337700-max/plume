@@ -10,6 +10,9 @@
     }
   },
   "files": ["dist"],
+  "dependencies": {
+    "@plume/core": "workspace:*"
+  },
   "scripts": {
     "codegen:openapi": "node ../../tools/codegen/openapi.ts",
     "dev": "tsc -p tsconfig.json --watch",

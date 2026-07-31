@@ -25,6 +25,9 @@
     "codegen:openapi": "pnpm --filter @plume/contracts codegen:openapi",
     "codegen:screens": "node tools/codegen/screens.ts",
     "db:migrate:test": "node --experimental-strip-types packages/db/src/testing/reset.ts migrate",
+    "db:migrate:check": "node --experimental-strip-types packages/db/src/migration-runner.ts check",
+    "db:migrate:staging": "node --experimental-strip-types packages/db/src/migration-runner.ts staging",
+    "db:migrate:status": "node --experimental-strip-types packages/db/src/migration-runner.ts status",
     "db:reset:test": "node --experimental-strip-types packages/db/src/testing/reset.ts reset",
     "db:seed:test": "node --experimental-strip-types packages/db/src/testing/seed-base.ts",
     "contracts:check": "pnpm codegen:openapi && pnpm codegen:screens && pnpm codegen:agent-schemas && prettier --write packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts && pnpm exec vitest run tools/codegen/contract-text.unit.test.ts && git diff --exit-code -- packages/contracts/src/generated/openapi.ts packages/contracts/src/generated/screens.ts packages/contracts/src/agent-schemas/index.ts",
@@ -44,6 +47,7 @@
     "test:sse": "vitest run --workspace vitest.workspace.ts apps/api/src/routes/operations/sse.integration.test.ts",
     "screen:contracts": "node tools/codegen/screens.ts && prettier --write packages/contracts/src/generated/screens.ts && git diff --exit-code -- packages/contracts/src/generated/screens.ts",
     "deployment:check": "node --experimental-strip-types tools/integrity/deployment-manifest.test.ts",
+    "staging:runtime:check": "node --experimental-strip-types tools/integrity/staging-runtime.test.ts",
     "release:check": "node --experimental-strip-types tools/release/release-check.ts"
   }
 }

@@ -44,11 +44,24 @@ importers:
       '@fastify/session':
         specifier: 11.1.0
         version: 11.1.0
+      bullmq:
+        specifier: 5.52.2
+        version: 5.52.2(supports-color@7.2.0)
       fastify:
         specifier: 5.3.3
         version: 5.3.3
+      ioredis:
+        specifier: 5.11.1
+        version: 5.11.1(supports-color@7.2.0)
+      postgres:
+        specifier: 3.4.7
+        version: 3.4.7
 
-  apps/scheduler: {}
+  apps/scheduler:
+    dependencies:
+      ioredis:
+        specifier: 5.11.1
+        version: 5.11.1(supports-color@7.2.0)
 
   apps/web:
     dependencies:
@@ -92,22 +105,40 @@ importers:
 
   apps/worker:
     dependencies:
+      '@plume/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@plume/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@plume/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@plume/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@plume/infrastructure':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure
       '@plume/observability':
         specifier: workspace:*
         version: link:../../packages/observability
       bullmq:
         specifier: 5.52.2
         version: 5.52.2(supports-color@7.2.0)
+      postgres:
+        specifier: 3.4.7
+        version: 3.4.7
 
   packages/config: {}
 
-  packages/contracts: {}
-
-  packages/core:
+  packages/contracts:
     dependencies:
-      '@plume/contracts':
+      '@plume/core':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../core
+
+  packages/core: {}
 
   packages/db:
     dependencies:

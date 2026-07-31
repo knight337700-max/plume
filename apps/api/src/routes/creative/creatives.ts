@@ -9,10 +9,13 @@ import { runIdempotent } from "../../idempotency/middleware.js";
 import { InMemoryIdempotencyRepository } from "../../idempotency/repository.js";
 import { etagForRevision, revisionFromEtag } from "../../concurrency/etag.js";
 import { preconditionError } from "../../concurrency/precondition.js";
+import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
+import { jobTypeNotEnabled } from "../../async/route-policy.js";
 
 export interface CreativeRouteOptions {
   readonly useCases: CreativeUseCases;
   readonly idempotency?: IdempotencyRepository;
+  readonly asyncCommands?: AsyncCommandPublisher;
 }
 interface Params {
   readonly workspaceId: string;
@@ -298,6 +301,7 @@ export const creativeRoutes: FastifyPluginAsync<CreativeRouteOptions> = async (a
           requestedPurpose === "VALIDATION" || requestedPurpose === "FINAL_EXPORT"
             ? requestedPurpose
             : "PREVIEW";
+        if (options.asyncCommands) jobTypeNotEnabled("creative.render");
         const job = await useCases.requestRender({
           workspaceId: input.workspaceId,
           versionId: input.versionId!,
