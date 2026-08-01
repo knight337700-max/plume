@@ -22,6 +22,7 @@ import {
 import type { Sql } from "postgres";
 import type { AgentProviderGateway } from "../../../../packages/core/src/agents/orchestrator.js";
 import { createLiveSmokeHandler } from "./ai/live-smoke.js";
+import type { LiveSmokeBudgetStore } from "../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -30,6 +31,7 @@ interface RuntimeDependencies {
   readonly workflow: DurableWorkflowRepository;
   readonly queuePrefix?: string;
   readonly providerGateway: AgentProviderGateway;
+  readonly liveSmokeBudgetStore: LiveSmokeBudgetStore;
 }
 
 function jobEnvelope(job: Job<unknown>, command: string) {
@@ -135,9 +137,17 @@ export function createJacomoRuntimeHandlers(
     };
 
   const handlers: Record<string, RuntimeJobHandler> = {};
-  const liveSmoke = createLiveSmokeHandler(dependencies.providerGateway);
+  const liveSmoke = createLiveSmokeHandler(
+    dependencies.providerGateway,
+    dependencies.liveSmokeBudgetStore,
+  );
   handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>
-    liveSmoke({ ...job, data: envelope.payload } as Job<unknown>),
+    liveSmoke({ ...job, data: envelope.payload } as Job<unknown>, {
+      workspaceId: envelope.workspaceId,
+      smokeRunId:
+        (envelope.payload as { readonly smokeRunId?: string }).smokeRunId ?? envelope.jobId,
+      jobItemId: envelope.jobItemId!,
+    }),
   );
   handlers["creative.generate"] = withCommonContract("creative.generate", async (envelope) => {
     const payload = envelope.payload as CreativeGeneratePayload;

@@ -41,6 +41,16 @@ interface ProviderResult {
 export interface AgentProviderGateway {
   execute(request: ProviderRequest): Promise<ProviderResult>;
 }
+
+export type ProviderCallKind = "initial" | "retry" | "repair";
+
+export interface AgentOrchestratorOptions {
+  readonly gateway: AgentProviderGateway;
+  readonly prompts?: PromptRegistry;
+  readonly policies?: ModelPolicyRegistry;
+  /** Runs immediately before each provider call so durable budgets can reserve atomically. */
+  readonly beforeProviderCall?: (kind: ProviderCallKind) => Promise<void>;
+}
 export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
   readonly taskId: string;
   readonly agentCode: ContextBuilderInput["agentCode"];
@@ -88,11 +98,7 @@ function providerRequest(
   };
 }
 
-export function createAgentOrchestrator(options: {
-  readonly gateway: AgentProviderGateway;
-  readonly prompts?: PromptRegistry;
-  readonly policies?: ModelPolicyRegistry;
-}): AgentOrchestrator {
+export function createAgentOrchestrator(options: AgentOrchestratorOptions): AgentOrchestrator {
   const prompts = options.prompts ?? promptRegistry;
   const policies = options.policies ?? modelPolicyRegistry;
   return {
@@ -114,11 +120,13 @@ export function createAgentOrchestrator(options: {
         ...("COMPLETED" | "FAILED" | "PERMANENT_FAILURE")[],
       ] = ["QUEUED", "RUNNING"];
       const started = Date.now();
+      await options.beforeProviderCall?.("initial");
       let first = await options.gateway.execute(
         providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
       );
       let providerAttempts = 1;
       if (first.status === "FAILED" && first.error?.retryable) {
+        await options.beforeProviderCall?.("retry");
         first = await options.gateway.execute(
           providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
         );
@@ -162,6 +170,7 @@ export function createAgentOrchestrator(options: {
               content: `Repair only schema error paths: ${errorPaths.map((error) => error.path).join(", ")}`,
             },
           ];
+          await options.beforeProviderCall?.("repair");
           const repaired = await options.gateway.execute(
             providerRequest(
               input,

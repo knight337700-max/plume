@@ -8,6 +8,10 @@ import { DrizzleOutboxRepository } from "../../../packages/infrastructure/src/db
 import { DurableAsyncCommandPublisher } from "../../../packages/infrastructure/src/async/durable-command-publisher.js";
 import { DurableWorkflowRepository } from "../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import {
+  PostgresLiveSmokeBudgetStore,
+  type LiveSmokeBudgetStore,
+} from "../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import {
   S3ObjectStorage,
   type ObjectStorage,
 } from "../../../packages/infrastructure/src/storage/s3-object-storage.js";
@@ -33,6 +37,7 @@ export interface WorkerRuntimeCompositionOptions {
   readonly storage?: ObjectStorage;
   readonly publisher?: DurableAsyncCommandPublisher;
   readonly workflow?: DurableWorkflowRepository;
+  readonly liveSmokeBudgetStore?: LiveSmokeBudgetStore;
 }
 
 function envValue(name: string, fallback: string): string {
@@ -60,6 +65,8 @@ export function createWorkerRuntimeComposition(
     });
   const publisher = options.publisher ?? new DurableAsyncCommandPublisher(sql);
   const workflow = options.workflow ?? new DurableWorkflowRepository(sql);
+  const liveSmokeBudgetStore =
+    options.liveSmokeBudgetStore ?? new PostgresLiveSmokeBudgetStore(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
@@ -73,6 +80,7 @@ export function createWorkerRuntimeComposition(
     workflow,
     queuePrefix: adapter.queuePrefix,
     providerGateway: aiRuntime.provider.gateway,
+    liveSmokeBudgetStore,
   });
   let closed = false;
 
