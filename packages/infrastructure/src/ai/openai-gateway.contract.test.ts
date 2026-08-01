@@ -74,15 +74,23 @@ describe("OpenAI provider gateway", () => {
       ...request,
       outputSchema: {
         type: "object",
-        properties: { status: { type: "string", const: "ok" } },
+        properties: {
+          status: { type: "string", const: "ok" },
+          optional: { type: "string", minLength: 1, format: "uuid" },
+        },
         required: ["status"],
-        additionalProperties: false,
+        additionalProperties: true,
       },
     });
     const schema = (
-      receivedBody?.text as { format: { schema: { properties: { status: Record<string, unknown> } } } }
+      receivedBody?.text as {
+        format: { schema: { properties: { status: Record<string, unknown> } } };
+      }
     ).format.schema;
     expect(schema.properties.status).toEqual({ type: "string", enum: ["ok"] });
+    expect(schema.properties.optional).toEqual({ type: ["string", "null"] });
+    expect(schema.required).toEqual(["status", "optional"]);
+    expect(schema.additionalProperties).toBe(false);
   });
 
   it("maps rate limits and timeout without exposing credentials", async () => {
