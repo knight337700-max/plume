@@ -105,7 +105,10 @@ export function createLiveSmokeHandler(
           ? payload.requestBudget!
           : 20;
     if (workflowCallBudget > 20) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
-    const reservationKey = (kind: ProviderCallKind): string => `${jobItemId}:${kind}`;
+    const deliveryAttempt =
+      Number.isInteger(job.attemptsMade) && job.attemptsMade >= 0 ? job.attemptsMade : 0;
+    const reservationKey = (kind: ProviderCallKind): string =>
+      `${jobItemId}:delivery:${deliveryAttempt}:${kind}`;
     const orchestrator = createAgentOrchestrator({
       gateway,
       beforeProviderCall: async (kind) => {
