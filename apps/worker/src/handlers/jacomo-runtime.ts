@@ -15,8 +15,13 @@ import type { ObjectStorage } from "../../../../packages/infrastructure/src/stor
 import { createIdempotencyGuard } from "../middleware/idempotency.js";
 import { PermanentJobError, type RuntimeJobHandler } from "../runtime-registry.js";
 import { DrizzleInboxRepository } from "../../../../packages/infrastructure/src/db/inbox-drizzle-repository.js";
-import { DurableWorkflowRepository, type WorkflowItem } from "../../../../packages/infrastructure/src/async/durable-workflow-repository.js";
+import {
+  DurableWorkflowRepository,
+  type WorkflowItem,
+} from "../../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import type { Sql } from "postgres";
+import type { AgentProviderGateway } from "../../../../packages/core/src/agents/orchestrator.js";
+import { createLiveSmokeHandler } from "./ai/live-smoke.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -24,13 +29,15 @@ interface RuntimeDependencies {
   readonly storage: ObjectStorage;
   readonly workflow: DurableWorkflowRepository;
   readonly queuePrefix?: string;
+  readonly providerGateway: AgentProviderGateway;
 }
 
 function jobEnvelope(job: Job<unknown>, command: string) {
   if (job.name !== command) throw new PermanentJobError(`COMMAND_JOB_NAME_MISMATCH:${command}`);
   try {
     const envelope = validateCommandEnvelope(job.data);
-    if (envelope.command !== command) throw new PermanentJobError(`COMMAND_ENVELOPE_MISMATCH:${command}`);
+    if (envelope.command !== command)
+      throw new PermanentJobError(`COMMAND_ENVELOPE_MISMATCH:${command}`);
     return envelope;
   } catch (error) {
     if (error instanceof PermanentJobError) throw error;
@@ -41,7 +48,11 @@ function jobEnvelope(job: Job<unknown>, command: string) {
 function errorSummary(error: unknown): Readonly<Record<string, unknown>> {
   if (error instanceof Error) {
     const value = error as Error & { code?: string; retryable?: boolean };
-    return { code: value.code ?? "WORKER_FAILED", message: value.message.slice(0, 500), retryable: value.retryable === true };
+    return {
+      code: value.code ?? "WORKER_FAILED",
+      message: value.message.slice(0, 500),
+      retryable: value.retryable === true,
+    };
   }
   return { code: "WORKER_FAILED", message: String(error).slice(0, 500), retryable: false };
 }
@@ -51,8 +62,12 @@ function renderOutputProfile(payload: CreativeRenderPayload) {
     mimeType: payload.outputProfile.mimeType,
     width: payload.outputProfile.width,
     height: payload.outputProfile.height,
-    ...(payload.outputProfile.maxBytes === undefined ? {} : { maxBytes: payload.outputProfile.maxBytes }),
-    ...(payload.outputProfile.transparentBackground === undefined ? {} : { transparentBackground: payload.outputProfile.transparentBackground }),
+    ...(payload.outputProfile.maxBytes === undefined
+      ? {}
+      : { maxBytes: payload.outputProfile.maxBytes }),
+    ...(payload.outputProfile.transparentBackground === undefined
+      ? {}
+      : { transparentBackground: payload.outputProfile.transparentBackground }),
   } as const;
 }
 
@@ -60,11 +75,17 @@ function isCompleted(item: WorkflowItem): boolean {
   return item.status === "COMPLETED";
 }
 
-export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): Readonly<Record<string, RuntimeJobHandler>> {
+export function createJacomoRuntimeHandlers(
+  dependencies: RuntimeDependencies,
+): Readonly<Record<string, RuntimeJobHandler>> {
   const inbox = new DrizzleInboxRepository(dependencies.sql);
   const guard = createIdempotencyGuard;
 
-  const withCommonContract = (command: string, run: (envelope: ReturnType<typeof jobEnvelope>, job: Job<unknown>) => Promise<unknown>): RuntimeJobHandler =>
+  const withCommonContract =
+    (
+      command: string,
+      run: (envelope: ReturnType<typeof jobEnvelope>, job: Job<unknown>) => Promise<unknown>,
+    ): RuntimeJobHandler =>
     async (job) => {
       const envelope = jobEnvelope(job, command);
       const guarded = guard(inbox, {
@@ -74,17 +95,37 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
       });
       try {
         return await guarded(envelope, async () => {
-          const item = await dependencies.workflow.claimItem(envelope.workspaceId, envelope.jobId, envelope.jobItemId!);
+          const item = await dependencies.workflow.claimItem(
+            envelope.workspaceId,
+            envelope.jobId,
+            envelope.jobItemId!,
+          );
           if (isCompleted(item)) return item.result;
           try {
             const outcome = await run(envelope, job);
-            await dependencies.workflow.completeItem(envelope.workspaceId, envelope.jobId, envelope.jobItemId!, outcome);
+            await dependencies.workflow.completeItem(
+              envelope.workspaceId,
+              envelope.jobId,
+              envelope.jobItemId!,
+              outcome,
+            );
             await afterComplete(command, envelope, outcome);
             return outcome;
           } catch (error) {
             const summary = errorSummary(error);
-            if (summary.retryable === true) await dependencies.workflow.releaseItem(envelope.workspaceId, envelope.jobId, envelope.jobItemId!);
-            else await dependencies.workflow.failItem(envelope.workspaceId, envelope.jobId, envelope.jobItemId!, summary);
+            if (summary.retryable === true)
+              await dependencies.workflow.releaseItem(
+                envelope.workspaceId,
+                envelope.jobId,
+                envelope.jobItemId!,
+              );
+            else
+              await dependencies.workflow.failItem(
+                envelope.workspaceId,
+                envelope.jobId,
+                envelope.jobItemId!,
+                summary,
+              );
             throw error;
           }
         });
@@ -94,16 +135,22 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
     };
 
   const handlers: Record<string, RuntimeJobHandler> = {};
+  const liveSmoke = createLiveSmokeHandler(dependencies.providerGateway);
+  handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (_envelope, job) =>
+    liveSmoke(job),
+  );
   handlers["creative.generate"] = withCommonContract("creative.generate", async (envelope) => {
     const payload = envelope.payload as CreativeGeneratePayload;
     const formatProfileId = payload.formatProfileIds[0]!;
-    const creatives = payload.productIds.map((productId, index) => composeJacomoCreative({
-      workspaceId: envelope.workspaceId,
-      campaignId: payload.campaignId,
-      productId,
-      formatProfileId,
-      sequence: index + 1,
-    }));
+    const creatives = payload.productIds.map((productId, index) =>
+      composeJacomoCreative({
+        workspaceId: envelope.workspaceId,
+        campaignId: payload.campaignId,
+        productId,
+        formatProfileId,
+        sequence: index + 1,
+      }),
+    );
     for (const creative of creatives) {
       await dependencies.publisher.enqueue({
         workspaceId: envelope.workspaceId,
@@ -128,7 +175,10 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
       campaignId: payload.campaignId,
       expectedCreatives: creatives.length,
     });
-    return { status: "COMPLETED", creativeVersionIds: creatives.map((creative) => creative.creativeVersionId) };
+    return {
+      status: "COMPLETED",
+      creativeVersionIds: creatives.map((creative) => creative.creativeVersionId),
+    };
   });
 
   handlers["creative.render"] = withCommonContract("creative.render", async (envelope) => {
@@ -149,13 +199,27 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
       body: rendered.outputBytes,
       contentType: "image/png",
       objectKey,
-      metadata: { workspaceId: envelope.workspaceId, creativeVersionId: payload.creativeVersionId, checksumSha256: rendered.checksumSha256 },
+      metadata: {
+        workspaceId: envelope.workspaceId,
+        creativeVersionId: payload.creativeVersionId,
+        checksumSha256: rendered.checksumSha256,
+      },
     });
-    return { status: "COMPLETED", creativeVersionId: payload.creativeVersionId, objectKey: stored.objectKey, checksumSha256: stored.checksumSha256, bytes: stored.bytes, purpose: payload.purpose };
+    return {
+      status: "COMPLETED",
+      creativeVersionId: payload.creativeVersionId,
+      objectKey: stored.objectKey,
+      checksumSha256: stored.checksumSha256,
+      bytes: stored.bytes,
+      purpose: payload.purpose,
+    };
   });
 
   handlers["validation.run"] = withCommonContract("validation.run", async (envelope) => {
-    const payload = envelope.payload as ValidationRunPayload & { readonly renderObjectKey?: string; readonly renderChecksumSha256?: string };
+    const payload = envelope.payload as ValidationRunPayload & {
+      readonly renderObjectKey?: string;
+      readonly renderChecksumSha256?: string;
+    };
     const result = runDeterministicValidation({
       creativeDocument: payload.creativeDocument as never,
       rules: [],
@@ -167,40 +231,89 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
       creativeVersionId: payload.creativeVersionId,
       renderObjectKey: payload.renderObjectKey,
       renderChecksumSha256: payload.renderChecksumSha256,
-      validationReport: { status: errorCount > 0 ? "ERROR" : warningCount > 0 ? "WARNING" : "PASS", errorCount, warningCount, findings: result.findings },
+      validationReport: {
+        status: errorCount > 0 ? "ERROR" : warningCount > 0 ? "WARNING" : "PASS",
+        errorCount,
+        warningCount,
+        findings: result.findings,
+      },
     };
   });
 
-  handlers["export.render_and_package"] = withCommonContract("export.render_and_package", async (envelope) => {
-    const payload = envelope.payload as ExportPackagePayload;
-    const items = await Promise.all(payload.renderObjectKeys.map(async (objectKey, index) => ({
-      creativeVersionId: payload.creativeVersionIds[index] ?? `creative-${index + 1}`,
-      bytes: await dependencies.storage.get(objectKey),
-      relativePath: `${payload.packageName}-${String(index + 1).padStart(2, "0")}.png`,
-      mimeType: "image/png",
-    })));
-    const built = buildExportPackage({
-      exportJobId: payload.exportJobId,
-      workspaceId: envelope.workspaceId,
-      recipe: { id: "jacomo-staging", packageType: "ZIP", includeManifest: true, includeValidationReport: true },
-      items,
-    });
-    const objectKey = `exports/${envelope.workspaceId}/${payload.exportJobId}/${built.checksumSha256}.zip`;
-    const stored = await dependencies.storage.put({ body: built.zipBytes, contentType: "application/zip", objectKey, metadata: { workspaceId: envelope.workspaceId, jobId: envelope.jobId, checksumSha256: built.checksumSha256 } });
-    return { status: "COMPLETED", exportJobId: payload.exportJobId, objectKey: stored.objectKey, checksumSha256: stored.checksumSha256, bytes: stored.bytes, manifest: built.manifest, validationReportCount: 1 };
-  });
+  handlers["export.render_and_package"] = withCommonContract(
+    "export.render_and_package",
+    async (envelope) => {
+      const payload = envelope.payload as ExportPackagePayload;
+      const items = await Promise.all(
+        payload.renderObjectKeys.map(async (objectKey, index) => ({
+          creativeVersionId: payload.creativeVersionIds[index] ?? `creative-${index + 1}`,
+          bytes: await dependencies.storage.get(objectKey),
+          relativePath: `${payload.packageName}-${String(index + 1).padStart(2, "0")}.png`,
+          mimeType: "image/png",
+        })),
+      );
+      const built = buildExportPackage({
+        exportJobId: payload.exportJobId,
+        workspaceId: envelope.workspaceId,
+        recipe: {
+          id: "jacomo-staging",
+          packageType: "ZIP",
+          includeManifest: true,
+          includeValidationReport: true,
+        },
+        items,
+      });
+      const objectKey = `exports/${envelope.workspaceId}/${payload.exportJobId}/${built.checksumSha256}.zip`;
+      const stored = await dependencies.storage.put({
+        body: built.zipBytes,
+        contentType: "application/zip",
+        objectKey,
+        metadata: {
+          workspaceId: envelope.workspaceId,
+          jobId: envelope.jobId,
+          checksumSha256: built.checksumSha256,
+        },
+      });
+      return {
+        status: "COMPLETED",
+        exportJobId: payload.exportJobId,
+        objectKey: stored.objectKey,
+        checksumSha256: stored.checksumSha256,
+        bytes: stored.bytes,
+        manifest: built.manifest,
+        validationReportCount: 1,
+      };
+    },
+  );
 
-  async function afterComplete(command: string, envelope: ReturnType<typeof jobEnvelope>, outcome: unknown): Promise<void> {
+  async function afterComplete(
+    command: string,
+    envelope: ReturnType<typeof jobEnvelope>,
+    outcome: unknown,
+  ): Promise<void> {
+    if (command === "ai.live_smoke") {
+      await dependencies.workflow.completeRootIfReady(envelope.workspaceId, envelope.jobId);
+      return;
+    }
     if (command === "validation.run") {
       const items = await dependencies.workflow.listItems(envelope.workspaceId, envelope.jobId);
       const validationItems = items.filter((item) => item.command === "validation.run");
       if (validationItems.length === 0 || !validationItems.every(isCompleted)) return;
       if (items.some((item) => item.command === "export.render_and_package")) return;
-      const renderItems = items.filter((item) => item.command === "creative.render" && isCompleted(item));
-      const renderOutputs = renderItems.map((item) => item.result as { creativeVersionId?: string; objectKey?: string });
-      const renderObjectKeys = renderOutputs.flatMap((item) => item.objectKey ? [item.objectKey] : []);
-      const creativeVersionIds = renderOutputs.flatMap((item) => item.creativeVersionId ? [item.creativeVersionId] : []);
-      if (renderObjectKeys.length === 0 || renderObjectKeys.length !== creativeVersionIds.length) throw new Error("EXPORT_RENDER_REFERENCES_INCOMPLETE");
+      const renderItems = items.filter(
+        (item) => item.command === "creative.render" && isCompleted(item),
+      );
+      const renderOutputs = renderItems.map(
+        (item) => item.result as { creativeVersionId?: string; objectKey?: string },
+      );
+      const renderObjectKeys = renderOutputs.flatMap((item) =>
+        item.objectKey ? [item.objectKey] : [],
+      );
+      const creativeVersionIds = renderOutputs.flatMap((item) =>
+        item.creativeVersionId ? [item.creativeVersionId] : [],
+      );
+      if (renderObjectKeys.length === 0 || renderObjectKeys.length !== creativeVersionIds.length)
+        throw new Error("EXPORT_RENDER_REFERENCES_INCOMPLETE");
       await dependencies.publisher.enqueue({
         workspaceId: envelope.workspaceId,
         command: "export.render_and_package",
@@ -208,16 +321,27 @@ export function createJacomoRuntimeHandlers(dependencies: RuntimeDependencies): 
         jobId: envelope.jobId,
         correlationId: envelope.correlationId,
         causationId: envelope.messageId,
-        payload: { exportJobId: envelope.jobId, creativeVersionIds, renderObjectKeys, packageName: "JACOMO-STAGING" },
+        payload: {
+          exportJobId: envelope.jobId,
+          creativeVersionIds,
+          renderObjectKeys,
+          packageName: "JACOMO-STAGING",
+        },
       });
       return;
     }
     if (command !== "creative.render") {
-      if (command === "export.render_and_package") await dependencies.workflow.completeRootIfReady(envelope.workspaceId, envelope.jobId);
+      if (command === "export.render_and_package")
+        await dependencies.workflow.completeRootIfReady(envelope.workspaceId, envelope.jobId);
       return;
     }
-    const value = outcome as { creativeVersionId?: string; objectKey?: string; checksumSha256?: string };
-    if (!value.objectKey || !value.creativeVersionId) throw new Error("RENDER_RESULT_REFERENCE_REQUIRED");
+    const value = outcome as {
+      creativeVersionId?: string;
+      objectKey?: string;
+      checksumSha256?: string;
+    };
+    if (!value.objectKey || !value.creativeVersionId)
+      throw new Error("RENDER_RESULT_REFERENCE_REQUIRED");
     await dependencies.publisher.enqueue({
       workspaceId: envelope.workspaceId,
       command: "validation.run",

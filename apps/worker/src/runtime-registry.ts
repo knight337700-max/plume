@@ -1,5 +1,9 @@
 import type { Job } from "bullmq";
-import { COMMAND_QUEUE_ROUTES, QUEUE_NAMES, type QueueName } from "../../../packages/core/src/async/queue-routing.js";
+import {
+  COMMAND_QUEUE_ROUTES,
+  QUEUE_NAMES,
+  type QueueName,
+} from "../../../packages/core/src/async/queue-routing.js";
 import type { QueueHandler } from "../../../packages/infrastructure/src/queue/bullmq.js";
 import type { WorkerHandlerRegistration } from "./bootstrap.js";
 
@@ -20,6 +24,7 @@ export const RUNTIME_JOB_TYPES = Object.freeze([
 ]);
 export const CATALOG_JOB_TYPES = Object.freeze([...Object.keys(COMMAND_QUEUE_ROUTES)]);
 export const STAGING_ENABLED_JOB_TYPES = Object.freeze([
+  "ai.live_smoke",
   "creative.generate",
   "creative.render",
   "validation.run",
@@ -43,7 +48,8 @@ function registrationHandler(
   handlers: Readonly<Record<string, RuntimeJobHandler>>,
 ): QueueHandler<unknown> {
   return async (_payload, job) => {
-    if (!messageTypes.includes(job.name)) throw new PermanentJobError(`UNKNOWN_JOB_TYPE:${job.name}`);
+    if (!messageTypes.includes(job.name))
+      throw new PermanentJobError(`UNKNOWN_JOB_TYPE:${job.name}`);
     const handler = handlers[job.name];
     if (!handler) throw new PermanentJobError(`RUNTIME_HANDLER_NOT_CONFIGURED:${job.name}`);
     return handler(job as Job<unknown>);
@@ -72,6 +78,8 @@ export function createRuntimeHandlerRegistry(
   }).filter((registration) => registration.messageTypes.length > 0);
   return Object.freeze({
     registrations: Object.freeze(registrations),
-    missingJobTypes: Object.freeze(requiredJobTypes.filter((messageType) => handlers[messageType] === undefined)),
+    missingJobTypes: Object.freeze(
+      requiredJobTypes.filter((messageType) => handlers[messageType] === undefined),
+    ),
   });
 }

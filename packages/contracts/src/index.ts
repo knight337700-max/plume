@@ -22,6 +22,7 @@ export {
   AsyncContractError,
   type AsyncCommandDefinition,
   type AsyncCommandPayload,
+  type AiLiveSmokePayload,
   type CreativeGeneratePayload,
   type CreativeRenderPayload,
   type ExportPackagePayload,

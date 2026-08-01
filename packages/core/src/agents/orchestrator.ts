@@ -107,9 +107,16 @@ export function createAgentOrchestrator(options: {
         ...("COMPLETED" | "FAILED" | "PERMANENT_FAILURE")[],
       ] = ["QUEUED", "RUNNING"];
       const started = Date.now();
-      const first = await options.gateway.execute(
+      let first = await options.gateway.execute(
         providerRequest(input, context, policy.policyId, input.messages),
       );
+      let providerAttempts = 1;
+      if (first.status === "FAILED" && first.error?.retryable) {
+        first = await options.gateway.execute(
+          providerRequest(input, context, policy.policyId, input.messages),
+        );
+        providerAttempts = 2;
+      }
       const baseMetadata = {
         promptId: prompt.promptId,
         promptVersion: prompt.version,
@@ -128,7 +135,7 @@ export function createAgentOrchestrator(options: {
           metadata: {
             ...baseMetadata,
             ...(first.providerRequestId ? { providerRequestId: first.providerRequestId } : {}),
-            attempt: 1,
+            attempt: providerAttempts,
             latencyMs: first.latencyMs,
             ...(first.usage ? { usage: first.usage } : {}),
           },
@@ -155,7 +162,7 @@ export function createAgentOrchestrator(options: {
       const metadata = {
         ...baseMetadata,
         ...(first.providerRequestId ? { providerRequestId: first.providerRequestId } : {}),
-        attempt: outcome.repairAttempts + 1,
+        attempt: providerAttempts + outcome.repairAttempts,
         latencyMs: Date.now() - started,
         ...(first.usage ? { usage: first.usage } : {}),
       };
