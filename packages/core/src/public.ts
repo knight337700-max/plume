@@ -34,6 +34,12 @@ export {
   createAgentOrchestrator,
 } from "./agents/public.js";
 export {
+  DEFAULT_LLM_MODEL,
+  SUPPORTED_LLM_MODELS,
+  resolveLlmModel,
+  type LlmModel,
+} from "./ai-model.js";
+export {
   type AsyncCommandPublisher,
   type EnqueueCommandInput,
   type EnqueuedCommand,

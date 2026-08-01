@@ -7,6 +7,7 @@ export interface AgentResultMetadata {
   readonly promptVersion: string;
   readonly promptHash: string;
   readonly modelPolicyId: string;
+  readonly model?: string;
   readonly contextHash: string;
   readonly providerRequestId?: string;
   readonly attempt: number;

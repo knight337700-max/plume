@@ -1,4 +1,5 @@
 import type { AgentCode } from "./prompt-registry.js";
+import { DEFAULT_LLM_MODEL } from "../ai-model.js";
 
 export type ModelCapability =
   | "STRUCTURED_OUTPUT"
@@ -13,6 +14,7 @@ export type LatencyClass = "FAST" | "BALANCED" | "QUALITY";
 
 export interface ModelPolicy {
   readonly policyId: string;
+  readonly defaultModel: typeof DEFAULT_LLM_MODEL;
   readonly requiredCapabilities: readonly ModelCapability[];
   readonly latencyClass: LatencyClass;
   readonly maxInputUnits: number;
@@ -24,6 +26,7 @@ export interface ModelPolicy {
 const POLICIES: readonly ModelPolicy[] = Object.freeze([
   {
     policyId: "quality-long-context-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["STRUCTURED_OUTPUT", "KOREAN", "LONG_CONTEXT"],
     latencyClass: "QUALITY",
     maxInputUnits: 120000,
@@ -33,6 +36,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "balanced-structured-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["STRUCTURED_OUTPUT", "KOREAN"],
     latencyClass: "BALANCED",
     maxInputUnits: 40000,
@@ -41,6 +45,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "vision-quality-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["VISION", "STRUCTURED_OUTPUT"],
     latencyClass: "QUALITY",
     maxInputUnits: 50000,
@@ -50,6 +55,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "vision-balanced-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["VISION", "STRUCTURED_OUTPUT"],
     latencyClass: "BALANCED",
     maxInputUnits: 30000,
@@ -58,6 +64,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "copywriting-balanced-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["COPYWRITING", "STRUCTURED_OUTPUT", "KOREAN"],
     latencyClass: "BALANCED",
     maxInputUnits: 20000,
@@ -67,6 +74,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "fast-edit-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["EDIT_PLANNING", "STRUCTURED_OUTPUT", "KOREAN"],
     latencyClass: "FAST",
     maxInputUnits: 20000,
@@ -76,6 +84,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "policy-review-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["VISION", "POLICY_REVIEW", "STRUCTURED_OUTPUT", "KOREAN"],
     latencyClass: "QUALITY",
     maxInputUnits: 40000,
@@ -85,6 +94,7 @@ const POLICIES: readonly ModelPolicy[] = Object.freeze([
   },
   {
     policyId: "fast-naming-v1",
+    defaultModel: DEFAULT_LLM_MODEL,
     requiredCapabilities: ["STRUCTURED_OUTPUT", "NAMING", "KOREAN"],
     latencyClass: "FAST",
     maxInputUnits: 10000,
@@ -141,3 +151,11 @@ export function createModelPolicyRegistry(
 export const modelPolicyRegistry = createModelPolicyRegistry();
 export const agentModelPolicyIds = AGENT_POLICIES;
 export const modelPolicies = POLICIES;
+export const agentDefaultModels = Object.freeze(
+  Object.fromEntries(
+    Object.entries(AGENT_POLICIES).map(([agentCode, policyId]) => [
+      agentCode,
+      modelPolicyRegistry.resolve(policyId).defaultModel,
+    ]),
+  ) as Record<AgentCode, typeof DEFAULT_LLM_MODEL>,
+);
