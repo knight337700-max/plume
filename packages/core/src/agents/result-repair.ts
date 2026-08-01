@@ -24,16 +24,29 @@ export type ResultValidationOutcome<T> =
 export async function validateWithOneRepair<T>(input: {
   readonly raw: string | unknown;
   readonly schema: JsonSchema;
+  readonly decode?: (value: unknown) => ValidationResult<T>;
   readonly repair?: RepairFunction;
 }): Promise<ResultValidationOutcome<T>> {
-  const initial = parseAndValidate<T>(input.raw, input.schema);
+  const validate = (raw: string | unknown): ValidationResult<T> => {
+    if (!input.decode) return parseAndValidate<T>(raw, input.schema);
+    if (typeof raw !== "string") return input.decode(raw);
+    try {
+      return input.decode(JSON.parse(raw));
+    } catch {
+      return {
+        valid: false,
+        errors: [{ path: "$", keyword: "json", message: "must be valid JSON" }],
+      };
+    }
+  };
+  const initial = validate(input.raw);
   if (initial.valid) return { status: "SUCCESS", value: initial.value, repairAttempts: 0 };
   if (!input.repair)
     return { status: "PERMANENT_FAILURE", errors: initial.errors, repairAttempts: 0 };
   const repaired = await input.repair({
     errorPaths: initial.errors.map(({ path, keyword, message }) => ({ path, keyword, message })),
   });
-  const second = parseAndValidate<T>(repaired, input.schema);
+  const second = validate(repaired);
   return second.valid
     ? { status: "SUCCESS", value: second.value, repairAttempts: 1 }
     : { status: "PERMANENT_FAILURE", errors: second.errors, repairAttempts: 1 };

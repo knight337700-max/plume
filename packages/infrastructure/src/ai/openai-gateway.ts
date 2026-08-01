@@ -123,10 +123,18 @@ function nullableResponsesSchema(value: unknown): unknown {
   return { anyOf: [schema, { type: "null" }] };
 }
 
-function normalizeResponsesSchema(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(normalizeResponsesSchema);
+export function normalizeResponsesSchema(value: unknown, path = "$"): unknown {
+  if (Array.isArray(value))
+    return value.map((child, index) => normalizeResponsesSchema(child, `${path}[${index}]`));
   if (!value || typeof value !== "object") return value;
   const source = value as Record<string, unknown>;
+  if (
+    source.type === "object" &&
+    !source.properties &&
+    source.additionalProperties !== undefined &&
+    source.additionalProperties !== false
+  )
+    throw new Error(`OPENAI_STRICT_SCHEMA_UNSUPPORTED:${path}.additionalProperties`);
   const normalized: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(source)) {
     if (key === "const") {
@@ -138,11 +146,11 @@ function normalizeResponsesSchema(value: unknown): unknown {
       normalized[key] = Object.fromEntries(
         Object.entries(child).map(([childKey, childValue]) => [
           childKey,
-          normalizeResponsesSchema(childValue),
+          normalizeResponsesSchema(childValue, `${path}.${key}.${childKey}`),
         ]),
       );
     } else {
-      normalized[key] = normalizeResponsesSchema(child);
+      normalized[key] = normalizeResponsesSchema(child, `${path}.${key}`);
     }
   }
   if (source.properties && typeof source.properties === "object") {

@@ -6,6 +6,7 @@ import {
 import { modelPolicyRegistry, type ModelPolicyRegistry } from "./model-policy-registry.js";
 import { promptRegistry, type PromptRegistry } from "./prompt-registry.js";
 import { validateWithOneRepair, type JsonSchema } from "./result-repair.js";
+import { createStrictOutputAdapter } from "./strict-output-adapter.js";
 import { toolRegistry } from "./tool-registry.js";
 import type { AgentResult } from "./agent-result.js";
 
@@ -69,12 +70,13 @@ function providerRequest(
   context: ContextPackage,
   modelPolicyId: string,
   messages: AgentTaskInput["messages"],
+  outputSchema: JsonSchema,
 ): ProviderRequest {
   return {
     taskId: input.taskId,
     modelPolicyId,
     messages,
-    outputSchema: input.outputSchema,
+    outputSchema,
     imageInputs: [],
     timeoutSeconds: input.timeoutSeconds ?? 30,
     metadata: {
@@ -102,6 +104,10 @@ export function createAgentOrchestrator(options: {
           throw new Error(`Unauthorized tool ${toolCode} for ${input.agentCode}`);
       }
       const context = buildAgentContext(input);
+      const adapter = createStrictOutputAdapter<T>({
+        schemaId: prompt.outputSchemaId,
+        domainSchema: input.outputSchema,
+      });
       const transitions: [
         "QUEUED",
         "RUNNING",
@@ -109,12 +115,12 @@ export function createAgentOrchestrator(options: {
       ] = ["QUEUED", "RUNNING"];
       const started = Date.now();
       let first = await options.gateway.execute(
-        providerRequest(input, context, policy.policyId, input.messages),
+        providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
       );
       let providerAttempts = 1;
       if (first.status === "FAILED" && first.error?.retryable) {
         first = await options.gateway.execute(
-          providerRequest(input, context, policy.policyId, input.messages),
+          providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
         );
         providerAttempts = 2;
       }
@@ -147,6 +153,7 @@ export function createAgentOrchestrator(options: {
       const outcome = await validateWithOneRepair<T>({
         raw: first.outputJson,
         schema: input.outputSchema,
+        decode: adapter.decode,
         repair: async ({ errorPaths }) => {
           const repairMessages = [
             ...input.messages,
@@ -156,7 +163,13 @@ export function createAgentOrchestrator(options: {
             },
           ];
           const repaired = await options.gateway.execute(
-            providerRequest(input, context, policy.policyId, repairMessages),
+            providerRequest(
+              input,
+              context,
+              policy.policyId,
+              repairMessages,
+              adapter.transportSchema,
+            ),
           );
           return repaired.status === "COMPLETED" ? repaired.outputJson : undefined;
         },

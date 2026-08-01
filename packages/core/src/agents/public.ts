@@ -6,3 +6,9 @@ export {
   type AgentProviderGateway,
   createAgentOrchestrator,
 } from "./orchestrator.js";
+export {
+  buildStrictTransportSchemaForLinter,
+  createStrictOutputAdapter,
+  type StrictOutputAdapter,
+} from "./strict-output-adapter.js";
+export type { JsonSchema, SchemaError, ValidationResult } from "./result-validator.js";
