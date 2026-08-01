@@ -5,6 +5,7 @@ import type {
 } from "./openai-gateway.js";
 
 const MOCK_OUTPUTS: Readonly<Record<string, unknown>> = Object.freeze({
+  CONNECTIVITY_TEST: { status: "ok", environment: "staging", provider: "openai" },
   CAMPAIGN_ANALYST: {
     objective: "synthetic Jacomo campaign analysis",
     targets: ["synthetic audience"],
