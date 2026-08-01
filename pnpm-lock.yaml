@@ -147,6 +147,9 @@ importers:
       drizzle-orm:
         specifier: 0.44.5
         version: 0.44.5(postgres@3.4.7)
+      openai:
+        specifier: 7.3.0
+        version: 7.3.0(zod@4.4.3)
       postgres:
         specifier: 3.4.7
         version: 3.4.7
