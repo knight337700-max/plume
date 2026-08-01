@@ -32,6 +32,12 @@ export {
   type AgentOrchestrator,
   type AgentProviderGateway,
   createAgentOrchestrator,
+  buildStrictTransportSchemaForLinter,
+  createStrictOutputAdapter,
+  type StrictOutputAdapter,
+  type JsonSchema,
+  type SchemaError,
+  type ValidationResult,
 } from "./agents/public.js";
 export {
   DEFAULT_LLM_MODEL,

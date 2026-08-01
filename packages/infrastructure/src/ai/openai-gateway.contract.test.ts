@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createOpenAIProviderGateway } from "./openai-gateway.js";
+import { createOpenAIProviderGateway, normalizeResponsesSchema } from "./openai-gateway.js";
 
 const request = {
   taskId: "task-1",
@@ -92,6 +92,17 @@ describe("OpenAI provider gateway", () => {
     expect(schema.properties.optional).toEqual({ type: ["string", "null"] });
     expect(schema.required).toEqual(["status", "optional"]);
     expect(schema.additionalProperties).toBe(false);
+  });
+
+  it("reports the exact path for a schema-valued dynamic map", () => {
+    expect(() =>
+      normalizeResponsesSchema({
+        type: "object",
+        properties: {
+          slots: { type: "object", additionalProperties: { type: "string" } },
+        },
+      }),
+    ).toThrow("OPENAI_STRICT_SCHEMA_UNSUPPORTED:$.properties.slots.additionalProperties");
   });
 
   it("maps rate limits and timeout without exposing credentials", async () => {

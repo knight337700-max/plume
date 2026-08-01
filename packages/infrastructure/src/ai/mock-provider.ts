@@ -1,4 +1,8 @@
-import type { AIExecutionRequest, AIExecutionResult, OpenAIProviderGateway } from "./openai-gateway.js";
+import type {
+  AIExecutionRequest,
+  AIExecutionResult,
+  OpenAIProviderGateway,
+} from "./openai-gateway.js";
 
 const MOCK_OUTPUTS: Readonly<Record<string, unknown>> = Object.freeze({
   CAMPAIGN_ANALYST: {
@@ -36,7 +40,21 @@ const MOCK_OUTPUTS: Readonly<Record<string, unknown>> = Object.freeze({
 export function createDeterministicMockProviderGateway(): OpenAIProviderGateway {
   return {
     async execute(request: AIExecutionRequest): Promise<AIExecutionResult> {
-      const outputJson = MOCK_OUTPUTS[request.metadata.agentCode] ?? {};
+      const baseOutput = MOCK_OUTPUTS[request.metadata.agentCode] ?? {};
+      const layoutSchema = (
+        request.outputSchema as {
+          readonly properties?: Readonly<
+            Record<string, { readonly type?: string | readonly string[] }>
+          >;
+        }
+      ).properties?.copyAssets;
+      const outputJson =
+        request.metadata.agentCode === "LAYOUT_PLANNER" &&
+        layoutSchema &&
+        (layoutSchema.type === "array" ||
+          (Array.isArray(layoutSchema.type) && layoutSchema.type.includes("array")))
+          ? { ...((baseOutput as Record<string, unknown>) ?? {}), copyAssets: [] }
+          : baseOutput;
       return {
         provider: "OpenAI",
         model: "mock-jacomo-1",

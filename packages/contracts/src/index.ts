@@ -6,6 +6,12 @@ export {
 export { screenContractCount, screenContractIds, screenContracts } from "./generated/screens.js";
 export { agentSchemaCount, agentSchemaFilenames, agentSchemas } from "./agent-schemas/index.js";
 export {
+  createStrictAgentAdapters,
+  lintStrictAgentSchemas,
+  type StrictSchemaLintIssue,
+  type StrictSchemaLintResult,
+} from "./strict-schema-lint.js";
+export {
   API_ERROR_CATALOG,
   API_ERROR_CODE_COUNT,
   API_ERROR_CODES,
