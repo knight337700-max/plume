@@ -43,6 +43,7 @@ describe("OpenAI provider gateway", () => {
     ).toMatchObject({ type: "json_schema", strict: true });
     expect(receivedBody?.store).toBe(false);
     expect(receivedBody?.background).toBe(false);
+    expect(receivedBody?.reasoning).toEqual({ effort: "minimal" });
     expect(receivedBody?.metadata).toEqual({
       environment: "staging",
       gate: "H_PHASE_2C",
