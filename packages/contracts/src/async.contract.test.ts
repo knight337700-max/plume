@@ -50,4 +50,36 @@ describe("async command contracts", () => {
       }),
     ).toThrow("PAYLOAD_INVALID");
   });
+
+  it("accepts a durable live smoke scope and bounds its workflow budget", () => {
+    expect(() =>
+      validateCommandEnvelope({
+        messageId: id,
+        schemaVersion: 1,
+        workspaceId: id,
+        correlationId: id,
+        jobId: id,
+        jobItemId: id,
+        createdAt: new Date().toISOString(),
+        command: "ai.live_smoke",
+        payload: {
+          agentCode: "COPY_GENERATOR",
+          smokeRunId: id,
+          workflowCallBudget: 20,
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCommandEnvelope({
+        messageId: id,
+        schemaVersion: 1,
+        workspaceId: id,
+        correlationId: id,
+        jobId: id,
+        createdAt: new Date().toISOString(),
+        command: "ai.live_smoke",
+        payload: { agentCode: "COPY_GENERATOR", workflowCallBudget: 21 },
+      }),
+    ).toThrow("PAYLOAD_INVALID");
+  });
 });

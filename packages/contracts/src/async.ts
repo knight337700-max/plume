@@ -36,6 +36,11 @@ export interface CreativeGeneratePayload {
 
 export interface AiLiveSmokePayload {
   readonly agentCode: string;
+  /** Durable workflow scope. v1 payloads derive this from the root job id. */
+  readonly smokeRunId?: string;
+  /** Maximum provider calls for this workflow, including initial, retry, and repair. */
+  readonly workflowCallBudget?: number;
+  /** @deprecated v1 compatibility alias; never used as a process-local counter. */
   readonly requestBudget?: number;
   readonly workspaceId?: string;
 }
@@ -136,7 +141,12 @@ function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
   return (
     isRecord(payload) &&
     isString(payload.agentCode) &&
-    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode)
+    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
+    (payload.workflowCallBudget === undefined ||
+      (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
+    (payload.requestBudget === undefined ||
+      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20))
   );
 }
 

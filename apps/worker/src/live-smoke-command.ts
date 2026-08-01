@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   createAgentOrchestrator,
   type AgentProviderGateway,
@@ -17,6 +18,11 @@ import { DEFAULT_LLM_MODEL } from "../../../packages/core/src/ai-model.js";
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const CAMPAIGN_ID = "00000000-0000-4000-8000-0000000002c1";
 const MAX_REQUESTS = Number(process.env.LIVE_SMOKE_REQUEST_CAP?.trim() || "20");
+
+function stableSmokeRunId(idempotencyKey: string): string {
+  const digest = createHash("sha256").update(idempotencyKey, "utf8").digest("hex");
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
 
 const syntheticData: Readonly<Record<string, unknown>> = {
   sourceIds: ["00000000-0000-4000-8000-0000000002c6"],
@@ -167,12 +173,18 @@ async function main(): Promise<void> {
   if (liveRequests + AGENT_CODES.length > MAX_REQUESTS)
     throw new Error("LIVE_SMOKE_QUEUE_BUDGET_UNAVAILABLE");
   const requestBudget = MAX_REQUESTS - liveRequests;
+  const smokeRunId = stableSmokeRunId(idempotencyKey);
   const root = await publisher.enqueue({
     workspaceId: WORKSPACE_ID,
     command: "ai.live_smoke",
     schemaVersion: 1,
     idempotencyKey,
-    payload: { agentCode: AGENT_CODES[0], requestBudget, workspaceId: WORKSPACE_ID },
+    payload: {
+      agentCode: AGENT_CODES[0],
+      smokeRunId,
+      workflowCallBudget: requestBudget,
+      workspaceId: WORKSPACE_ID,
+    },
     requestedBy: WORKSPACE_ID,
   });
   for (const agentCode of AGENT_CODES.slice(1))
@@ -182,7 +194,12 @@ async function main(): Promise<void> {
       schemaVersion: 1,
       jobId: root.jobId,
       causationId: root.messageId,
-      payload: { agentCode, requestBudget, workspaceId: WORKSPACE_ID },
+      payload: {
+        agentCode,
+        smokeRunId,
+        workflowCallBudget: requestBudget,
+        workspaceId: WORKSPACE_ID,
+      },
       requestedBy: WORKSPACE_ID,
     });
   const replay = await publisher.enqueue({
@@ -190,7 +207,12 @@ async function main(): Promise<void> {
     command: "ai.live_smoke",
     schemaVersion: 1,
     idempotencyKey,
-    payload: { agentCode: AGENT_CODES[0], requestBudget, workspaceId: WORKSPACE_ID },
+    payload: {
+      agentCode: AGENT_CODES[0],
+      smokeRunId,
+      workflowCallBudget: requestBudget,
+      workspaceId: WORKSPACE_ID,
+    },
     requestedBy: WORKSPACE_ID,
   });
   if (replay.jobId !== root.jobId) throw new Error("LIVE_SMOKE_IDEMPOTENCY_FAILED");
