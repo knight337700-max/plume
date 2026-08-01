@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
+// eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
 import {
   parseCreativeDocument,
   type CreativeDocument,
