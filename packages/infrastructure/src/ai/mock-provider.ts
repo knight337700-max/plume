@@ -38,24 +38,52 @@ const MOCK_OUTPUTS: Readonly<Record<string, unknown>> = Object.freeze({
   EXPORT_ASSISTANT: { items: [], packageName: "synthetic-export", notes: [] },
 });
 
+type MockSchemaNode = {
+  readonly type?: string | readonly string[];
+  readonly anyOf?: readonly MockSchemaNode[];
+  readonly properties?: Readonly<Record<string, MockSchemaNode>>;
+};
+
+function schemaAllowsNull(schema: MockSchemaNode): boolean {
+  if (Array.isArray(schema.type) && schema.type.includes("null")) {
+    return true;
+  }
+  return schema.anyOf?.some((variant) => schemaAllowsNull(variant)) ?? false;
+}
+
+function materializeNullableProperties(output: unknown, schema: MockSchemaNode): unknown {
+  if (
+    output === null ||
+    typeof output !== "object" ||
+    Array.isArray(output) ||
+    !schema.properties
+  ) {
+    return output;
+  }
+
+  const materialized = { ...(output as Record<string, unknown>) };
+  for (const [propertyName, propertySchema] of Object.entries(schema.properties)) {
+    if (!(propertyName in materialized) && schemaAllowsNull(propertySchema)) {
+      materialized[propertyName] = null;
+    }
+  }
+  return materialized;
+}
+
 export function createDeterministicMockProviderGateway(): OpenAIProviderGateway {
   return {
     async execute(request: AIExecutionRequest): Promise<AIExecutionResult> {
       const baseOutput = MOCK_OUTPUTS[request.metadata.agentCode] ?? {};
-      const layoutSchema = (
-        request.outputSchema as {
-          readonly properties?: Readonly<
-            Record<string, { readonly type?: string | readonly string[] }>
-          >;
-        }
-      ).properties?.copyAssets;
-      const outputJson =
+      const outputSchema = request.outputSchema as MockSchemaNode;
+      const layoutSchema = outputSchema.properties?.copyAssets;
+      const layoutOutput =
         request.metadata.agentCode === "LAYOUT_PLANNER" &&
         layoutSchema &&
         (layoutSchema.type === "array" ||
           (Array.isArray(layoutSchema.type) && layoutSchema.type.includes("array")))
           ? { ...((baseOutput as Record<string, unknown>) ?? {}), copyAssets: [] }
           : baseOutput;
+      const outputJson = materializeNullableProperties(layoutOutput, outputSchema);
       return {
         provider: "OpenAI",
         model: "mock-jacomo-1",
