@@ -136,8 +136,8 @@ export function createJacomoRuntimeHandlers(
 
   const handlers: Record<string, RuntimeJobHandler> = {};
   const liveSmoke = createLiveSmokeHandler(dependencies.providerGateway);
-  handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (_envelope, job) =>
-    liveSmoke(job),
+  handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>
+    liveSmoke({ ...job, data: envelope.payload } as Job<unknown>),
   );
   handlers["creative.generate"] = withCommonContract("creative.generate", async (envelope) => {
     const payload = envelope.payload as CreativeGeneratePayload;
