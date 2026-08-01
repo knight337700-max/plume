@@ -10,7 +10,7 @@ const id = "00000000-0000-4000-8000-000000000001";
 
 describe("async command contracts", () => {
   it("keeps the catalog definitions aligned with queue routing", () => {
-    expect(Object.keys(ASYNC_COMMAND_DEFINITIONS)).toHaveLength(23);
+    expect(Object.keys(ASYNC_COMMAND_DEFINITIONS)).toHaveLength(24);
     expect(JACOMO_EXTERNAL_COMMANDS).toEqual(["creative.generate"]);
     expect(JACOMO_INTERNAL_COMMANDS).toEqual([
       "creative.render",
@@ -80,6 +80,53 @@ describe("async command contracts", () => {
         createdAt: new Date().toISOString(),
         command: "ai.live_smoke",
         payload: { agentCode: "COPY_GENERATOR", budgetEpochId: id, workflowCallBudget: 21 },
+      }),
+    ).toThrow("PAYLOAD_INVALID");
+  });
+
+  it("accepts only bounded verification-only live smoke payloads", () => {
+    expect(() =>
+      validateCommandEnvelope({
+        messageId: id,
+        schemaVersion: 1,
+        workspaceId: id,
+        correlationId: id,
+        jobId: id,
+        jobItemId: id,
+        createdAt: new Date().toISOString(),
+        command: "ai.live_smoke.verify",
+        payload: {
+          verificationRunId: id,
+          parentWorkflowJobId: id,
+          agentCode: "LAYOUT_PLANNER",
+          workspaceId: id,
+          smokeRunId: id,
+          budgetEpochId: id,
+          workflowCallBudget: 8,
+          verificationOnly: true,
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCommandEnvelope({
+        messageId: id,
+        schemaVersion: 1,
+        workspaceId: id,
+        correlationId: id,
+        jobId: id,
+        jobItemId: id,
+        createdAt: new Date().toISOString(),
+        command: "ai.live_smoke.verify",
+        payload: {
+          verificationRunId: id,
+          parentWorkflowJobId: id,
+          agentCode: "LAYOUT_PLANNER",
+          workspaceId: id,
+          smokeRunId: id,
+          budgetEpochId: id,
+          workflowCallBudget: 9,
+          verificationOnly: true,
+        },
       }),
     ).toThrow("PAYLOAD_INVALID");
   });

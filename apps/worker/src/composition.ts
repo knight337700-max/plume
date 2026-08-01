@@ -12,6 +12,10 @@ import {
   type LiveSmokeBudgetStore,
 } from "../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import {
+  PostgresLiveSmokeCoverageStore,
+  type LiveSmokeCoverageStore,
+} from "../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
+import {
   S3ObjectStorage,
   type ObjectStorage,
 } from "../../../packages/infrastructure/src/storage/s3-object-storage.js";
@@ -38,6 +42,7 @@ export interface WorkerRuntimeCompositionOptions {
   readonly publisher?: DurableAsyncCommandPublisher;
   readonly workflow?: DurableWorkflowRepository;
   readonly liveSmokeBudgetStore?: LiveSmokeBudgetStore;
+  readonly liveSmokeCoverageStore?: LiveSmokeCoverageStore;
 }
 
 function envValue(name: string, fallback: string): string {
@@ -67,6 +72,8 @@ export function createWorkerRuntimeComposition(
   const workflow = options.workflow ?? new DurableWorkflowRepository(sql);
   const liveSmokeBudgetStore =
     options.liveSmokeBudgetStore ?? new PostgresLiveSmokeBudgetStore(sql);
+  const liveSmokeCoverageStore =
+    options.liveSmokeCoverageStore ?? new PostgresLiveSmokeCoverageStore(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
@@ -81,6 +88,8 @@ export function createWorkerRuntimeComposition(
     queuePrefix: adapter.queuePrefix,
     providerGateway: aiRuntime.provider.gateway,
     liveSmokeBudgetStore,
+    liveSmokeCoverageStore,
+    providerMode: aiRuntime.provider.mode,
   });
   let closed = false;
 
