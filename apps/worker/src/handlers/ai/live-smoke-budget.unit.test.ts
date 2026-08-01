@@ -46,6 +46,8 @@ class SharedTestBudgetStore implements LiveSmokeBudgetStore {
   }
 
   async reserve(input: LiveSmokeBudgetReservationInput): Promise<LiveSmokeBudgetReservation> {
+    if (input.providerMode === "mock")
+      return { allowed: true, duplicate: false, used: 0, remaining: input.limit };
     let release!: () => void;
     const prior = this.ledger.tail;
     this.ledger.tail = new Promise<void>((resolve) => {
@@ -139,6 +141,7 @@ describe("live smoke workflow budget", () => {
           smokeRunId: SMOKE_RUN_ID,
           budgetEpochId: BUDGET_EPOCH_ID,
           reservationKey: `${agentCode}:initial`,
+          providerMode: "live",
           units: 1,
           limit: 8,
         }),
@@ -153,6 +156,7 @@ describe("live smoke workflow budget", () => {
       smokeRunId: SMOKE_RUN_ID,
       budgetEpochId: BUDGET_EPOCH_ID,
       reservationKey: "overflow",
+      providerMode: "live",
       units: 1,
       limit: 8,
     });
@@ -180,6 +184,7 @@ describe("live smoke workflow budget", () => {
       smokeRunId: SMOKE_RUN_ID,
       budgetEpochId: "00000000-0000-4000-8000-0000000002e4",
       reservationKey: "old-overflow",
+      providerMode: "live",
       units: 1,
       limit: 20,
     });
@@ -202,6 +207,7 @@ describe("live smoke workflow budget", () => {
           smokeRunId: SMOKE_RUN_ID,
           budgetEpochId: newEpochId,
           reservationKey: `failed-${index}:initial`,
+          providerMode: "live",
           units: 1,
           limit: 12,
         }),
@@ -214,6 +220,7 @@ describe("live smoke workflow budget", () => {
         smokeRunId: SMOKE_RUN_ID,
         budgetEpochId: newEpochId,
         reservationKey: "thirteenth",
+        providerMode: "live",
         units: 1,
         limit: 12,
       }),
@@ -267,6 +274,7 @@ describe("live smoke workflow budget", () => {
       budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
       reservationKey:
         "00000000-0000-4000-8000-0000000002e1:00000000-0000-4000-8000-000000000399:delivery:0:initial",
+      providerMode: "live",
       units: 1,
       limit: 3,
     });
@@ -338,6 +346,7 @@ describe("live smoke workflow budget", () => {
       smokeRunId: SMOKE_RUN_ID,
       budgetEpochId: BUDGET_EPOCH_ID,
       reservationKey: "item-1:initial",
+      providerMode: "live",
       units: 1,
       limit: 1,
     });
@@ -346,6 +355,7 @@ describe("live smoke workflow budget", () => {
       smokeRunId: "00000000-0000-4000-8000-0000000002d2",
       budgetEpochId: "00000000-0000-4000-8000-0000000002e2",
       reservationKey: "item-1:initial",
+      providerMode: "live",
       units: 1,
       limit: 1,
     });

@@ -25,6 +25,7 @@ export const RUNTIME_JOB_TYPES = Object.freeze([
 export const CATALOG_JOB_TYPES = Object.freeze([...Object.keys(COMMAND_QUEUE_ROUTES)]);
 export const STAGING_ENABLED_JOB_TYPES = Object.freeze([
   "ai.live_smoke",
+  "ai.live_smoke.verify",
   "creative.generate",
   "creative.render",
   "validation.run",
@@ -74,6 +75,7 @@ export function createRuntimeHandlerRegistry(
       queue,
       messageTypes,
       handler: registrationHandler(messageTypes, handlers),
+      ...(queue === "ai-standard" ? { concurrency: 1 } : {}),
     });
   }).filter((registration) => registration.messageTypes.length > 0);
   return Object.freeze({

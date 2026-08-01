@@ -16,6 +16,7 @@ describe("staging migration runner contract", () => {
       "0002_durable_async_command_metadata",
       "0003_live_smoke_budget_ledger",
       "0004_live_smoke_budget_epochs",
+      "0005_live_coverage_shadow_runs",
     ]);
     expect(migrations[0]?.destructive).toBe(false);
     expect(migrations[0]?.checksum).toBe(migrationChecksum(migrations[0]?.sql ?? ""));

@@ -11,8 +11,15 @@ import {
   type ProviderCallKind,
 } from "../../../../../packages/core/src/agents/orchestrator.js";
 import type { JsonSchema } from "../../../../../packages/core/src/agents/result-validator.js";
-import type { AiLiveSmokePayload } from "../../../../../packages/contracts/src/async.js";
-import type { LiveSmokeBudgetStore } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import type {
+  AiLiveSmokePayload,
+  AiLiveSmokeVerificationPayload,
+} from "../../../../../packages/contracts/src/async.js";
+import type {
+  LiveSmokeBudgetStore,
+  LiveSmokeProviderMode,
+} from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import type { LiveSmokeCoverageStore } from "../../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 
 const SYNTHETIC_IDS = Object.freeze({
   campaign: "00000000-0000-4000-8000-0000000002c1",
@@ -87,7 +94,9 @@ function budgetError(message: string): Error & { readonly retryable: false } {
 export function createLiveSmokeHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
+  options: { readonly providerMode?: LiveSmokeProviderMode } = {},
 ): LiveSmokeRuntimeHandler {
+  const providerMode = options.providerMode ?? "live";
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
     const payload = job.data as AiLiveSmokePayload & { readonly workspaceId?: string };
     if (!isAgentCode(payload.agentCode)) throw new Error("AI_LIVE_SMOKE_AGENT_NOT_REGISTERED");
@@ -115,11 +124,13 @@ export function createLiveSmokeHandler(
     const orchestrator = createAgentOrchestrator({
       gateway,
       beforeProviderCall: async (kind) => {
+        if (providerMode === "mock") return;
         const reservation = await budgetStore.reserve({
           workspaceId,
           smokeRunId,
           budgetEpochId,
           reservationKey: reservationKey(kind),
+          providerMode,
           units: 1,
           limit: workflowCallBudget,
         });
@@ -149,6 +160,78 @@ export function createLiveSmokeHandler(
       agentCode: result.agentCode,
       metadata: result.metadata,
       output: result.output,
+    };
+  };
+}
+
+/**
+ * Verification-only shadow calls are intentionally separate from the original
+ * workflow. The durable item receives only redacted coverage facts.
+ */
+export function createLiveSmokeVerificationHandler(
+  gateway: AgentProviderGateway,
+  budgetStore: LiveSmokeBudgetStore,
+  coverageStore: LiveSmokeCoverageStore,
+  options: { readonly providerMode: LiveSmokeProviderMode },
+): LiveSmokeRuntimeHandler {
+  const liveSmoke = createLiveSmokeHandler(gateway, budgetStore, { providerMode: "live" });
+  return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
+    if (options.providerMode !== "live") {
+      throw Object.assign(new Error("LIVE_SMOKE_VERIFICATION_REQUIRES_LIVE"), {
+        code: "LIVE_SMOKE_VERIFICATION_REQUIRES_LIVE",
+        retryable: false as const,
+      });
+    }
+    const payload = job.data as AiLiveSmokeVerificationPayload;
+    if (payload.verificationOnly !== true) throw new Error("LIVE_SMOKE_VERIFICATION_FLAG_REQUIRED");
+    const result = (await liveSmoke(job, invocation)) as {
+      readonly status: string;
+      readonly agentCode: string;
+      readonly metadata?: {
+        readonly model?: string;
+        readonly providerRequestId?: string;
+        readonly usage?: { readonly inputUnits?: number; readonly outputUnits?: number };
+      };
+    };
+    if (result.status !== "COMPLETED") throw new Error("LIVE_SMOKE_VERIFICATION_RESULT_INCOMPLETE");
+    if (result.metadata?.model !== "gpt-5.6-luna")
+      throw new Error("LIVE_SMOKE_VERIFICATION_MODEL_MISMATCH");
+    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
+    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
+    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+    const jobItemId = invocation?.jobItemId ?? String(job.id ?? payload.agentCode);
+    await coverageStore.recordCoverage({
+      verificationRunId: payload.verificationRunId,
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+      parentWorkflowJobId: payload.parentWorkflowJobId,
+      agentCode: result.agentCode,
+      provider: "OpenAI",
+      model: result.metadata.model,
+      providerRequestSent: true,
+      structuredOutputPassed: true,
+      domainValidationPassed: true,
+      ...(result.metadata.providerRequestId
+        ? { providerRequestId: result.metadata.providerRequestId }
+        : {}),
+      ...(result.metadata.usage?.inputUnits === undefined
+        ? {}
+        : { inputUnits: result.metadata.usage.inputUnits }),
+      ...(result.metadata.usage?.outputUnits === undefined
+        ? {}
+        : { outputUnits: result.metadata.usage.outputUnits }),
+    });
+    return {
+      status: "COMPLETED",
+      verificationRunId: payload.verificationRunId,
+      agentCode: result.agentCode,
+      jobItemId,
+      provider: "OpenAI",
+      model: result.metadata.model,
+      providerRequestSent: true,
+      structuredOutputPassed: true,
+      domainValidationPassed: true,
     };
   };
 }

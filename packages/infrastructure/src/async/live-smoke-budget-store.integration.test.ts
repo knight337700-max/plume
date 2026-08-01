@@ -95,6 +95,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
           smokeRunId,
           budgetEpochId,
           reservationKey: `item-${index}:initial`,
+          providerMode: "live",
           units: 1,
           limit: 20,
         }),
@@ -106,6 +107,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
       smokeRunId,
       budgetEpochId,
       reservationKey: "overflow:initial",
+      providerMode: "live",
       units: 1,
       limit: 20,
     });
@@ -115,6 +117,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
       smokeRunId,
       budgetEpochId,
       reservationKey: "item-0:initial",
+      providerMode: "live",
       units: 1,
       limit: 20,
     });

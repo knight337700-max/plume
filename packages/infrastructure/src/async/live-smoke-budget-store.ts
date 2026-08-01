@@ -1,10 +1,13 @@
 import type { Sql } from "postgres";
 
+export type LiveSmokeProviderMode = "mock" | "live";
+
 export interface LiveSmokeBudgetReservationInput {
   readonly workspaceId: string;
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly reservationKey: string;
+  readonly providerMode: LiveSmokeProviderMode;
   readonly units: number;
   readonly limit: number;
 }
@@ -52,6 +55,8 @@ function assertReservationInput(input: LiveSmokeBudgetReservationInput): void {
   if (input.units > input.limit) throw new Error("LIVE_SMOKE_BUDGET_UNITS_EXCEED_LIMIT");
   if (input.reservationKey.length < 1 || input.reservationKey.length > 250)
     throw new Error("LIVE_SMOKE_RESERVATION_KEY_INVALID");
+  if (input.providerMode !== "mock" && input.providerMode !== "live")
+    throw new Error("LIVE_SMOKE_PROVIDER_MODE_INVALID");
 }
 
 interface EpochRow {
@@ -77,9 +82,8 @@ function mapEpoch(row: EpochRow): LiveSmokeBudgetEpoch {
 }
 
 /**
- * Postgres-backed workflow budget. Epoch creation, unique reservation, and
- * the counter update share one transaction, so worker processes and restarts
- * cannot create a process-local or cross-epoch counter.
+ * Postgres-backed workflow budget. Only live provider calls enter the durable
+ * ledger; mock executions are intentionally non-billable and non-reserving.
  */
 export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
   public constructor(private readonly sql: Sql) {}
@@ -116,6 +120,9 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
 
   async reserve(input: LiveSmokeBudgetReservationInput): Promise<LiveSmokeBudgetReservation> {
     assertReservationInput(input);
+    if (input.providerMode === "mock") {
+      return { allowed: true, duplicate: false, used: 0, remaining: input.limit };
+    }
     return this.sql.begin(async (transaction) => {
       const ledgerRows = await transaction<EpochRow[]>`
         SELECT workspace_id, smoke_run_id, budget_epoch_id,

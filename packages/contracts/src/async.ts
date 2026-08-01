@@ -47,6 +47,17 @@ export interface AiLiveSmokePayload {
   readonly workspaceId?: string;
 }
 
+export interface AiLiveSmokeVerificationPayload {
+  readonly verificationRunId: string;
+  readonly parentWorkflowJobId: string;
+  readonly agentCode: string;
+  readonly workspaceId: string;
+  readonly smokeRunId: string;
+  readonly budgetEpochId: string;
+  readonly workflowCallBudget: number;
+  readonly verificationOnly: true;
+}
+
 export interface CreativeRenderPayload {
   readonly creativeVersionId: string;
   readonly campaignId?: string;
@@ -80,6 +91,7 @@ export interface ExportPackagePayload {
 export type AsyncCommandPayload =
   | CreativeGeneratePayload
   | AiLiveSmokePayload
+  | AiLiveSmokeVerificationPayload
   | CreativeRenderPayload
   | ValidationRunPayload
   | ExportPackagePayload
@@ -142,14 +154,32 @@ const LIVE_SMOKE_AGENT_CODES = new Set([
 function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
   return (
     isRecord(payload) &&
-      isString(payload.agentCode) &&
-      LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
-      isUuidLike(payload.budgetEpochId) &&
-      (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
+    isString(payload.agentCode) &&
+    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isUuidLike(payload.budgetEpochId) &&
+    (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
     (payload.workflowCallBudget === undefined ||
       (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
     (payload.requestBudget === undefined ||
       (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20))
+  );
+}
+
+function validateAiLiveSmokeVerification(
+  payload: unknown,
+): payload is AiLiveSmokeVerificationPayload {
+  return (
+    isRecord(payload) &&
+    isUuidLike(payload.verificationRunId) &&
+    isUuidLike(payload.parentWorkflowJobId) &&
+    isString(payload.agentCode) &&
+    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isUuidLike(payload.workspaceId) &&
+    isUuidLike(payload.smokeRunId) &&
+    isUuidLike(payload.budgetEpochId) &&
+    isPositiveInteger(payload.workflowCallBudget) &&
+    payload.workflowCallBudget <= 8 &&
+    payload.verificationOnly === true
   );
 }
 
@@ -204,16 +234,18 @@ const definitions: Record<AsyncCommand, AsyncCommandDefinition> = Object.fromEnt
         ? validateCreativeGenerate
         : typedCommand === "ai.live_smoke"
           ? validateAiLiveSmoke
-          : typedCommand === "creative.render" ||
-              typedCommand === "creative.preview.render" ||
-              typedCommand === "validation.render" ||
-              typedCommand === "export.render"
-            ? validateRender
-            : typedCommand === "validation.run"
-              ? validateValidation
-              : typedCommand === "export.render_and_package"
-                ? validateExport
-                : genericPayload;
+          : typedCommand === "ai.live_smoke.verify"
+            ? validateAiLiveSmokeVerification
+            : typedCommand === "creative.render" ||
+                typedCommand === "creative.preview.render" ||
+                typedCommand === "validation.render" ||
+                typedCommand === "export.render"
+              ? validateRender
+              : typedCommand === "validation.run"
+                ? validateValidation
+                : typedCommand === "export.render_and_package"
+                  ? validateExport
+                  : genericPayload;
     const activation = JACOMO_EXTERNAL_COMMANDS.includes(command as JacomoExternalCommand)
       ? "external-entry"
       : JACOMO_INTERNAL_COMMANDS.includes(command as JacomoInternalCommand)
