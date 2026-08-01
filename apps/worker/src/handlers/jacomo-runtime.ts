@@ -146,6 +146,7 @@ export function createJacomoRuntimeHandlers(
       workspaceId: envelope.workspaceId,
       smokeRunId:
         (envelope.payload as { readonly smokeRunId?: string }).smokeRunId ?? envelope.jobId,
+      budgetEpochId: (envelope.payload as { readonly budgetEpochId: string }).budgetEpochId,
       jobItemId: envelope.jobItemId!,
     }),
   );

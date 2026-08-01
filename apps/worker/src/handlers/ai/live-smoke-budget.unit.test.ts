@@ -10,15 +10,40 @@ import type { JsonSchema } from "../../../../../packages/core/src/agents/result-
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const SMOKE_RUN_ID = "00000000-0000-4000-8000-0000000002d0";
+const BUDGET_EPOCH_ID = "00000000-0000-4000-8000-0000000002e0";
 interface TestLedger {
   readonly used: Map<string, number>;
   readonly reservations: Set<string>;
+  readonly epochs: Map<string, { limit: number; status: "OPEN" | "CLOSED_EXHAUSTED" | "CLOSED" }>;
   tail: Promise<void>;
 }
 
 /** A durable-backend test double: instances share state and the atomic lock. */
 class SharedTestBudgetStore implements LiveSmokeBudgetStore {
   public constructor(private readonly ledger: TestLedger) {}
+
+  async createEpoch(input: {
+    workspaceId: string;
+    smokeRunId: string;
+    budgetEpochId: string;
+    parentBudgetEpochId?: string | null;
+    limit: number;
+    reason: string;
+  }) {
+    const scope = `${input.workspaceId}:${input.smokeRunId}:${input.budgetEpochId}`;
+    const existing = this.ledger.epochs.get(scope);
+    if (existing && existing.limit !== input.limit) throw new Error("EPOCH_LIMIT_MISMATCH");
+    if (!existing) this.ledger.epochs.set(scope, { limit: input.limit, status: "OPEN" });
+    return {
+      workspaceId: input.workspaceId,
+      smokeRunId: input.smokeRunId,
+      budgetEpochId: input.budgetEpochId,
+      parentBudgetEpochId: input.parentBudgetEpochId ?? null,
+      limit: input.limit,
+      used: this.ledger.used.get(scope) ?? 0,
+      status: this.ledger.epochs.get(scope)!.status,
+    } as const;
+  }
 
   async reserve(input: LiveSmokeBudgetReservationInput): Promise<LiveSmokeBudgetReservation> {
     let release!: () => void;
@@ -28,16 +53,20 @@ class SharedTestBudgetStore implements LiveSmokeBudgetStore {
     });
     await prior;
     try {
-      const scope = `${input.workspaceId}:${input.smokeRunId}`;
+      const scope = `${input.workspaceId}:${input.smokeRunId}:${input.budgetEpochId}`;
+      if (!this.ledger.epochs.has(scope))
+        this.ledger.epochs.set(scope, { limit: input.limit, status: "OPEN" });
       const key = `${scope}:${input.reservationKey}`;
       const used = this.ledger.used.get(scope) ?? 0;
       if (this.ledger.reservations.has(key))
         return { allowed: true, duplicate: true, used, remaining: input.limit - used };
-      if (used + input.units > input.limit)
+      const epoch = this.ledger.epochs.get(scope)!;
+      if (epoch.status !== "OPEN" || used + input.units > input.limit)
         return { allowed: false, duplicate: false, used, remaining: input.limit - used };
       this.ledger.reservations.add(key);
       const next = used + input.units;
       this.ledger.used.set(scope, next);
+      if (next >= epoch.limit) this.ledger.epochs.set(scope, { ...epoch, status: "CLOSED_EXHAUSTED" });
       return { allowed: true, duplicate: false, used: next, remaining: input.limit - next };
     } finally {
       release();
@@ -78,7 +107,7 @@ function fakeJob(
   return {
     id: `message-${itemNumber}`,
     attemptsMade,
-    data: { agentCode, workflowCallBudget },
+    data: { agentCode, budgetEpochId: BUDGET_EPOCH_ID, workflowCallBudget },
   } as never;
 }
 
@@ -98,6 +127,7 @@ describe("live smoke workflow budget", () => {
     const ledger: TestLedger = {
       used: new Map(),
       reservations: new Set(),
+      epochs: new Map(),
       tail: Promise.resolve(),
     };
     const firstWorker = new SharedTestBudgetStore(ledger);
@@ -107,6 +137,7 @@ describe("live smoke workflow budget", () => {
         (index % 2 === 0 ? firstWorker : restartedWorker).reserve({
           workspaceId: WORKSPACE_ID,
           smokeRunId: SMOKE_RUN_ID,
+          budgetEpochId: BUDGET_EPOCH_ID,
           reservationKey: `${agentCode}:initial`,
           units: 1,
           limit: 8,
@@ -115,11 +146,12 @@ describe("live smoke workflow budget", () => {
     );
     expect(reservations.every((reservation) => reservation.allowed)).toBe(true);
     expect(reservations).toHaveLength(8);
-    expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}`)).toBe(8);
+    expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:${BUDGET_EPOCH_ID}`)).toBe(8);
 
     const afterRestart = await restartedWorker.reserve({
       workspaceId: WORKSPACE_ID,
       smokeRunId: SMOKE_RUN_ID,
+      budgetEpochId: BUDGET_EPOCH_ID,
       reservationKey: "overflow",
       units: 1,
       limit: 8,
@@ -128,10 +160,73 @@ describe("live smoke workflow budget", () => {
     expect(afterRestart.used).toBe(8);
   });
 
+  it("keeps the exhausted Phase 2C.4 epoch immutable and isolates a new epoch", async () => {
+    const ledger: TestLedger = {
+      used: new Map([
+        [`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`, 20],
+      ]),
+      reservations: new Set(),
+      epochs: new Map([
+        [
+          `${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`,
+          { limit: 20, status: "CLOSED_EXHAUSTED" },
+        ],
+      ]),
+      tail: Promise.resolve(),
+    };
+    const oldEpoch = new SharedTestBudgetStore(ledger);
+    const old = await oldEpoch.reserve({
+      workspaceId: WORKSPACE_ID,
+      smokeRunId: SMOKE_RUN_ID,
+      budgetEpochId: "00000000-0000-4000-8000-0000000002e4",
+      reservationKey: "old-overflow",
+      units: 1,
+      limit: 20,
+    });
+    expect(old).toMatchObject({ allowed: false, used: 20, remaining: 0 });
+
+    const newEpochId = "00000000-0000-4000-8000-0000000002e5";
+    await oldEpoch.createEpoch({
+      workspaceId: WORKSPACE_ID,
+      smokeRunId: SMOKE_RUN_ID,
+      budgetEpochId: newEpochId,
+      parentBudgetEpochId: "00000000-0000-4000-8000-0000000002e4",
+      limit: 12,
+      reason: "phase2c5-failed-item-resume",
+    });
+    const restarted = new SharedTestBudgetStore(ledger);
+    const allowed = await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        restarted.reserve({
+          workspaceId: WORKSPACE_ID,
+          smokeRunId: SMOKE_RUN_ID,
+          budgetEpochId: newEpochId,
+          reservationKey: `failed-${index}:initial`,
+          units: 1,
+          limit: 12,
+        }),
+      ),
+    );
+    expect(allowed.every((reservation) => reservation.allowed)).toBe(true);
+    await expect(
+      restarted.reserve({
+        workspaceId: WORKSPACE_ID,
+        smokeRunId: SMOKE_RUN_ID,
+        budgetEpochId: newEpochId,
+        reservationKey: "thirteenth",
+        units: 1,
+        limit: 12,
+      }),
+    ).resolves.toMatchObject({ allowed: false, used: 12, remaining: 0 });
+    expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`)).toBe(20);
+    expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:${newEpochId}`)).toBe(12);
+  });
+
   it("counts initial, retry, and repair separately, while duplicate reservation stays free", async () => {
     const ledger: TestLedger = {
       used: new Map(),
       reservations: new Set(),
+      epochs: new Map(),
       tail: Promise.resolve(),
     };
     const store = new SharedTestBudgetStore(ledger);
@@ -160,6 +255,7 @@ describe("live smoke workflow budget", () => {
     const result = await handler(fakeJob("COPY_GENERATOR", 99, 3), {
       workspaceId: WORKSPACE_ID,
       smokeRunId: "00000000-0000-4000-8000-0000000002d1",
+      budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
       jobItemId: "00000000-0000-4000-8000-000000000399",
     });
     expect(result).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
@@ -168,7 +264,9 @@ describe("live smoke workflow budget", () => {
     const duplicate = await store.reserve({
       workspaceId: WORKSPACE_ID,
       smokeRunId: "00000000-0000-4000-8000-0000000002d1",
-      reservationKey: "00000000-0000-4000-8000-000000000399:delivery:0:initial",
+      budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
+      reservationKey:
+        "00000000-0000-4000-8000-0000000002e1:00000000-0000-4000-8000-000000000399:delivery:0:initial",
       units: 1,
       limit: 3,
     });
@@ -179,6 +277,7 @@ describe("live smoke workflow budget", () => {
     const ledger: TestLedger = {
       used: new Map(),
       reservations: new Set(),
+      epochs: new Map(),
       tail: Promise.resolve(),
     };
     const store = new SharedTestBudgetStore(ledger);
@@ -207,6 +306,7 @@ describe("live smoke workflow budget", () => {
         {
           workspaceId: WORKSPACE_ID,
           smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+          budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
           jobItemId: "00000000-0000-4000-8000-000000000400",
         },
       ),
@@ -216,24 +316,27 @@ describe("live smoke workflow budget", () => {
       {
         workspaceId: WORKSPACE_ID,
         smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
         jobItemId: "00000000-0000-4000-8000-000000000400",
       },
     );
     expect(resumed).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
     expect(providerCall).toBe(3);
-    expect(ledger.used.get(`${WORKSPACE_ID}:00000000-0000-4000-8000-0000000002d3`)).toBe(3);
+    expect(ledger.used.get(`${WORKSPACE_ID}:00000000-0000-4000-8000-0000000002d3:00000000-0000-4000-8000-0000000002e3`)).toBe(3);
   });
 
   it("keeps workflow scopes isolated and replays only failed items", async () => {
     const ledger: TestLedger = {
       used: new Map(),
       reservations: new Set(),
+      epochs: new Map(),
       tail: Promise.resolve(),
     };
     const store = new SharedTestBudgetStore(ledger);
     const first = await store.reserve({
       workspaceId: WORKSPACE_ID,
       smokeRunId: SMOKE_RUN_ID,
+      budgetEpochId: BUDGET_EPOCH_ID,
       reservationKey: "item-1:initial",
       units: 1,
       limit: 1,
@@ -241,6 +344,7 @@ describe("live smoke workflow budget", () => {
     const isolated = await store.reserve({
       workspaceId: WORKSPACE_ID,
       smokeRunId: "00000000-0000-4000-8000-0000000002d2",
+      budgetEpochId: "00000000-0000-4000-8000-0000000002e2",
       reservationKey: "item-1:initial",
       units: 1,
       limit: 1,

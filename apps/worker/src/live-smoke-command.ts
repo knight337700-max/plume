@@ -24,6 +24,10 @@ function stableSmokeRunId(idempotencyKey: string): string {
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 }
 
+function stableBudgetEpochId(idempotencyKey: string): string {
+  return stableSmokeRunId(`${idempotencyKey}:budget-epoch`);
+}
+
 const syntheticData: Readonly<Record<string, unknown>> = {
   sourceIds: ["00000000-0000-4000-8000-0000000002c6"],
   sourceText: "Synthetic JACOMO Autumn Sofa Preview brief for staging validation.",
@@ -174,6 +178,7 @@ async function main(): Promise<void> {
     throw new Error("LIVE_SMOKE_QUEUE_BUDGET_UNAVAILABLE");
   const requestBudget = MAX_REQUESTS - liveRequests;
   const smokeRunId = stableSmokeRunId(idempotencyKey);
+  const budgetEpochId = stableBudgetEpochId(idempotencyKey);
   const root = await publisher.enqueue({
     workspaceId: WORKSPACE_ID,
     command: "ai.live_smoke",
@@ -181,6 +186,7 @@ async function main(): Promise<void> {
     idempotencyKey,
     payload: {
       agentCode: AGENT_CODES[0],
+      budgetEpochId,
       smokeRunId,
       workflowCallBudget: requestBudget,
       workspaceId: WORKSPACE_ID,
@@ -196,6 +202,7 @@ async function main(): Promise<void> {
       causationId: root.messageId,
       payload: {
         agentCode,
+        budgetEpochId,
         smokeRunId,
         workflowCallBudget: requestBudget,
         workspaceId: WORKSPACE_ID,
@@ -209,6 +216,7 @@ async function main(): Promise<void> {
     idempotencyKey,
     payload: {
       agentCode: AGENT_CODES[0],
+      budgetEpochId,
       smokeRunId,
       workflowCallBudget: requestBudget,
       workspaceId: WORKSPACE_ID,

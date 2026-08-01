@@ -8,6 +8,7 @@ import {
 const enabled = process.env.RUN_LIVE_SMOKE_BUDGET_DB_TEST === "true";
 const workspaceId = "00000000-0000-4000-8000-0000000002e0";
 const smokeRunId = "00000000-0000-4000-8000-0000000002e1";
+const budgetEpochId = "00000000-0000-4000-8000-0000000002e2";
 const databaseUrl =
   process.env.TEST_DATABASE_URL?.trim() ||
   "postgresql://plume:plume_local_only@localhost:5432/plume_test";
@@ -37,15 +38,46 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
           ON DELETE CASCADE
       );
     `);
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS live_smoke_budget_epoch (
+        workspace_id uuid NOT NULL,
+        smoke_run_id uuid NOT NULL,
+        budget_epoch_id uuid NOT NULL,
+        parent_budget_epoch_id uuid,
+        call_limit integer NOT NULL,
+        used_units integer NOT NULL DEFAULT 0,
+        status varchar(30) NOT NULL DEFAULT 'OPEN',
+        reason varchar(250) NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, smoke_run_id, budget_epoch_id)
+      );
+      CREATE TABLE IF NOT EXISTS live_smoke_budget_epoch_reservation (
+        workspace_id uuid NOT NULL,
+        smoke_run_id uuid NOT NULL,
+        budget_epoch_id uuid NOT NULL,
+        reservation_key varchar(250) NOT NULL,
+        units integer NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, smoke_run_id, budget_epoch_id, reservation_key)
+      );
+    `);
+    await new PostgresLiveSmokeBudgetStore(sql).createEpoch({
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+      limit: 20,
+      reason: "integration-test",
+    });
   });
 
   afterAll(async () => {
     await sql`
-      DELETE FROM live_smoke_budget_reservation
+      DELETE FROM live_smoke_budget_epoch_reservation
       WHERE workspace_id = ${workspaceId} AND smoke_run_id = ${smokeRunId}
     `;
     await sql`
-      DELETE FROM live_smoke_budget_ledger
+      DELETE FROM live_smoke_budget_epoch
       WHERE workspace_id = ${workspaceId} AND smoke_run_id = ${smokeRunId}
     `;
     await sql.end({ timeout: 5 });
@@ -61,6 +93,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
         workers[index % workers.length]!.reserve({
           workspaceId,
           smokeRunId,
+          budgetEpochId,
           reservationKey: `item-${index}:initial`,
           units: 1,
           limit: 20,
@@ -71,6 +104,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
     const overflow = await new PostgresLiveSmokeBudgetStore(sql).reserve({
       workspaceId,
       smokeRunId,
+      budgetEpochId,
       reservationKey: "overflow:initial",
       units: 1,
       limit: 20,
@@ -79,6 +113,7 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
     const duplicate = await new PostgresLiveSmokeBudgetStore(sql).reserve({
       workspaceId,
       smokeRunId,
+      budgetEpochId,
       reservationKey: "item-0:initial",
       units: 1,
       limit: 20,
