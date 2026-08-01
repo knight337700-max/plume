@@ -88,16 +88,77 @@ function inputText(messages: readonly SafeMessage[]): string {
     .join("\n\n");
 }
 
+const RESPONSES_SCHEMA_KEYS = new Set([
+  "type",
+  "properties",
+  "required",
+  "additionalProperties",
+  "items",
+  "enum",
+  "anyOf",
+  "$defs",
+  "$ref",
+  "description",
+]);
+
+function nullableResponsesSchema(value: unknown): unknown {
+  if (!value || typeof value !== "object") return { anyOf: [value, { type: "null" }] };
+  const schema = value as Record<string, unknown>;
+  if (Array.isArray(schema.anyOf)) {
+    if (schema.anyOf.some((item) => (item as Record<string, unknown>)?.type === "null"))
+      return schema;
+    return { ...schema, anyOf: [...schema.anyOf, { type: "null" }] };
+  }
+  if (Array.isArray(schema.type)) {
+    if (schema.type.includes("null")) return schema;
+    return { ...schema, type: [...schema.type, "null"] };
+  }
+  if (typeof schema.type === "string") return { ...schema, type: [schema.type, "null"] };
+  if (Array.isArray(schema.enum)) {
+    if (schema.enum.includes(null)) return schema;
+    return { ...schema, enum: [...schema.enum, null] };
+  }
+  return { anyOf: [schema, { type: "null" }] };
+}
+
 function normalizeResponsesSchema(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeResponsesSchema);
   if (!value || typeof value !== "object") return value;
-  const normalized = Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, normalizeResponsesSchema(child)]),
-  ) as Record<string, unknown>;
-  if (Object.prototype.hasOwnProperty.call(normalized, "const")) {
-    const constant = normalized.const;
-    delete normalized.const;
-    if (!Object.prototype.hasOwnProperty.call(normalized, "enum")) normalized.enum = [constant];
+  const source = value as Record<string, unknown>;
+  const normalized: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(source)) {
+    if (key === "const") {
+      if (!Object.prototype.hasOwnProperty.call(normalized, "enum")) normalized.enum = [child];
+      continue;
+    }
+    if (!RESPONSES_SCHEMA_KEYS.has(key)) continue;
+    if ((key === "properties" || key === "$defs") && child && typeof child === "object") {
+      normalized[key] = Object.fromEntries(
+        Object.entries(child).map(([childKey, childValue]) => [
+          childKey,
+          normalizeResponsesSchema(childValue),
+        ]),
+      );
+    } else {
+      normalized[key] = normalizeResponsesSchema(child);
+    }
+  }
+  if (source.properties && typeof source.properties === "object") {
+    const properties = normalized.properties as Record<string, unknown>;
+    normalized.properties = properties;
+    normalized.required = Object.keys(properties);
+    normalized.additionalProperties = false;
+    const sourceRequired = new Set(
+      Array.isArray(source.required)
+        ? source.required.filter((item): item is string => typeof item === "string")
+        : [],
+    );
+    for (const propertyName of Object.keys(properties)) {
+      if (!sourceRequired.has(propertyName))
+        properties[propertyName] = nullableResponsesSchema(properties[propertyName]);
+    }
+  } else if (normalized.type === "object") {
+    normalized.additionalProperties = false;
   }
   return normalized;
 }
