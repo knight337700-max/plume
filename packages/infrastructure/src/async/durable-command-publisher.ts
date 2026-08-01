@@ -87,7 +87,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
             INSERT INTO async_job
               (id, workspace_id, job_type, status, subject_type, requested_by, correlation_id, idempotency_key, payload_hash, payload_json)
             VALUES
-              (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, ${JSON.stringify({ command: input.command, schemaVersion: input.schemaVersion })}::jsonb)
+              (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, ${this.sql.json({ command: input.command, schemaVersion: input.schemaVersion })})
           `;
         } else {
           const roots = await transaction<{ id: string; workspace_id: string; correlation_id: string }[]>`
@@ -105,7 +105,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
           INSERT INTO outbox_message
             (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json)
           VALUES
-            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${JSON.stringify(safeJson(envelope.payload))}::jsonb, ${JSON.stringify({
+            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${this.sql.json(safeJson(envelope.payload) as never)}, ${this.sql.json({
               messageId,
               correlationId,
               ...(input.causationId === undefined ? {} : { causationId: input.causationId }),
@@ -113,7 +113,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
               jobItemId,
               createdAt,
               ...(input.requestedBy === undefined ? {} : { requestedBy: input.requestedBy }),
-            })}::jsonb)
+            })})
         `;
         return { jobId, jobItemId, messageId, status: "QUEUED" as const, correlationId };
       });
