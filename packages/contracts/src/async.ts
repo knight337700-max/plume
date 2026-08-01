@@ -36,6 +36,8 @@ export interface CreativeGeneratePayload {
 
 export interface AiLiveSmokePayload {
   readonly agentCode: string;
+  /** Immutable budget epoch for this durable workflow attempt. */
+  readonly budgetEpochId: string;
   /** Durable workflow scope. v1 payloads derive this from the root job id. */
   readonly smokeRunId?: string;
   /** Maximum provider calls for this workflow, including initial, retry, and repair. */
@@ -140,9 +142,10 @@ const LIVE_SMOKE_AGENT_CODES = new Set([
 function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
   return (
     isRecord(payload) &&
-    isString(payload.agentCode) &&
-    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
-    (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
+      isString(payload.agentCode) &&
+      LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+      isUuidLike(payload.budgetEpochId) &&
+      (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
     (payload.workflowCallBudget === undefined ||
       (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
     (payload.requestBudget === undefined ||

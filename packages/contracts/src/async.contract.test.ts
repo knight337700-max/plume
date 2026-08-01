@@ -64,6 +64,7 @@ describe("async command contracts", () => {
         command: "ai.live_smoke",
         payload: {
           agentCode: "COPY_GENERATOR",
+          budgetEpochId: id,
           smokeRunId: id,
           workflowCallBudget: 20,
         },
@@ -78,7 +79,7 @@ describe("async command contracts", () => {
         jobId: id,
         createdAt: new Date().toISOString(),
         command: "ai.live_smoke",
-        payload: { agentCode: "COPY_GENERATOR", workflowCallBudget: 21 },
+        payload: { agentCode: "COPY_GENERATOR", budgetEpochId: id, workflowCallBudget: 21 },
       }),
     ).toThrow("PAYLOAD_INVALID");
   });

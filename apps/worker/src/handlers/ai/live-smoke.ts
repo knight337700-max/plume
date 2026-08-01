@@ -71,6 +71,7 @@ function isAgentCode(value: string): value is AgentCode {
 export interface LiveSmokeInvocationContext {
   readonly workspaceId: string;
   readonly smokeRunId: string;
+  readonly budgetEpochId: string;
   readonly jobItemId: string;
 }
 
@@ -94,6 +95,8 @@ export function createLiveSmokeHandler(
       invocation?.workspaceId ?? payload.workspaceId ?? "00000000-0000-4000-8000-0000000002c0";
     const smokeRunId =
       invocation?.smokeRunId ?? payload.smokeRunId ?? String(job.id ?? workspaceId);
+    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+    if (!budgetEpochId) throw budgetError("LIVE_SMOKE_BUDGET_EPOCH_REQUIRED");
     const jobItemId = invocation?.jobItemId ?? String(job.id ?? `${payload.agentCode}-live-smoke`);
     const prompt = promptRegistry.resolve(payload.agentCode);
     const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
@@ -108,13 +111,14 @@ export function createLiveSmokeHandler(
     const deliveryAttempt =
       Number.isInteger(job.attemptsMade) && job.attemptsMade >= 0 ? job.attemptsMade : 0;
     const reservationKey = (kind: ProviderCallKind): string =>
-      `${jobItemId}:delivery:${deliveryAttempt}:${kind}`;
+      `${budgetEpochId}:${jobItemId}:delivery:${deliveryAttempt}:${kind}`;
     const orchestrator = createAgentOrchestrator({
       gateway,
       beforeProviderCall: async (kind) => {
         const reservation = await budgetStore.reserve({
           workspaceId,
           smokeRunId,
+          budgetEpochId,
           reservationKey: reservationKey(kind),
           units: 1,
           limit: workflowCallBudget,
