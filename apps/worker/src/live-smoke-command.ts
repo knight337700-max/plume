@@ -83,6 +83,12 @@ function requestFor(agentCode: AgentCode, taskId: string) {
   };
 }
 
+function isConnectivitySuccess(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const output = value as Readonly<Record<string, unknown>>;
+  return output.status === "ok" && output.environment === "staging" && output.provider === "openai";
+}
+
 async function main(): Promise<void> {
   if ((process.env.OPENAI_MODEL?.trim() || DEFAULT_LLM_MODEL) !== DEFAULT_LLM_MODEL)
     throw new Error("LIVE_SMOKE_MODEL_MISMATCH");
@@ -135,11 +141,7 @@ async function main(): Promise<void> {
     outputUnits: connectivity.usage?.outputUnits ?? 0,
     latencyMs: connectivity.latencyMs,
   });
-  if (
-    connectivity.status !== "COMPLETED" ||
-    JSON.stringify(connectivity.outputJson) !==
-      JSON.stringify({ status: "ok", environment: "staging", provider: "openai" })
-  )
+  if (connectivity.status !== "COMPLETED" || !isConnectivitySuccess(connectivity.outputJson))
     throw new Error("LIVE_SMOKE_CONNECTIVITY_FAILED");
 
   const directResults: Array<Record<string, unknown>> = [];
