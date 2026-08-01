@@ -162,7 +162,6 @@ function normalizeResponsesSchema(value: unknown): unknown {
   }
   return normalized;
 }
-
 function requestBody(request: AIExecutionRequest, model: string): Record<string, unknown> {
   return {
     model,
