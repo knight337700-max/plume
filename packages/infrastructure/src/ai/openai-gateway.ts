@@ -88,6 +88,20 @@ function inputText(messages: readonly SafeMessage[]): string {
     .join("\n\n");
 }
 
+function normalizeResponsesSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeResponsesSchema);
+  if (!value || typeof value !== "object") return value;
+  const normalized = Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [key, normalizeResponsesSchema(child)]),
+  ) as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(normalized, "const")) {
+    const constant = normalized.const;
+    delete normalized.const;
+    if (!Object.prototype.hasOwnProperty.call(normalized, "enum")) normalized.enum = [constant];
+  }
+  return normalized;
+}
+
 function requestBody(request: AIExecutionRequest, model: string): Record<string, unknown> {
   return {
     model,
@@ -97,7 +111,7 @@ function requestBody(request: AIExecutionRequest, model: string): Record<string,
         type: "json_schema",
         name: `${request.metadata.agentCode.toLowerCase()}_result`,
         strict: true,
-        schema: request.outputSchema,
+        schema: normalizeResponsesSchema(request.outputSchema),
       },
     },
     max_output_tokens: 1200,

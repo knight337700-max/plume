@@ -57,6 +57,34 @@ describe("OpenAI provider gateway", () => {
     });
   });
 
+  it("normalizes JSON Schema const keywords for Responses strict schemas", async () => {
+    let receivedBody: Record<string, unknown> | undefined;
+    const gateway = createOpenAIProviderGateway({
+      endpoint: "https://mock.openai.test/v1/responses",
+      environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "test-secret" },
+      fetchImpl: async (_url, init) => {
+        receivedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({ id: "req-const", status: "completed", output_text: '{"status":"ok"}' }),
+          { status: 200 },
+        );
+      },
+    });
+    await gateway.execute({
+      ...request,
+      outputSchema: {
+        type: "object",
+        properties: { status: { type: "string", const: "ok" } },
+        required: ["status"],
+        additionalProperties: false,
+      },
+    });
+    const schema = (
+      receivedBody?.text as { format: { schema: { properties: { status: Record<string, unknown> } } } }
+    ).format.schema;
+    expect(schema.properties.status).toEqual({ type: "string", enum: ["ok"] });
+  });
+
   it("maps rate limits and timeout without exposing credentials", async () => {
     const rateLimited = createOpenAIProviderGateway({
       environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "secret" },

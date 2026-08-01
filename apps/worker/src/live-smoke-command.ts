@@ -112,9 +112,9 @@ async function main(): Promise<void> {
       required: ["status", "environment", "provider"],
       additionalProperties: false,
       properties: {
-        status: { const: "ok" },
-        environment: { const: "staging" },
-        provider: { const: "openai" },
+        status: { enum: ["ok"] },
+        environment: { enum: ["staging"] },
+        provider: { enum: ["openai"] },
       },
     },
     imageInputs: [],
