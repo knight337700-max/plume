@@ -105,7 +105,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
           INSERT INTO outbox_message
             (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json)
           VALUES
-            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${transaction.json(safeJson(envelope.payload) as never)}, ${transaction.json({
+            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${JSON.stringify(safeJson(envelope.payload))}, ${JSON.stringify({
               messageId,
               correlationId,
               ...(input.causationId === undefined ? {} : { causationId: input.causationId }),
