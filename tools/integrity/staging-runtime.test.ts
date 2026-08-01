@@ -35,7 +35,7 @@ for (const text of ["PX", "NX", "pexpire", "ARGV[1]", "scheduler:lease"]) {
 }
 
 const providerSource = read("packages/infrastructure/src/ai/provider-runtime.ts");
-for (const text of ["mock", "live", "OPENAI_API_KEY", "OPENAI_DEFAULT_MODEL"]) {
+for (const text of ["mock", "live", "OPENAI_API_KEY", "OPENAI_MODEL", "resolveLlmModel"]) {
   requireText(providerSource, text, "OpenAI provider runtime toggle");
 }
 if (providerSource.includes("fallback"))
@@ -47,7 +47,14 @@ for (const text of ["MIGRATION_BACKUP_CONFIRMED", "pg_advisory_lock", "destructi
 }
 
 const healthSource = read("apps/api/src/routes/system/health.ts");
-for (const text of ["/api/v1/health/live", "/api/v1/health/ready", "SELECT 1", "ping", "checkBucket", "503"]) {
+for (const text of [
+  "/api/v1/health/live",
+  "/api/v1/health/ready",
+  "SELECT 1",
+  "ping",
+  "checkBucket",
+  "503",
+]) {
   requireText(healthSource, text, "dependency-aware readiness");
 }
 
@@ -57,6 +64,7 @@ for (const text of [
   "APP_ENV: staging",
   "QUEUE_PREFIX: plume-staging",
   "OPENAI_PROVIDER_MODE: mock",
+  "OPENAI_MODEL: gpt-5.6-luna",
   "pnpm db:migrate:staging",
   "@sha256:",
   "/api/v1/health/live",

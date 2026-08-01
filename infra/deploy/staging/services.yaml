@@ -15,6 +15,7 @@ environment:
   APP_ENV: staging
   QUEUE_PREFIX: plume-staging
   OPENAI_PROVIDER_MODE: mock
+  OPENAI_MODEL: gpt-5.6-luna
 
 images:
   web:
@@ -121,6 +122,7 @@ services:
       COOKIE_SAME_SITE: lax
       QUEUE_PREFIX: plume-staging
       OPENAI_PROVIDER_MODE: mock
+      OPENAI_MODEL: gpt-5.6-luna
 
   worker:
     role: async-job-consumer
@@ -138,11 +140,7 @@ services:
       limits: { cpu: 2000m, memory: 2Gi }
     health:
       liveness: { type: process, entrypoint: worker-main }
-      readiness:
-        {
-          type: queue-consumer,
-          queues: [ai-standard, render, validation, export],
-        }
+      readiness: { type: queue-consumer, queues: [ai-standard, render, validation, export] }
     shutdown:
       signal: SIGTERM
       gracePeriodSeconds: 120
@@ -151,19 +149,13 @@ services:
     secretRefs:
       - name: plume-staging-runtime
         keys:
-          [
-            DATABASE_URL,
-            REDIS_URL,
-            S3_ENDPOINT,
-            S3_ACCESS_KEY_ID,
-            S3_SECRET_ACCESS_KEY,
-            S3_BUCKET,
-          ]
+          [DATABASE_URL, REDIS_URL, S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET]
     config:
       NODE_ENV: production
       APP_ENV: staging
       QUEUE_PREFIX: plume-staging
       OPENAI_PROVIDER_MODE: mock
+      OPENAI_MODEL: gpt-5.6-luna
 
   scheduler:
     role: scheduled-maintenance

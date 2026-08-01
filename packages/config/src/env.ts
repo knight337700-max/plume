@@ -6,6 +6,8 @@ import {
   requiredEnvironmentKeys,
   secretEnvironmentKeys,
 } from "./schema.js";
+// eslint-disable-next-line no-restricted-imports -- The config loader shares the canonical model contract.
+import { resolveLlmModel } from "../../core/src/public.js";
 
 export interface EnvironmentIssue {
   readonly key: string;
@@ -25,7 +27,7 @@ export interface Environment {
   readonly s3Bucket: string;
   readonly openaiApiKey?: string;
   readonly openAiProviderMode: "mock" | "live";
-  readonly openAiDefaultModel?: string;
+  readonly openAiModel: string;
   readonly queuePrefix: string;
   readonly cookieSecure: boolean;
   readonly cookieSameSite: "lax" | "strict" | "none";
@@ -60,14 +62,22 @@ export function loadEnvironment(
 
   const nodeEnvValue = input.NODE_ENV?.trim() ?? "development";
   if (!isNodeEnvironment(nodeEnvValue)) {
-    issues.push({ key: "NODE_ENV", message: "must be development, test, or production", received: nodeEnvValue });
+    issues.push({
+      key: "NODE_ENV",
+      message: "must be development, test, or production",
+      received: nodeEnvValue,
+    });
   }
   const nodeEnv = nodeEnvValue as Environment["nodeEnv"];
 
   const defaultAppEnv = nodeEnv === "production" ? "production" : nodeEnv;
   const appEnvValue = input.APP_ENV?.trim() || defaultAppEnv;
   if (!isAppEnvironment(appEnvValue)) {
-    issues.push({ key: "APP_ENV", message: "must be development, test, staging, or production", received: appEnvValue });
+    issues.push({
+      key: "APP_ENV",
+      message: "must be development, test, staging, or production",
+      received: appEnvValue,
+    });
   }
   const appEnv = appEnvValue as Environment["appEnv"];
 
@@ -78,33 +88,70 @@ export function loadEnvironment(
 
   const openAiProviderModeValue = input.OPENAI_PROVIDER_MODE?.trim() || "mock";
   if (!openAiProviderModes.includes(openAiProviderModeValue)) {
-    issues.push({ key: "OPENAI_PROVIDER_MODE", message: "must be mock or live", received: openAiProviderModeValue });
+    issues.push({
+      key: "OPENAI_PROVIDER_MODE",
+      message: "must be mock or live",
+      received: openAiProviderModeValue,
+    });
   }
   const openAiProviderMode = openAiProviderModeValue as Environment["openAiProviderMode"];
 
-  const openAiDefaultModel = input.OPENAI_DEFAULT_MODEL?.trim() || undefined;
+  let openAiModel: string;
+  const configuredOpenAiModel = input.OPENAI_MODEL?.trim();
+  try {
+    openAiModel = resolveLlmModel(configuredOpenAiModel);
+  } catch (error) {
+    issues.push({
+      key: "OPENAI_MODEL",
+      message: error instanceof Error ? error.message : "unsupported model",
+      ...(configuredOpenAiModel === undefined ? {} : { received: configuredOpenAiModel }),
+    });
+    openAiModel = resolveLlmModel();
+  }
   const openaiApiKey = input.OPENAI_API_KEY?.trim();
   if (openAiProviderMode === "live") {
-    if (!openaiApiKey) issues.push({ key: "OPENAI_API_KEY", message: "required in live provider mode" });
-    if (!openAiDefaultModel) issues.push({ key: "OPENAI_DEFAULT_MODEL", message: "required in live provider mode" });
+    if (!openaiApiKey)
+      issues.push({ key: "OPENAI_API_KEY", message: "required in live provider mode" });
   }
 
   const queuePrefix = input.QUEUE_PREFIX?.trim() || (appEnv === "staging" ? "" : appEnv);
   if (!queuePrefix) issues.push({ key: "QUEUE_PREFIX", message: "required for staging" });
-  if (appEnv === "staging" && queuePrefix && !/^plume-staging(?:-[a-z0-9-]+)?$/u.test(queuePrefix)) {
-    issues.push({ key: "QUEUE_PREFIX", message: "staging prefix must start with plume-staging", received: queuePrefix });
+  if (
+    appEnv === "staging" &&
+    queuePrefix &&
+    !/^plume-staging(?:-[a-z0-9-]+)?$/u.test(queuePrefix)
+  ) {
+    issues.push({
+      key: "QUEUE_PREFIX",
+      message: "staging prefix must start with plume-staging",
+      received: queuePrefix,
+    });
   }
 
   const cookieSecureValue = input.COOKIE_SECURE?.trim();
-  const cookieSecure = cookieSecureValue === undefined ? nodeEnv === "production" : cookieSecureValue === "true";
-  if (cookieSecureValue !== undefined && cookieSecureValue !== "true" && cookieSecureValue !== "false") {
-    issues.push({ key: "COOKIE_SECURE", message: "must be true or false", received: cookieSecureValue });
+  const cookieSecure =
+    cookieSecureValue === undefined ? nodeEnv === "production" : cookieSecureValue === "true";
+  if (
+    cookieSecureValue !== undefined &&
+    cookieSecureValue !== "true" &&
+    cookieSecureValue !== "false"
+  ) {
+    issues.push({
+      key: "COOKIE_SECURE",
+      message: "must be true or false",
+      received: cookieSecureValue,
+    });
   }
-  if (appEnv === "staging" && !cookieSecure) issues.push({ key: "COOKIE_SECURE", message: "must be true in staging" });
+  if (appEnv === "staging" && !cookieSecure)
+    issues.push({ key: "COOKIE_SECURE", message: "must be true in staging" });
 
   const cookieSameSiteValue = input.COOKIE_SAME_SITE?.trim().toLowerCase() || "lax";
   if (!cookieSameSiteValues.includes(cookieSameSiteValue)) {
-    issues.push({ key: "COOKIE_SAME_SITE", message: "must be lax, strict, or none", received: cookieSameSiteValue });
+    issues.push({
+      key: "COOKIE_SAME_SITE",
+      message: "must be lax, strict, or none",
+      received: cookieSameSiteValue,
+    });
   }
   const cookieSameSite = cookieSameSiteValue as Environment["cookieSameSite"];
 
@@ -116,7 +163,10 @@ export function loadEnvironment(
     issues.push({ key: "CORS_ALLOWED_ORIGINS", message: "wildcard origins are forbidden" });
   }
   if (appEnv === "staging" && corsAllowedOrigins.length === 0) {
-    issues.push({ key: "CORS_ALLOWED_ORIGINS", message: "at least one exact origin is required in staging" });
+    issues.push({
+      key: "CORS_ALLOWED_ORIGINS",
+      message: "at least one exact origin is required in staging",
+    });
   }
 
   if (issues.length > 0) {
@@ -134,7 +184,7 @@ export function loadEnvironment(
     s3SecretAccessKey: input.S3_SECRET_ACCESS_KEY?.trim() || "",
     s3Bucket: input.S3_BUCKET?.trim() || "plume-local",
     openAiProviderMode,
-    ...(openAiDefaultModel ? { openAiDefaultModel } : {}),
+    openAiModel,
     queuePrefix,
     cookieSecure,
     cookieSameSite,

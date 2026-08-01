@@ -14,15 +14,50 @@ describe("OpenAI mock/live provider runtime", () => {
         outputSchema: { type: "object" },
         imageInputs: [],
         timeoutSeconds: 1,
-        metadata: { workspaceId: "workspace-1", agentCode, promptVersion: "1.0.0", correlationId: "corr-1" },
+        metadata: {
+          workspaceId: "workspace-1",
+          agentCode,
+          promptVersion: "1.0.0",
+          correlationId: "corr-1",
+        },
       });
       expect(result.status).toBe("COMPLETED");
     }
   });
 
   it("fails live mode without key or model and never falls back to mock", () => {
-    expect(() => createOpenAIProviderRuntime({ environment: { OPENAI_PROVIDER_MODE: "live", OPENAI_DEFAULT_MODEL: "model" } })).toThrow(/OPENAI_API_KEY/);
-    expect(() => createOpenAIProviderRuntime({ environment: { OPENAI_PROVIDER_MODE: "live", OPENAI_API_KEY: "key" } })).toThrow(/OPENAI_DEFAULT_MODEL/);
-    expect(() => createOpenAIProviderRuntime({ environment: { OPENAI_PROVIDER_MODE: "invalid" } })).toThrow(/OPENAI_PROVIDER_MODE/);
+    expect(() =>
+      createOpenAIProviderRuntime({
+        environment: { OPENAI_PROVIDER_MODE: "live", OPENAI_MODEL: "gpt-5.6-luna" },
+      }),
+    ).toThrow(/OPENAI_API_KEY/);
+    expect(() =>
+      createOpenAIProviderRuntime({
+        environment: {
+          OPENAI_PROVIDER_MODE: "live",
+          OPENAI_API_KEY: "key",
+          OPENAI_MODEL: "gpt-5-mini",
+        },
+      }),
+    ).toThrow(/Unsupported OPENAI_MODEL/);
+    expect(() =>
+      createOpenAIProviderRuntime({ environment: { OPENAI_PROVIDER_MODE: "invalid" } }),
+    ).toThrow(/OPENAI_PROVIDER_MODE/);
+  });
+
+  it("resolves the Luna default without model fallback", () => {
+    expect(() =>
+      createOpenAIProviderRuntime({
+        environment: { OPENAI_PROVIDER_MODE: "live", OPENAI_API_KEY: "key" },
+        liveGateway: {
+          execute: async () => ({
+            provider: "OpenAI",
+            model: "gpt-5.6-luna",
+            status: "COMPLETED",
+            latencyMs: 1,
+          }),
+        },
+      }),
+    ).not.toThrow();
   });
 });

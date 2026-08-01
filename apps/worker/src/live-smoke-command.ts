@@ -12,6 +12,7 @@ import { createDatabaseClient } from "../../../packages/db/src/client.js";
 import { DurableAsyncCommandPublisher } from "../../../packages/infrastructure/src/async/durable-command-publisher.js";
 import { DurableWorkflowRepository } from "../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import { createOpenAIProviderRuntime } from "../../../packages/infrastructure/src/ai/provider-runtime.js";
+import { DEFAULT_LLM_MODEL } from "../../../packages/core/src/ai-model.js";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const CAMPAIGN_ID = "00000000-0000-4000-8000-0000000002c1";
@@ -83,6 +84,8 @@ function requestFor(agentCode: AgentCode, taskId: string) {
 }
 
 async function main(): Promise<void> {
+  if ((process.env.OPENAI_MODEL?.trim() || DEFAULT_LLM_MODEL) !== DEFAULT_LLM_MODEL)
+    throw new Error("LIVE_SMOKE_MODEL_MISMATCH");
   const provider = createOpenAIProviderRuntime();
   let liveRequests = 0;
   const usage: Array<{ inputUnits: number; outputUnits: number; latencyMs: number }> = [];
@@ -146,6 +149,7 @@ async function main(): Promise<void> {
     directResults.push({
       agentCode,
       status: result.status,
+      model: result.metadata.model ?? DEFAULT_LLM_MODEL,
       attempt: result.metadata.attempt,
       latencyMs: result.metadata.latencyMs,
       usage: result.metadata.usage ?? null,
@@ -233,6 +237,7 @@ async function main(): Promise<void> {
   console.log(
     JSON.stringify({
       status: "PASS",
+      model: DEFAULT_LLM_MODEL,
       connectivity: { structuredOutput: true, store: false, background: false },
       agents: directResults.length,
       queueItems: items.length,

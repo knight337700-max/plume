@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
-import type { AgentProviderGateway } from "../../../core/src/public.js";
+import { resolveLlmModel, type AgentProviderGateway } from "../../../core/src/public.js";
 import {
   createOpenAIProviderGateway,
   type OpenAIProviderGateway,
@@ -31,6 +31,7 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
       });
       return {
         status: result.status,
+        ...(result.model ? { model: result.model } : {}),
         ...(result.outputJson === undefined ? {} : { outputJson: result.outputJson }),
         ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
         latencyMs: result.latencyMs,
@@ -69,8 +70,7 @@ export function createOpenAIProviderRuntime(options: ProviderRuntimeOptions = {}
   }
   if (!environment.OPENAI_API_KEY?.trim())
     throw new Error("OPENAI_API_KEY is required in live provider mode");
-  if (!environment.OPENAI_DEFAULT_MODEL?.trim())
-    throw new Error("OPENAI_DEFAULT_MODEL is required in live provider mode");
+  resolveLlmModel(environment.OPENAI_MODEL);
   const gateway =
     options.liveGateway ??
     createOpenAIProviderGateway({

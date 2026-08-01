@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+// eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
+import { resolveLlmModel } from "../../../core/src/public.js";
 
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
@@ -261,9 +263,8 @@ export function createOpenAIProviderGateway(
   options: OpenAIProviderGatewayOptions = {},
 ): OpenAIProviderGateway {
   const environment = options.environment ?? process.env;
-  const model = environment.OPENAI_DEFAULT_MODEL?.trim();
+  const model = resolveLlmModel(environment.OPENAI_MODEL);
   const apiKey = environment.OPENAI_API_KEY?.trim();
-  if (!model) throw new Error("OPENAI_DEFAULT_MODEL is required");
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const requestFetch = options.fetchImpl ?? fetch;
   const endpoint = (options.endpoint ?? "https://api.openai.com/v1/responses").replace(/\/$/u, "");

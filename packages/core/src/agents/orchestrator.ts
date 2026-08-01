@@ -29,6 +29,7 @@ interface ProviderRequest {
 
 interface ProviderResult {
   readonly status: "COMPLETED" | "FAILED";
+  readonly model?: string;
   readonly outputJson?: unknown;
   readonly providerRequestId?: string;
   readonly latencyMs: number;
@@ -122,6 +123,7 @@ export function createAgentOrchestrator(options: {
         promptVersion: prompt.version,
         promptHash: prompt.contentHash,
         modelPolicyId: policy.policyId,
+        ...(first.model ? { model: first.model } : { model: policy.defaultModel }),
         contextHash: context.contentHash,
       };
       if (first.status !== "COMPLETED") {

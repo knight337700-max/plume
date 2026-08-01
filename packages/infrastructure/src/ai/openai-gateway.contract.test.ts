@@ -21,7 +21,7 @@ describe("OpenAI provider gateway", () => {
     let receivedBody: Record<string, unknown> | undefined;
     const gateway = createOpenAIProviderGateway({
       endpoint: "https://mock.openai.test/v1/responses",
-      environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "test-secret" },
+      environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "test-secret" },
       fetchImpl: async (_url, init) => {
         receivedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
         expect(new Headers(init?.headers).get("authorization")).toBe("Bearer test-secret");
@@ -37,7 +37,7 @@ describe("OpenAI provider gateway", () => {
       },
     });
     const result = await gateway.execute(request);
-    expect(receivedBody?.model).toBe("mock-model");
+    expect(receivedBody?.model).toBe("gpt-5.6-luna");
     expect(
       (receivedBody?.text as { format: { type: string; strict: boolean } }).format,
     ).toMatchObject({ type: "json_schema", strict: true });
@@ -51,7 +51,7 @@ describe("OpenAI provider gateway", () => {
     });
     expect(result).toMatchObject({
       provider: "OpenAI",
-      model: "mock-model",
+      model: "gpt-5.6-luna",
       status: "COMPLETED",
       providerRequestId: "req-1",
       outputJson: { items: [{ id: "p1" }] },
@@ -62,7 +62,7 @@ describe("OpenAI provider gateway", () => {
     let receivedBody: Record<string, unknown> | undefined;
     const gateway = createOpenAIProviderGateway({
       endpoint: "https://mock.openai.test/v1/responses",
-      environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "test-secret" },
+      environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "test-secret" },
       fetchImpl: async (_url, init) => {
         receivedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
         return new Response(
@@ -96,14 +96,14 @@ describe("OpenAI provider gateway", () => {
 
   it("maps rate limits and timeout without exposing credentials", async () => {
     const rateLimited = createOpenAIProviderGateway({
-      environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "secret" },
+      environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "secret" },
       fetchImpl: async () => new Response("", { status: 429 }),
     });
     const result = await rateLimited.execute(request);
     expect(result.error).toMatchObject({ code: "RATE_LIMIT", retryable: true });
     expect(JSON.stringify(result)).not.toContain("secret");
     const timedOut = createOpenAIProviderGateway({
-      environment: { OPENAI_DEFAULT_MODEL: "mock-model", OPENAI_API_KEY: "secret" },
+      environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "secret" },
       fetchImpl: async (_url, init) =>
         await new Promise((_resolve, reject) =>
           init?.signal?.addEventListener("abort", () =>
