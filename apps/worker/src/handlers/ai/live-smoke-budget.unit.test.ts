@@ -69,9 +69,15 @@ function sampleForSchema(schema: JsonSchema): unknown {
   return "synthetic";
 }
 
-function fakeJob(agentCode: string, itemNumber: number, workflowCallBudget: number) {
+function fakeJob(
+  agentCode: string,
+  itemNumber: number,
+  workflowCallBudget: number,
+  attemptsMade = 0,
+) {
   return {
     id: `message-${itemNumber}`,
+    attemptsMade,
     data: { agentCode, workflowCallBudget },
   } as never;
 }
@@ -162,11 +168,60 @@ describe("live smoke workflow budget", () => {
     const duplicate = await store.reserve({
       workspaceId: WORKSPACE_ID,
       smokeRunId: "00000000-0000-4000-8000-0000000002d1",
-      reservationKey: "00000000-0000-4000-8000-000000000399:initial",
+      reservationKey: "00000000-0000-4000-8000-000000000399:delivery:0:initial",
       units: 1,
       limit: 3,
     });
     expect(duplicate).toMatchObject({ allowed: true, duplicate: true, used: 3, remaining: 0 });
+  });
+
+  it("uses a distinct durable retry scope for a BullMQ delivery retry", async () => {
+    const ledger: TestLedger = {
+      used: new Map(),
+      reservations: new Set(),
+      tail: Promise.resolve(),
+    };
+    const store = new SharedTestBudgetStore(ledger);
+    let providerCall = 0;
+    const gateway = {
+      async execute(request: { outputSchema: JsonSchema }) {
+        providerCall += 1;
+        if (providerCall <= 2) {
+          return {
+            status: "FAILED" as const,
+            latencyMs: 1,
+            error: { code: "TRANSIENT_PROVIDER_ERROR", message: "synthetic", retryable: true },
+          };
+        }
+        return {
+          status: "COMPLETED" as const,
+          outputJson: sampleForSchema(request.outputSchema),
+          latencyMs: 1,
+        };
+      },
+    };
+    const handler = createLiveSmokeHandler(gateway, store);
+    await expect(
+      handler(
+        fakeJob("COPY_GENERATOR", 100, 3, 0),
+        {
+          workspaceId: WORKSPACE_ID,
+          smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+          jobItemId: "00000000-0000-4000-8000-000000000400",
+        },
+      ),
+    ).rejects.toThrow("AI_LIVE_SMOKE_AGENT_FAILED");
+    const resumed = await handler(
+      fakeJob("COPY_GENERATOR", 100, 3, 1),
+      {
+        workspaceId: WORKSPACE_ID,
+        smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+        jobItemId: "00000000-0000-4000-8000-000000000400",
+      },
+    );
+    expect(resumed).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
+    expect(providerCall).toBe(3);
+    expect(ledger.used.get(`${WORKSPACE_ID}:00000000-0000-4000-8000-0000000002d3`)).toBe(3);
   });
 
   it("keeps workflow scopes isolated and replays only failed items", async () => {
