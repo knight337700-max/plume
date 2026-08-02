@@ -1,10 +1,7 @@
 import OpenAI from "openai";
 import { createHash } from "node:crypto";
 // eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
-import {
-  resolveLlmModel,
-  type ProviderEvidence,
-} from "../../../core/src/public.js";
+import { resolveLlmModel, type ProviderEvidence } from "../../../core/src/public.js";
 
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
@@ -221,7 +218,9 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
   return `{${Object.keys(value as Record<string, unknown>)
     .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+    .map(
+      (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+    )
     .join(",")}}`;
 }
 
@@ -339,6 +338,8 @@ export function createOpenAIProviderGateway(
   options: OpenAIProviderGatewayOptions = {},
 ): OpenAIProviderGateway {
   const environment = options.environment ?? process.env;
+  if (environment.APP_ENV?.trim() === "production" && !environment.OPENAI_MODEL?.trim())
+    throw new Error("OPENAI_MODEL is required in Production");
   const model = resolveLlmModel(environment.OPENAI_MODEL);
   const apiKey = environment.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
@@ -498,9 +499,7 @@ export function createOpenAIProviderGateway(
           error: providerError(
             "PROVIDER_ERROR",
             "OpenAI request failed",
-            safeErrorStatus !== undefined
-              ? safeErrorStatus >= 500
-              : true,
+            safeErrorStatus !== undefined ? safeErrorStatus >= 500 : true,
             safeErrorStatus,
           ),
         };

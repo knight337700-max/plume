@@ -58,7 +58,10 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
 function providerMode(
   environment: Readonly<Record<string, string | undefined>>,
 ): OpenAIProviderMode {
-  const mode = environment.OPENAI_PROVIDER_MODE?.trim() || "mock";
+  const production = environment.APP_ENV?.trim() === "production";
+  const configured = environment.OPENAI_PROVIDER_MODE?.trim();
+  if (production && !configured) throw new Error("OPENAI_PROVIDER_MODE is required in Production");
+  const mode = configured || "mock";
   if (mode !== "mock" && mode !== "live")
     throw new Error("OPENAI_PROVIDER_MODE must be mock or live");
   return mode;
@@ -67,6 +70,9 @@ function providerMode(
 export function createOpenAIProviderRuntime(options: ProviderRuntimeOptions = {}): ProviderRuntime {
   const environment = options.environment ?? process.env;
   const mode = providerMode(environment);
+  const production = environment.APP_ENV?.trim() === "production";
+  if (production && !environment.OPENAI_MODEL?.trim())
+    throw new Error("OPENAI_MODEL is required in Production");
   if (mode === "mock") {
     return {
       mode,
@@ -75,6 +81,17 @@ export function createOpenAIProviderRuntime(options: ProviderRuntimeOptions = {}
   }
   if (!environment.OPENAI_API_KEY?.trim())
     throw new Error("OPENAI_API_KEY is required in live provider mode");
+  if (production && environment.OPENAI_LIVE_APPROVED?.trim() !== "true")
+    throw new Error("OPENAI_LIVE_APPROVED must be true before Production Live mode");
+  if (production && environment.OPENAI_MAX_CONCURRENCY?.trim() !== "1")
+    throw new Error("OPENAI_MAX_CONCURRENCY must be 1 for the initial Production policy");
+  if (
+    production &&
+    (!environment.OPENAI_MONTHLY_BUDGET_USD?.trim() ||
+      !environment.OPENAI_SOFT_STOP_USD?.trim() ||
+      !environment.OPENAI_HARD_STOP_USD?.trim())
+  )
+    throw new Error("Production Live budget guardrails are required");
   resolveLlmModel(environment.OPENAI_MODEL);
   const gateway =
     options.liveGateway ??

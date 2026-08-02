@@ -46,12 +46,24 @@ interface RuntimeDependencies {
   readonly providerMode: LiveSmokeProviderMode;
 }
 
+export function assertJobWorkspaceScope(envelope: {
+  readonly workspaceId: string;
+  readonly payload: unknown;
+}): void {
+  if (!envelope.payload || typeof envelope.payload !== "object" || Array.isArray(envelope.payload))
+    return;
+  const payloadWorkspaceId = (envelope.payload as { readonly workspaceId?: unknown }).workspaceId;
+  if (payloadWorkspaceId !== undefined && payloadWorkspaceId !== envelope.workspaceId)
+    throw new PermanentJobError("COMMAND_PAYLOAD_WORKSPACE_MISMATCH");
+}
+
 function jobEnvelope(job: Job<unknown>, command: string) {
   if (job.name !== command) throw new PermanentJobError(`COMMAND_JOB_NAME_MISMATCH:${command}`);
   try {
     const envelope = validateCommandEnvelope(job.data);
     if (envelope.command !== command)
       throw new PermanentJobError(`COMMAND_ENVELOPE_MISMATCH:${command}`);
+    assertJobWorkspaceScope(envelope);
     return envelope;
   } catch (error) {
     if (error instanceof PermanentJobError) throw error;

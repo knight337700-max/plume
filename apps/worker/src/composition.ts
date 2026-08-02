@@ -32,6 +32,7 @@ import { createJacomoRuntimeHandlers } from "./handlers/jacomo-runtime.js";
 import { createOutboxDispatcher } from "./outbox-dispatcher.js";
 import { createWorkerAIRuntime } from "./ai-runtime.js";
 import type { WorkerReadinessCheck } from "./bootstrap.js";
+import { loadEnvironment, type Environment } from "../../../packages/config/src/index.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -62,21 +63,26 @@ function envValue(name: string, fallback: string): string {
 export function createWorkerRuntimeComposition(
   options: WorkerRuntimeCompositionOptions = {},
 ): WorkerRuntimeComposition {
+  const productionEnvironment: Environment | undefined =
+    process.env.APP_ENV?.trim() === "production" ? loadEnvironment(process.env) : undefined;
   const ownedDatabase = options.sql ? undefined : createDatabaseClient();
   const sql = options.sql ?? ownedDatabase!.sql;
   const adapter =
     options.adapter ??
     createBullMqAdapter({
       ...(process.env.REDIS_URL ? { redisUrl: process.env.REDIS_URL } : {}),
-      prefix: envValue("QUEUE_PREFIX", "plume-staging"),
+      prefix: productionEnvironment?.queuePrefix ?? envValue("QUEUE_PREFIX", "plume-staging"),
     });
   const storage =
     options.storage ??
     new S3ObjectStorage({
-      endpoint: envValue("S3_ENDPOINT", "http://localhost:9000"),
-      bucket: envValue("S3_BUCKET", "plume-staging"),
-      accessKeyId: envValue("S3_ACCESS_KEY_ID", "plume"),
-      secretAccessKey: envValue("S3_SECRET_ACCESS_KEY", "plume_local_only"),
+      endpoint:
+        productionEnvironment?.s3Endpoint ?? envValue("S3_ENDPOINT", "http://localhost:9000"),
+      bucket: productionEnvironment?.s3Bucket ?? envValue("S3_BUCKET", "plume-staging"),
+      accessKeyId: productionEnvironment?.s3AccessKeyId ?? envValue("S3_ACCESS_KEY_ID", "plume"),
+      secretAccessKey:
+        productionEnvironment?.s3SecretAccessKey ??
+        envValue("S3_SECRET_ACCESS_KEY", "plume_local_only"),
     });
   const publisher = options.publisher ?? new DurableAsyncCommandPublisher(sql);
   const workflow = options.workflow ?? new DurableWorkflowRepository(sql);
@@ -93,7 +99,7 @@ export function createWorkerRuntimeComposition(
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
     leaseMs: Number(process.env.OUTBOX_LEASE_MS ?? 30_000),
   });
-  const aiRuntime = createWorkerAIRuntime();
+  const aiRuntime = createWorkerAIRuntime({ environment: process.env });
   const handlers = createJacomoRuntimeHandlers({
     sql,
     publisher,
