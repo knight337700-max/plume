@@ -85,6 +85,15 @@ const SYNTHETIC_MESSAGES = Object.freeze([
   },
 ]);
 
+const LAYOUT_SYNTHETIC_MESSAGES = Object.freeze([
+  ...SYNTHETIC_MESSAGES,
+  {
+    role: "system" as const,
+    content:
+      "LAYOUT_PLANNER contract: formatProfileId is derived from input.formatProfile.id and must not be emitted by the model. Emit the required elements array; an empty array is valid for this synthetic input. Keep templateId, usedAssetVersionIds, copyAssets, and rationale in the registered schema.",
+  },
+]);
+
 function isAgentCode(value: string): value is AgentCode {
   return (AGENT_CODES as readonly string[]).includes(value);
 }
@@ -393,7 +402,8 @@ export function createLiveSmokeHandler(
       subjectId: SYNTHETIC_IDS.campaign,
       locale: "ko-KR",
       data: SYNTHETIC_DATA,
-      messages: SYNTHETIC_MESSAGES,
+      messages:
+        payload.agentCode === "LAYOUT_PLANNER" ? LAYOUT_SYNTHETIC_MESSAGES : SYNTHETIC_MESSAGES,
       outputSchema: schema as unknown as JsonSchema,
       timeoutSeconds: 60,
       onSdkRequestAttempt: async (kind) => {

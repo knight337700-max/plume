@@ -995,7 +995,7 @@ export const agentSchemas = Object.freeze({
       },
       elements: {
         type: "array",
-        minItems: 1,
+        minItems: 0,
         items: {
           type: "object",
           required: ["elementId", "elementType", "slotCode", "x", "y", "width", "height", "zIndex"],
