@@ -342,18 +342,6 @@ function decodeLayoutPlan(
 }
 
 function copyDecode(value: unknown, domainSchema: JsonSchema): ValidationResult<unknown> {
-  const directDomain = validateJson(value, domainSchema);
-  if (directDomain.valid)
-    return {
-      ...directDomain,
-      evidence: {
-        jsonParseStatus: "PASS",
-        transportValidationStatus: "NOT_REACHED",
-        transportErrorPaths: [],
-        domainValidationStatus: "PASS",
-        domainErrorPaths: [],
-      },
-    };
   const transport = validateJson(value, copyTransportSchema);
   if (!transport.valid)
     return {

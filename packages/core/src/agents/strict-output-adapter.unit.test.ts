@@ -183,4 +183,39 @@ describe("strict output validation evidence", () => {
     );
     expect(JSON.stringify(result)).not.toContain("synthetic");
   });
+
+  it("does not bypass strict transport for a domain-valid copy map", () => {
+    const adapter = createStrictOutputAdapter({
+      schemaId: "copy-generation-result.schema.json",
+      domainSchema: {
+        type: "object",
+        required: ["variants"],
+        properties: {
+          variants: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["variantId", "slots", "rationale"],
+              properties: {
+                variantId: { type: "string" },
+                slots: { type: "object", additionalProperties: { type: "string" } },
+                rationale: { type: "string" },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+        additionalProperties: false,
+      },
+    });
+    const result = adapter.decode({
+      variants: [{ variantId: "v1", slots: { headline: "hello" }, rationale: "safe" }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.evidence).toMatchObject({
+      transportValidationStatus: "FAIL",
+      domainValidationStatus: "NOT_REACHED",
+    });
+    expect(result.evidence?.transportErrorPaths).toContain("$.variants[0].slots");
+  });
 });
