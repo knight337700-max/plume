@@ -89,6 +89,26 @@ describe("strict output validation evidence", () => {
     expect(result.evidence?.transportErrorPaths).toContain("$.elements");
   });
 
+  it("records transport validation even when the decoded domain value is already valid", () => {
+    const adapter = createStrictOutputAdapter({
+      schemaId: "asset-recommendation-result.schema.json",
+      domainSchema: {
+        type: "object",
+        required: ["rankedAssets"],
+        properties: {
+          rankedAssets: { type: "array", items: { type: "string" } },
+        },
+        additionalProperties: false,
+      },
+    });
+    const result = adapter.decode({ rankedAssets: [] });
+    expect(result.valid).toBe(true);
+    expect(result.evidence).toMatchObject({
+      transportValidationStatus: "PASS",
+      domainValidationStatus: "PASS",
+    });
+  });
+
   it("records exact strict transport paths without values", () => {
     const adapter = createStrictOutputAdapter({
       schemaId: "layout-planner-result.schema.json",

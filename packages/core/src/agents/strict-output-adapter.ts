@@ -98,6 +98,11 @@ function buildTransportSchema(
 
   const types = schemaTypes(schema);
   if (types.includes("object")) {
+    if (!schema.properties && schema.additionalProperties === undefined)
+      return {
+        type: types.includes("null") ? ["object", "null"] : "object",
+        ...scalarKeywords(schema),
+      };
     const domainRequired = new Set(schema.required ?? []);
     const properties = Object.fromEntries(
       Object.entries(schema.properties ?? {})
@@ -268,18 +273,6 @@ function decodeWithSchema<T>(
   domainSchema: JsonSchema,
   decode: (value: unknown, errors: SchemaError[]) => unknown,
 ): ValidationResult<T> {
-  const directDomain = validateJson<T>(value, domainSchema);
-  if (directDomain.valid)
-    return {
-      ...directDomain,
-      evidence: {
-        jsonParseStatus: "PASS",
-        transportValidationStatus: "NOT_REACHED",
-        transportErrorPaths: [],
-        domainValidationStatus: "PASS",
-        domainErrorPaths: [],
-      },
-    };
   const transport = validateJson(value, transportSchema);
   if (!transport.valid)
     return {
