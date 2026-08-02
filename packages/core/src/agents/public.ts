@@ -4,6 +4,8 @@ export { agentDefaultModels, modelPolicyRegistry } from "./model-policy-registry
 export {
   type AgentOrchestrator,
   type AgentProviderGateway,
+  type ProviderCallKind,
+  type ProviderEvidence,
   createAgentOrchestrator,
 } from "./orchestrator.js";
 export {
@@ -11,4 +13,10 @@ export {
   createStrictOutputAdapter,
   type StrictOutputAdapter,
 } from "./strict-output-adapter.js";
-export type { JsonSchema, SchemaError, ValidationResult } from "./result-validator.js";
+export type {
+  JsonSchema,
+  SchemaError,
+  ValidationEvidence,
+  ValidationResult,
+  ValidationStatus,
+} from "./result-validator.js";

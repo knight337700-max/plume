@@ -44,6 +44,9 @@ export interface AiLiveSmokePayload {
   readonly workflowCallBudget?: number;
   /** @deprecated v1 compatibility alias; never used as a process-local counter. */
   readonly requestBudget?: number;
+  /** Diagnostic workflows may explicitly disable provider retry and schema repair. */
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
   readonly workspaceId?: string;
 }
 
@@ -55,6 +58,8 @@ export interface AiLiveSmokeVerificationPayload {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
   readonly verificationOnly: true;
 }
 
@@ -172,7 +177,9 @@ function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
     (payload.workflowCallBudget === undefined ||
       (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
     (payload.requestBudget === undefined ||
-      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20))
+      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20)) &&
+    (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
+    (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean")
   );
 }
 
@@ -190,6 +197,8 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
     payload.workflowCallBudget <= 8 &&
+    (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
+    (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean") &&
     payload.verificationOnly === true
   );
 }

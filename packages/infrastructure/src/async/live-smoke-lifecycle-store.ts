@@ -18,6 +18,8 @@ export interface LiveSmokeReservationLifecycleInput {
   readonly providerRequestSent: boolean;
   readonly providerResponseReceived: boolean;
   readonly billableRequestCount: 0 | 1;
+  readonly providerRequestIdHash?: string;
+  /** @deprecated callers should provide providerRequestIdHash. */
   readonly providerRequestId?: string;
   readonly inputUnits?: number;
   readonly outputUnits?: number;
@@ -79,9 +81,11 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
   public constructor(private readonly sql: Sql) {}
 
   async record(input: LiveSmokeReservationLifecycleInput) {
-    const requestIdHash = input.providerRequestId
-      ? createHash("sha256").update(input.providerRequestId, "utf8").digest("hex")
-      : null;
+    const requestIdHash =
+      input.providerRequestIdHash ??
+      (input.providerRequestId
+        ? createHash("sha256").update(input.providerRequestId, "utf8").digest("hex")
+        : null);
     const rows = await this.sql`
       INSERT INTO live_smoke_reservation_lifecycle_event
         (workspace_id, smoke_run_id, budget_epoch_id, reservation_key, agent_code,

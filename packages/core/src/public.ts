@@ -31,6 +31,7 @@ export {
   type AgentCode,
   type AgentOrchestrator,
   type AgentProviderGateway,
+  type ProviderEvidence,
   createAgentOrchestrator,
   buildStrictTransportSchemaForLinter,
   createStrictOutputAdapter,

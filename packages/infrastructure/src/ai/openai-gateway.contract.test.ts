@@ -19,6 +19,7 @@ const request = {
 describe("OpenAI provider gateway", () => {
   it("sends structured output with the configured model and normalizes the response", async () => {
     let receivedBody: Record<string, unknown> | undefined;
+    let sdkAttempted = false;
     const gateway = createOpenAIProviderGateway({
       endpoint: "https://mock.openai.test/v1/responses",
       environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "test-secret" },
@@ -36,7 +37,13 @@ describe("OpenAI provider gateway", () => {
         );
       },
     });
-    const result = await gateway.execute(request);
+    const result = await gateway.execute({
+      ...request,
+      onSdkRequestAttempt: () => {
+        sdkAttempted = true;
+      },
+    });
+    expect(sdkAttempted).toBe(true);
     expect(receivedBody?.model).toBe("gpt-5.6-luna");
     expect(
       (receivedBody?.text as { format: { type: string; strict: boolean } }).format,
@@ -53,9 +60,17 @@ describe("OpenAI provider gateway", () => {
       provider: "OpenAI",
       model: "gpt-5.6-luna",
       status: "COMPLETED",
-      providerRequestId: "req-1",
+      providerRequestIdHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
       outputJson: { items: [{ id: "p1" }] },
     });
+    expect(result.evidence).toMatchObject({
+      requestAttempted: true,
+      responseReceived: true,
+      httpStatus: 200,
+      resolvedModel: "gpt-5.6-luna",
+      jsonParseStatus: "PASS",
+    });
+    expect(JSON.stringify(result)).not.toContain("req-1");
   });
 
   it("normalizes JSON Schema const keywords for Responses strict schemas", async () => {

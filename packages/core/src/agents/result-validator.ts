@@ -26,14 +26,28 @@ export interface SchemaError {
   readonly message: string;
 }
 
+export type ValidationStatus = "PASS" | "FAIL" | "NOT_REACHED";
+
+export interface ValidationEvidence {
+  readonly jsonParseStatus: ValidationStatus;
+  readonly transportValidationStatus: ValidationStatus;
+  readonly transportErrorCode?: string;
+  readonly transportErrorPaths: readonly string[];
+  readonly domainValidationStatus: ValidationStatus;
+  readonly domainErrorCode?: string;
+  readonly domainErrorPaths: readonly string[];
+}
+
 export interface ValidationSuccess<T> {
   readonly valid: true;
   readonly value: T;
   readonly errors: readonly [];
+  readonly evidence?: ValidationEvidence;
 }
 export interface ValidationFailure {
   readonly valid: false;
   readonly errors: readonly SchemaError[];
+  readonly evidence?: ValidationEvidence;
 }
 export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 
