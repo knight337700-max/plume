@@ -518,7 +518,9 @@ export function createLiveSmokeVerificationHandler(
     if (payload.verificationOnly !== true) throw new Error("LIVE_SMOKE_VERIFICATION_FLAG_REQUIRED");
     if (
       options.lifecycleStore &&
-      (await options.lifecycleStore.getCanaryStatus(payload.verificationRunId)) !== "PASS"
+      (await options.lifecycleStore.getCanaryStatus(
+        payload.canaryVerificationRunId ?? payload.verificationRunId,
+      )) !== "PASS"
     )
       throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_REQUIRED"), {
         code: "LIVE_SMOKE_PROVIDER_CANARY_REQUIRED",
