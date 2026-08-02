@@ -198,7 +198,7 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
-    payload.workflowCallBudget <= 8 &&
+    payload.workflowCallBudget <= 20 &&
     (payload.canaryVerificationRunId === undefined ||
       isUuidLike(payload.canaryVerificationRunId)) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
