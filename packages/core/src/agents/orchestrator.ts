@@ -149,6 +149,7 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
       const adapter = createStrictOutputAdapter<T>({
         schemaId: prompt.outputSchemaId,
         domainSchema: input.outputSchema,
+        context: context.data,
       });
       const transitions: [
         "QUEUED",

@@ -21,7 +21,6 @@ const MOCK_OUTPUTS: Readonly<Record<string, unknown>> = Object.freeze({
   ASSET_CURATOR: { productId: "synthetic-product", rankedAssets: [] },
   COPY_GENERATOR: { variants: [] },
   LAYOUT_PLANNER: {
-    formatProfileId: "synthetic-format",
     templateId: null,
     elements: [],
     usedAssetVersionIds: [],

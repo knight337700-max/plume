@@ -75,7 +75,10 @@ function scalarKeywords(
   };
 }
 
-function buildTransportSchema(schema: JsonSchema): JsonSchema {
+function buildTransportSchema(
+  schema: JsonSchema,
+  derivedProperties: readonly string[] = [],
+): JsonSchema {
   if (isDynamicObject(schema)) {
     const valueSchema = dynamicValueSchema(schema);
     const valueProperty = valueSchema
@@ -95,11 +98,16 @@ function buildTransportSchema(schema: JsonSchema): JsonSchema {
 
   const types = schemaTypes(schema);
   if (types.includes("object")) {
+    const domainRequired = new Set(schema.required ?? []);
     const properties = Object.fromEntries(
-      Object.entries(schema.properties ?? {}).map(([key, child]) => [
-        key,
-        nullable(buildTransportSchema(child)),
-      ]),
+      Object.entries(schema.properties ?? {})
+        .filter(([key]) => !derivedProperties.includes(key))
+        .map(([key, child]) => [
+          key,
+          domainRequired.has(key)
+            ? buildTransportSchema(child)
+            : nullable(buildTransportSchema(child)),
+        ]),
     );
     return {
       type: types.includes("null") ? ["object", "null"] : "object",
@@ -314,6 +322,32 @@ function decodeWithSchema<T>(
   };
 }
 
+function formatProfileIdFromContext(
+  context: Readonly<Record<string, unknown>> | undefined,
+): string | undefined {
+  const formatProfile = context?.formatProfile;
+  if (!isRecord(formatProfile) || typeof formatProfile.id !== "string") return undefined;
+  return formatProfile.id;
+}
+
+function decodeLayoutPlan(
+  value: unknown,
+  domainSchema: JsonSchema,
+  context: Readonly<Record<string, unknown>> | undefined,
+): ValidationResult<unknown> {
+  const formatProfileId = formatProfileIdFromContext(context);
+  return decodeWithSchema(
+    value,
+    buildTransportSchema(domainSchema, ["formatProfileId"]),
+    domainSchema,
+    (current, errors) => {
+      const decoded = decodeGeneric(current, domainSchema, "$", errors);
+      if (formatProfileId && isRecord(decoded)) decoded.formatProfileId = formatProfileId;
+      return decoded;
+    },
+  );
+}
+
 function copyDecode(value: unknown, domainSchema: JsonSchema): ValidationResult<unknown> {
   const directDomain = validateJson(value, domainSchema);
   if (directDomain.valid)
@@ -401,6 +435,7 @@ function copyDecode(value: unknown, domainSchema: JsonSchema): ValidationResult<
 export function createStrictOutputAdapter<TDomain = unknown>(input: {
   readonly schemaId: string;
   readonly domainSchema: JsonSchema;
+  readonly context?: Readonly<Record<string, unknown>>;
 }): StrictOutputAdapter<unknown, TDomain> {
   const copyVariants = input.domainSchema.properties?.variants;
   const copySlots = copyVariants?.items?.properties?.slots;
@@ -412,11 +447,16 @@ export function createStrictOutputAdapter<TDomain = unknown>(input: {
         return copyDecode(value, input.domainSchema) as ValidationResult<TDomain>;
       },
     };
-  const transportSchema = buildTransportSchema(input.domainSchema);
+  const transportSchema =
+    input.schemaId === "layout-plan.schema.json"
+      ? buildTransportSchema(input.domainSchema, ["formatProfileId"])
+      : buildTransportSchema(input.domainSchema);
   return {
     schemaId: input.schemaId,
     transportSchema,
     decode(value) {
+      if (input.schemaId === "layout-plan.schema.json")
+        return decodeLayoutPlan(value, input.domainSchema, input.context) as ValidationResult<TDomain>;
       return decodeWithSchema<TDomain>(
         value,
         transportSchema,
