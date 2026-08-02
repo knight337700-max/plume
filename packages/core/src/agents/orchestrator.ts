@@ -28,12 +28,13 @@ interface ProviderRequest {
   };
 }
 
-interface ProviderResult {
+export interface ProviderResult {
   readonly status: "COMPLETED" | "FAILED";
   readonly model?: string;
   readonly outputJson?: unknown;
   readonly providerRequestId?: string;
   readonly latencyMs: number;
+  readonly httpStatus?: number;
   readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };
   readonly error?: { readonly code: string; readonly message: string; readonly retryable: boolean };
 }
@@ -50,6 +51,8 @@ export interface AgentOrchestratorOptions {
   readonly policies?: ModelPolicyRegistry;
   /** Runs immediately before each provider call so durable budgets can reserve atomically. */
   readonly beforeProviderCall?: (kind: ProviderCallKind) => Promise<void>;
+  /** Runs immediately after a provider result is received. */
+  readonly afterProviderCall?: (kind: ProviderCallKind, result: ProviderResult) => Promise<void>;
 }
 export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
   readonly taskId: string;
@@ -124,12 +127,14 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
       let first = await options.gateway.execute(
         providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
       );
+      await options.afterProviderCall?.("initial", first);
       let providerAttempts = 1;
       if (first.status === "FAILED" && first.error?.retryable) {
         await options.beforeProviderCall?.("retry");
         first = await options.gateway.execute(
           providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
         );
+        await options.afterProviderCall?.("retry", first);
         providerAttempts = 2;
       }
       const baseMetadata = {
@@ -180,6 +185,7 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
               adapter.transportSchema,
             ),
           );
+          await options.afterProviderCall?.("repair", repaired);
           return repaired.status === "COMPLETED" ? repaired.outputJson : undefined;
         },
       });

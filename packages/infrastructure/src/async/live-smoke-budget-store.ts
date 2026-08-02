@@ -41,6 +41,12 @@ export interface LiveSmokeBudgetEpoch {
 export interface LiveSmokeBudgetStore {
   createEpoch(input: LiveSmokeBudgetEpochInput): Promise<LiveSmokeBudgetEpoch>;
   reserve(input: LiveSmokeBudgetReservationInput): Promise<LiveSmokeBudgetReservation>;
+  releasePreDispatch?(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }): Promise<{ readonly released: boolean; readonly used: number; readonly remaining: number }>;
 }
 
 function assertLimit(limit: number): void {
@@ -198,6 +204,59 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
         duplicate: false,
         used: updated[0].used_units,
         remaining: updated[0].call_limit - updated[0].used_units,
+      };
+    });
+  }
+
+  async releasePreDispatch(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }) {
+    return this.sql.begin(async (transaction) => {
+      const removed = await transaction<{ units: number }[]>`
+        DELETE FROM live_smoke_budget_epoch_reservation
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+        RETURNING units
+      `;
+      const rows = await transaction<EpochRow[]>`
+        SELECT workspace_id, smoke_run_id, budget_epoch_id,
+               parent_budget_epoch_id, call_limit, used_units, status
+        FROM live_smoke_budget_epoch
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+        FOR UPDATE
+      `;
+      const epoch = rows[0];
+      if (!epoch) throw new Error("LIVE_SMOKE_BUDGET_EPOCH_NOT_FOUND");
+      if (removed.length > 0) {
+        const updated = await transaction<EpochRow[]>`
+          UPDATE live_smoke_budget_epoch
+          SET used_units = used_units - ${removed[0]!.units},
+              status = CASE WHEN status = 'CLOSED_EXHAUSTED' THEN 'OPEN' ELSE status END,
+              updated_at = now()
+          WHERE workspace_id = ${input.workspaceId}
+            AND smoke_run_id = ${input.smokeRunId}
+            AND budget_epoch_id = ${input.budgetEpochId}
+          RETURNING workspace_id, smoke_run_id, budget_epoch_id,
+                    parent_budget_epoch_id, call_limit, used_units, status
+        `;
+        const next = updated[0]!;
+        return {
+          released: true,
+          used: next.used_units,
+          remaining: next.call_limit - next.used_units,
+        };
+      }
+      return {
+        released: false,
+        used: epoch.used_units,
+        remaining: Math.max(0, epoch.call_limit - epoch.used_units),
       };
     });
   }

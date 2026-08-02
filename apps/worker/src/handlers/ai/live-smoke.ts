@@ -12,6 +12,7 @@ import {
 } from "../../../../../packages/core/src/agents/orchestrator.js";
 import type { JsonSchema } from "../../../../../packages/core/src/agents/result-validator.js";
 import type {
+  AiLiveSmokeCanaryPayload,
   AiLiveSmokePayload,
   AiLiveSmokeVerificationPayload,
 } from "../../../../../packages/contracts/src/async.js";
@@ -20,6 +21,10 @@ import type {
   LiveSmokeProviderMode,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import type { LiveSmokeCoverageStore } from "../../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
+import type {
+  LiveSmokeLifecycleStore,
+  LiveSmokeReservationLifecycleInput,
+} from "../../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 
 const SYNTHETIC_IDS = Object.freeze({
   campaign: "00000000-0000-4000-8000-0000000002c1",
@@ -91,10 +96,27 @@ function budgetError(message: string): Error & { readonly retryable: false } {
   return Object.assign(new Error(message), { code: message, retryable: false as const });
 }
 
+function lifecycleInput(
+  base: Omit<
+    LiveSmokeReservationLifecycleInput,
+    "lifecycleState" | "providerRequestSent" | "providerResponseReceived" | "billableRequestCount"
+  >,
+  lifecycleState: LiveSmokeReservationLifecycleInput["lifecycleState"],
+  flags: Pick<
+    LiveSmokeReservationLifecycleInput,
+    "providerRequestSent" | "providerResponseReceived" | "billableRequestCount"
+  >,
+): LiveSmokeReservationLifecycleInput {
+  return { ...base, lifecycleState, ...flags };
+}
+
 export function createLiveSmokeHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
-  options: { readonly providerMode?: LiveSmokeProviderMode } = {},
+  options: {
+    readonly providerMode?: LiveSmokeProviderMode;
+    readonly lifecycleStore?: LiveSmokeLifecycleStore;
+  } = {},
 ): LiveSmokeRuntimeHandler {
   const providerMode = options.providerMode ?? "live";
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
@@ -125,17 +147,103 @@ export function createLiveSmokeHandler(
       gateway,
       beforeProviderCall: async (kind) => {
         if (providerMode === "mock") return;
-        const reservation = await budgetStore.reserve({
+        const key = reservationKey(kind);
+        let reserved = false;
+        let dispatchStarted = false;
+        try {
+          const reservation = await budgetStore.reserve({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: key,
+            providerMode,
+            units: 1,
+            limit: workflowCallBudget,
+          });
+          if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
+          if (reservation.duplicate)
+            throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
+          reserved = true;
+          const base = {
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: key,
+            agentCode: payload.agentCode,
+            providerMode,
+          } as const;
+          await options.lifecycleStore?.record(
+            lifecycleInput(base, "RESERVED", {
+              providerRequestSent: false,
+              providerResponseReceived: false,
+              billableRequestCount: 0,
+            }),
+          );
+          await options.lifecycleStore?.record(
+            lifecycleInput(base, "DISPATCH_STARTED", {
+              providerRequestSent: true,
+              providerResponseReceived: false,
+              billableRequestCount: 1,
+            }),
+          );
+          dispatchStarted = true;
+        } catch (error) {
+          if (reserved && !dispatchStarted) {
+            await budgetStore.releasePreDispatch?.({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: key,
+            });
+            await options.lifecycleStore?.record(
+              lifecycleInput(
+                {
+                  workspaceId,
+                  smokeRunId,
+                  budgetEpochId,
+                  reservationKey: key,
+                  agentCode: payload.agentCode,
+                  providerMode,
+                },
+                "RELEASED_PRE_DISPATCH",
+                {
+                  providerRequestSent: false,
+                  providerResponseReceived: false,
+                  billableRequestCount: 0,
+                },
+              ),
+            );
+          }
+          throw error;
+        }
+      },
+      afterProviderCall: async (kind, providerResult) => {
+        if (providerMode !== "live") return;
+        const providerFacts = {
           workspaceId,
           smokeRunId,
           budgetEpochId,
           reservationKey: reservationKey(kind),
+          agentCode: payload.agentCode,
           providerMode,
-          units: 1,
-          limit: workflowCallBudget,
-        });
-        if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
-        if (reservation.duplicate) throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
+          ...(providerResult.providerRequestId
+            ? { providerRequestId: providerResult.providerRequestId }
+            : {}),
+          ...(providerResult.usage?.inputUnits === undefined
+            ? {}
+            : { inputUnits: providerResult.usage.inputUnits }),
+          ...(providerResult.usage?.outputUnits === undefined
+            ? {}
+            : { outputUnits: providerResult.usage.outputUnits }),
+          ...(providerResult.error?.code ? { terminalErrorCode: providerResult.error.code } : {}),
+        } as const;
+        await options.lifecycleStore?.record(
+          lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
+            providerRequestSent: true,
+            providerResponseReceived: true,
+            billableRequestCount: 1,
+          }),
+        );
       },
     });
     const result = await orchestrator.run({
@@ -172,9 +280,15 @@ export function createLiveSmokeVerificationHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
   coverageStore: LiveSmokeCoverageStore,
-  options: { readonly providerMode: LiveSmokeProviderMode },
+  options: {
+    readonly providerMode: LiveSmokeProviderMode;
+    readonly lifecycleStore?: LiveSmokeLifecycleStore;
+  },
 ): LiveSmokeRuntimeHandler {
-  const liveSmoke = createLiveSmokeHandler(gateway, budgetStore, { providerMode: "live" });
+  const liveSmoke = createLiveSmokeHandler(gateway, budgetStore, {
+    providerMode: "live",
+    ...(options.lifecycleStore ? { lifecycleStore: options.lifecycleStore } : {}),
+  });
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
     if (options.providerMode !== "live") {
       throw Object.assign(new Error("LIVE_SMOKE_VERIFICATION_REQUIRES_LIVE"), {
@@ -184,6 +298,14 @@ export function createLiveSmokeVerificationHandler(
     }
     const payload = job.data as AiLiveSmokeVerificationPayload;
     if (payload.verificationOnly !== true) throw new Error("LIVE_SMOKE_VERIFICATION_FLAG_REQUIRED");
+    if (
+      options.lifecycleStore &&
+      (await options.lifecycleStore.getCanaryStatus(payload.verificationRunId)) !== "PASS"
+    )
+      throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_REQUIRED"), {
+        code: "LIVE_SMOKE_PROVIDER_CANARY_REQUIRED",
+        retryable: false as const,
+      });
     const result = (await liveSmoke(job, invocation)) as {
       readonly status: string;
       readonly agentCode: string;
@@ -232,6 +354,195 @@ export function createLiveSmokeVerificationHandler(
       providerRequestSent: true,
       structuredOutputPassed: true,
       domainValidationPassed: true,
+    };
+  };
+}
+
+const CANARY_SCHEMA: JsonSchema = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "environment", "provider"],
+  properties: {
+    status: { enum: ["ok"] },
+    environment: { enum: ["staging"] },
+    provider: { enum: ["openai"] },
+  },
+});
+
+function isCanaryOutput(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const output = value as Record<string, unknown>;
+  return output.status === "ok" && output.environment === "staging" && output.provider === "openai";
+}
+
+/** Executes the single provider-accessibility call before any agent coverage item. */
+export function createLiveSmokeProviderCanaryHandler(
+  gateway: AgentProviderGateway,
+  budgetStore: LiveSmokeBudgetStore,
+  lifecycleStore: LiveSmokeLifecycleStore,
+  options: { readonly providerMode: LiveSmokeProviderMode },
+): LiveSmokeRuntimeHandler {
+  return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
+    if (options.providerMode !== "live") {
+      throw Object.assign(new Error("LIVE_SMOKE_CANARY_REQUIRES_LIVE"), {
+        code: "LIVE_SMOKE_CANARY_REQUIRES_LIVE",
+        retryable: false as const,
+      });
+    }
+    const payload = job.data as AiLiveSmokeCanaryPayload;
+    if (payload.canary !== true) throw new Error("LIVE_SMOKE_CANARY_FLAG_REQUIRED");
+    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
+    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
+    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+    const jobItemId = invocation?.jobItemId ?? String(job.id ?? "provider-canary");
+    const deliveryAttempt = Number.isInteger(job.attemptsMade) ? job.attemptsMade : 0;
+    const reservationKey = `${budgetEpochId}:${jobItemId}:delivery:${deliveryAttempt}:canary`;
+    const base = {
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+      reservationKey,
+      agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
+      providerMode: "live" as const,
+    };
+    const reservation = await budgetStore.reserve({
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+      reservationKey,
+      providerMode: "live",
+      units: 1,
+      limit: payload.workflowCallBudget,
+    });
+    if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
+    if (reservation.duplicate) throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
+    let dispatchStarted = false;
+    try {
+      await lifecycleStore.record(
+        lifecycleInput(base, "RESERVED", {
+          providerRequestSent: false,
+          providerResponseReceived: false,
+          billableRequestCount: 0,
+        }),
+      );
+      await lifecycleStore.record(
+        lifecycleInput(base, "DISPATCH_STARTED", {
+          providerRequestSent: true,
+          providerResponseReceived: false,
+          billableRequestCount: 1,
+        }),
+      );
+      dispatchStarted = true;
+    } catch (error) {
+      if (!dispatchStarted) {
+        await budgetStore.releasePreDispatch?.({
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          reservationKey,
+        });
+        await lifecycleStore.record(
+          lifecycleInput(base, "RELEASED_PRE_DISPATCH", {
+            providerRequestSent: false,
+            providerResponseReceived: false,
+            billableRequestCount: 0,
+          }),
+        );
+      }
+      throw error;
+    }
+
+    let result;
+    try {
+      result = await gateway.execute({
+        taskId: `gate-h-2c7-canary-${jobItemId}`,
+        modelPolicyId: "balanced-structured-v1",
+        messages: [
+          {
+            role: "system",
+            content: "Staging provider canary. Return only the registered JSON object.",
+          },
+          { role: "user", content: "Return status ok, environment staging, provider openai." },
+        ],
+        outputSchema: CANARY_SCHEMA,
+        imageInputs: [],
+        timeoutSeconds: 60,
+        metadata: {
+          workspaceId,
+          agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
+          promptVersion: "1.0.0",
+          correlationId: `gate-h-2c7-canary-${jobItemId}`,
+        },
+      });
+    } catch (error) {
+      await lifecycleStore.record(
+        lifecycleInput(
+          { ...base, terminalErrorCode: "PROVIDER_EXECUTION_THROWN" },
+          "PROVIDER_RESPONDED",
+          { providerRequestSent: true, providerResponseReceived: true, billableRequestCount: 1 },
+        ),
+      );
+      await lifecycleStore.recordCanary({
+        verificationRunId: payload.verificationRunId,
+        providerRequestSent: true,
+        providerResponseReceived: true,
+        http200: false,
+        strictOutputValid: false,
+        domainValidationValid: false,
+        storeDisabled: true,
+        backgroundDisabled: true,
+        toolsUnused: true,
+        passed: false,
+        errorCode: "PROVIDER_EXECUTION_THROWN",
+      });
+      throw error;
+    }
+    const providerFacts = {
+      ...base,
+      ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+      ...(result.usage?.inputUnits === undefined ? {} : { inputUnits: result.usage.inputUnits }),
+      ...(result.usage?.outputUnits === undefined ? {} : { outputUnits: result.usage.outputUnits }),
+      ...(result.error?.code ? { terminalErrorCode: result.error.code } : {}),
+    } as const;
+    await lifecycleStore.record(
+      lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
+        providerRequestSent: true,
+        providerResponseReceived: true,
+        billableRequestCount: 1,
+      }),
+    );
+    const http200 = result.httpStatus === 200 || result.status === "COMPLETED";
+    const strictOutputValid = result.status === "COMPLETED" && isCanaryOutput(result.outputJson);
+    const domainValidationValid = strictOutputValid;
+    const passed =
+      http200 && result.model === "gpt-5.6-luna" && strictOutputValid && domainValidationValid;
+    await lifecycleStore.recordCanary({
+      verificationRunId: payload.verificationRunId,
+      providerRequestSent: true,
+      providerResponseReceived: true,
+      http200,
+      ...(result.model ? { resolvedModel: result.model } : {}),
+      strictOutputValid,
+      domainValidationValid,
+      storeDisabled: true,
+      backgroundDisabled: true,
+      toolsUnused: true,
+      passed,
+      ...(result.error?.code ? { errorCode: result.error.code } : {}),
+    });
+    if (!passed)
+      throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_FAILED"), {
+        code: "LIVE_SMOKE_PROVIDER_CANARY_FAILED",
+        retryable: false as const,
+      });
+    return {
+      status: "COMPLETED",
+      canary: "PASS",
+      provider: "OpenAI",
+      model: result.model,
+      providerRequestSent: true,
+      strictOutputValid: true,
+      domainValidationValid: true,
     };
   };
 }
