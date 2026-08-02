@@ -3,7 +3,10 @@ import type {
   OutboxMessage,
   OutboxRepository,
 } from "../../../../../packages/core/src/modules/operations/outbox-repository.js";
-import { getAsyncCommandDefinition, validateCommandEnvelope } from "../../../../../packages/contracts/src/async.js";
+import {
+  getAsyncCommandDefinition,
+  validateCommandEnvelope,
+} from "../../../../../packages/contracts/src/async.js";
 
 export interface OutboxPublishResult {
   readonly claimed: number;
@@ -36,6 +39,19 @@ function retryAt(attemptCount: number): Date {
   );
 }
 
+function deliveryAttempts(message: OutboxMessage): 1 | 3 {
+  if (
+    (message.messageType === "ai.live_smoke" || message.messageType === "ai.live_smoke.verify") &&
+    message.payloadJson &&
+    typeof message.payloadJson === "object" &&
+    !Array.isArray(message.payloadJson) &&
+    (message.payloadJson as { readonly retryEnabled?: unknown }).retryEnabled === false &&
+    (message.payloadJson as { readonly repairEnabled?: unknown }).repairEnabled === false
+  )
+    return 1;
+  return 3;
+}
+
 export async function publishOutbox(
   repository: OutboxRepository,
   queue: BullMqAdapter,
@@ -50,7 +66,11 @@ export async function publishOutbox(
       await queue.enqueue(message.topic, {
         name: message.messageType,
         data: envelope,
-        options: { jobId: message.messageKey, attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+        options: {
+          jobId: message.messageKey,
+          attempts: deliveryAttempts(message),
+          backoff: { type: "exponential", delay: 5_000 },
+        },
       });
       await repository.markPublished(message.id);
       published += 1;
