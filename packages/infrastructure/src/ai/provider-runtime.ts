@@ -34,9 +34,13 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
         ...(result.model ? { model: result.model } : {}),
         ...(result.outputJson === undefined ? {} : { outputJson: result.outputJson }),
         ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+        ...(result.providerRequestIdHash
+          ? { providerRequestIdHash: result.providerRequestIdHash }
+          : {}),
         latencyMs: result.latencyMs,
         ...(result.httpStatus === undefined ? {} : { httpStatus: result.httpStatus }),
         ...(result.usage ? { usage: result.usage } : {}),
+        ...(result.evidence ? { evidence: result.evidence } : {}),
         ...(result.error
           ? {
               error: {

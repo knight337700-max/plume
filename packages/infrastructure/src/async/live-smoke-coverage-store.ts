@@ -32,6 +32,8 @@ export interface AgentLiveCoverageInput {
   readonly providerRequestSent: boolean;
   readonly structuredOutputPassed: boolean;
   readonly domainValidationPassed: boolean;
+  readonly providerRequestIdHash?: string;
+  /** @deprecated callers should provide providerRequestIdHash. */
   readonly providerRequestId?: string;
   readonly inputUnits?: number;
   readonly outputUnits?: number;
@@ -115,9 +117,11 @@ export class PostgresLiveSmokeCoverageStore implements LiveSmokeCoverageStore {
     if (input.provider !== "OpenAI") throw new Error("LIVE_COVERAGE_PROVIDER_INVALID");
     if (input.model !== "gpt-5.6-luna") throw new Error("LIVE_COVERAGE_MODEL_MISMATCH");
     if (!input.providerRequestSent) throw new Error("LIVE_COVERAGE_PROVIDER_REQUEST_REQUIRED");
-    const requestIdHash = input.providerRequestId
-      ? createHash("sha256").update(input.providerRequestId, "utf8").digest("hex")
-      : null;
+    const requestIdHash =
+      input.providerRequestIdHash ??
+      (input.providerRequestId
+        ? createHash("sha256").update(input.providerRequestId, "utf8").digest("hex")
+        : null);
     const rows = await this.sql`
       INSERT INTO agent_live_coverage
         (workspace_id, verification_run_id, smoke_run_id, budget_epoch_id,

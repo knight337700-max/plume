@@ -18,6 +18,7 @@ describe("staging migration runner contract", () => {
       "0004_live_smoke_budget_epochs",
       "0005_live_coverage_shadow_runs",
       "0006_live_smoke_lifecycle_and_canary",
+      "0007_live_smoke_validation_evidence",
     ]);
     expect(migrations[0]?.destructive).toBe(false);
     expect(migrations[0]?.checksum).toBe(migrationChecksum(migrations[0]?.sql ?? ""));

@@ -261,20 +261,85 @@ function decodeWithSchema<T>(
   decode: (value: unknown, errors: SchemaError[]) => unknown,
 ): ValidationResult<T> {
   const directDomain = validateJson<T>(value, domainSchema);
-  if (directDomain.valid) return directDomain;
+  if (directDomain.valid)
+    return {
+      ...directDomain,
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "NOT_REACHED",
+        transportErrorPaths: [],
+        domainValidationStatus: "PASS",
+        domainErrorPaths: [],
+      },
+    };
   const transport = validateJson(value, transportSchema);
-  if (!transport.valid) return transport;
+  if (!transport.valid)
+    return {
+      ...transport,
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "FAIL",
+        transportErrorCode: "STRICT_TRANSPORT_SCHEMA_INVALID",
+        transportErrorPaths: transport.errors.map((error) => error.path),
+        domainValidationStatus: "NOT_REACHED",
+        domainErrorPaths: [],
+      },
+    };
   const errors: SchemaError[] = [];
   const domainValue = decode(value, errors);
-  if (errors.length) return { valid: false, errors: Object.freeze(errors) };
-  return validateJson<T>(domainValue, domainSchema);
+  if (errors.length)
+    return {
+      valid: false,
+      errors: Object.freeze(errors),
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "PASS",
+        transportErrorPaths: [],
+        domainValidationStatus: "FAIL",
+        domainErrorCode: "DOMAIN_SCHEMA_INVALID",
+        domainErrorPaths: errors.map((error) => error.path),
+      },
+    };
+  const domain = validateJson<T>(domainValue, domainSchema);
+  return {
+    ...domain,
+    evidence: {
+      jsonParseStatus: "PASS",
+      transportValidationStatus: "PASS",
+      transportErrorPaths: [],
+      domainValidationStatus: domain.valid ? "PASS" : "FAIL",
+      ...(domain.valid ? {} : { domainErrorCode: "DOMAIN_SCHEMA_INVALID" }),
+      domainErrorPaths: domain.valid ? [] : domain.errors.map((error) => error.path),
+    },
+  };
 }
 
 function copyDecode(value: unknown, domainSchema: JsonSchema): ValidationResult<unknown> {
   const directDomain = validateJson(value, domainSchema);
-  if (directDomain.valid) return directDomain;
+  if (directDomain.valid)
+    return {
+      ...directDomain,
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "NOT_REACHED",
+        transportErrorPaths: [],
+        domainValidationStatus: "PASS",
+        domainErrorPaths: [],
+      },
+    };
   const transport = validateJson(value, copyTransportSchema);
-  if (!transport.valid) return transport;
+  if (!transport.valid)
+    return {
+      ...transport,
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "FAIL",
+        transportErrorCode: "STRICT_TRANSPORT_SCHEMA_INVALID",
+        transportErrorPaths: transport.errors.map((error) => error.path),
+        domainValidationStatus: "NOT_REACHED",
+        domainErrorPaths: [],
+      },
+    };
   const source = value as { variants: readonly Record<string, unknown>[] };
   const errors: SchemaError[] = [];
   const variants = source.variants.map((variant, index) => {
@@ -306,8 +371,31 @@ function copyDecode(value: unknown, domainSchema: JsonSchema): ValidationResult<
       decoded.riskFlags = variant.riskFlags;
     return decoded;
   });
-  if (errors.length) return { valid: false, errors: Object.freeze(errors) };
-  return validateJson({ variants }, domainSchema);
+  if (errors.length)
+    return {
+      valid: false,
+      errors: Object.freeze(errors),
+      evidence: {
+        jsonParseStatus: "PASS",
+        transportValidationStatus: "PASS",
+        transportErrorPaths: [],
+        domainValidationStatus: "FAIL",
+        domainErrorCode: "DOMAIN_SCHEMA_INVALID",
+        domainErrorPaths: errors.map((error) => error.path),
+      },
+    };
+  const domain = validateJson({ variants }, domainSchema);
+  return {
+    ...domain,
+    evidence: {
+      jsonParseStatus: "PASS",
+      transportValidationStatus: "PASS",
+      transportErrorPaths: [],
+      domainValidationStatus: domain.valid ? "PASS" : "FAIL",
+      ...(domain.valid ? {} : { domainErrorCode: "DOMAIN_SCHEMA_INVALID" }),
+      domainErrorPaths: domain.valid ? [] : domain.errors.map((error) => error.path),
+    },
+  };
 }
 
 export function createStrictOutputAdapter<TDomain = unknown>(input: {

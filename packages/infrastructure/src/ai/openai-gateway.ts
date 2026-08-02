@@ -1,6 +1,10 @@
 import OpenAI from "openai";
+import { createHash } from "node:crypto";
 // eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
-import { resolveLlmModel } from "../../../core/src/public.js";
+import {
+  resolveLlmModel,
+  type ProviderEvidence,
+} from "../../../core/src/public.js";
 
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
@@ -22,6 +26,7 @@ export interface AIExecutionRequest {
   readonly outputSchema: Readonly<Record<string, unknown>>;
   readonly imageInputs: readonly FileReference[];
   readonly timeoutSeconds: number;
+  readonly onSdkRequestAttempt?: () => Promise<void> | void;
   readonly metadata: {
     readonly workspaceId: string;
     readonly agentCode: string;
@@ -51,6 +56,8 @@ export interface AIExecutionResult {
   readonly httpStatus?: number;
   readonly finishReason?: string;
   readonly providerRequestId?: string;
+  readonly providerRequestIdHash?: string;
+  readonly evidence?: ProviderEvidence;
   readonly safetyMetadata?: Readonly<Record<string, unknown>>;
   readonly error?: AIExecutionError;
 }
@@ -209,10 +216,28 @@ function outputText(payload: ResponsePayload): string | undefined {
     .find((part) => part.type === "output_text" || part.text)?.text;
 }
 
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  return `{${Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+    .join(",")}}`;
+}
+
+function fingerprint(value: unknown): string {
+  return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
+}
+
+function requestIdHash(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
 function normalizeResponse(
   payload: ResponsePayload,
   model: string,
   startedAt: number,
+  requestAttempted: boolean,
 ): AIExecutionResult {
   const text = outputText(payload);
   if (!text)
@@ -221,7 +246,20 @@ function normalizeResponse(
       model,
       status: "FAILED",
       latencyMs: Date.now() - startedAt,
-      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      ...(payload.id ? { providerRequestIdHash: requestIdHash(payload.id) } : {}),
+      evidence: {
+        requestAttempted,
+        responseReceived: true,
+        ...(payload.id ? { requestIdHash: requestIdHash(payload.id) } : {}),
+        resolvedModel: model,
+        jsonParseStatus: "NOT_REACHED",
+        ...(payload.usage?.input_tokens === undefined
+          ? {}
+          : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.output_tokens === undefined
+          ? {}
+          : { outputUnits: payload.usage.output_tokens }),
+      },
       error: providerError(
         "INVALID_RESPONSE",
         "OpenAI response did not contain structured output",
@@ -229,13 +267,29 @@ function normalizeResponse(
       ),
     };
   try {
+    const outputJson = JSON.parse(text);
     return {
       provider: "OpenAI",
       model,
       status: "COMPLETED",
-      outputJson: JSON.parse(text),
+      outputJson,
       latencyMs: Date.now() - startedAt,
-      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      ...(payload.id ? { providerRequestIdHash: requestIdHash(payload.id) } : {}),
+      evidence: {
+        requestAttempted,
+        responseReceived: true,
+        ...(payload.id ? { requestIdHash: requestIdHash(payload.id) } : {}),
+        resolvedModel: model,
+        jsonParseStatus: "PASS",
+        outputFingerprint: fingerprint(outputJson),
+        outputLengthBytes: Buffer.byteLength(text, "utf8"),
+        ...(payload.usage?.input_tokens === undefined
+          ? {}
+          : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.output_tokens === undefined
+          ? {}
+          : { outputUnits: payload.usage.output_tokens }),
+      },
       ...((payload.incomplete_details?.reason ?? payload.status)
         ? { finishReason: payload.incomplete_details?.reason ?? payload.status }
         : {}),
@@ -254,7 +308,20 @@ function normalizeResponse(
       model,
       status: "FAILED",
       latencyMs: Date.now() - startedAt,
-      ...(payload.id ? { providerRequestId: payload.id } : {}),
+      ...(payload.id ? { providerRequestIdHash: requestIdHash(payload.id) } : {}),
+      evidence: {
+        requestAttempted,
+        responseReceived: true,
+        ...(payload.id ? { requestIdHash: requestIdHash(payload.id) } : {}),
+        resolvedModel: model,
+        jsonParseStatus: "FAIL",
+        ...(payload.usage?.input_tokens === undefined
+          ? {}
+          : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.output_tokens === undefined
+          ? {}
+          : { outputUnits: payload.usage.output_tokens }),
+      },
       error: providerError(
         "INVALID_RESPONSE",
         "OpenAI structured output was not valid JSON",
@@ -296,16 +363,32 @@ export function createOpenAIProviderGateway(
       );
       const abort = () => controller.abort();
       signal?.addEventListener("abort", abort, { once: true });
+      let sdkRequestAttempted = false;
+      const markSdkRequestAttempt = async () => {
+        await request.onSdkRequestAttempt?.();
+        sdkRequestAttempted = true;
+      };
       try {
         if (client) {
+          await markSdkRequestAttempt();
           const response = await client.responses.create(requestBody(request, model) as never, {
             signal: controller.signal,
           });
+          const normalized = normalizeResponse(
+            response as unknown as ResponsePayload,
+            model,
+            startedAt,
+            sdkRequestAttempted,
+          );
           return {
-            ...normalizeResponse(response as unknown as ResponsePayload, model, startedAt),
+            ...normalized,
             httpStatus: 200,
+            ...(normalized.evidence
+              ? { evidence: { ...normalized.evidence, httpStatus: 200 } }
+              : {}),
           };
         }
+        await markSdkRequestAttempt();
         const response = await requestFetch(endpoint, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -319,6 +402,13 @@ export function createOpenAIProviderGateway(
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
             httpStatus: 429,
+            evidence: {
+              requestAttempted: sdkRequestAttempted,
+              responseReceived: true,
+              httpStatus: 429,
+              resolvedModel: model,
+              jsonParseStatus: "NOT_REACHED",
+            },
             error: providerError("RATE_LIMIT", "OpenAI rate limit", true, 429),
           };
         if (!response.ok)
@@ -328,6 +418,13 @@ export function createOpenAIProviderGateway(
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
             httpStatus: response.status,
+            evidence: {
+              requestAttempted: sdkRequestAttempted,
+              responseReceived: true,
+              httpStatus: response.status,
+              resolvedModel: model,
+              jsonParseStatus: "NOT_REACHED",
+            },
             error: providerError(
               "PROVIDER_ERROR",
               `OpenAI provider error (${response.status})`,
@@ -345,17 +442,44 @@ export function createOpenAIProviderGateway(
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
             httpStatus: response.status,
+            evidence: {
+              requestAttempted: sdkRequestAttempted,
+              responseReceived: true,
+              httpStatus: response.status,
+              resolvedModel: model,
+              jsonParseStatus: "FAIL",
+            },
             error: providerError("INVALID_RESPONSE", "OpenAI response was not JSON", false),
           };
         }
-        return { ...normalizeResponse(payload, model, startedAt), httpStatus: response.status };
+        const normalized = normalizeResponse(payload, model, startedAt, sdkRequestAttempted);
+        return {
+          ...normalized,
+          httpStatus: response.status,
+          ...(normalized.evidence
+            ? { evidence: { ...normalized.evidence, httpStatus: response.status } }
+            : {}),
+        };
       } catch (error) {
+        const errorStatus =
+          typeof error === "object" && error !== null && "status" in error
+            ? Number(error.status)
+            : undefined;
+        const safeErrorStatus = Number.isInteger(errorStatus) ? errorStatus : undefined;
         if (controller.signal.aborted)
           return {
             provider: "OpenAI",
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
+            ...(safeErrorStatus === undefined ? {} : { httpStatus: safeErrorStatus }),
+            evidence: {
+              requestAttempted: sdkRequestAttempted,
+              responseReceived: false,
+              ...(safeErrorStatus === undefined ? {} : { httpStatus: safeErrorStatus }),
+              resolvedModel: model,
+              jsonParseStatus: "NOT_REACHED",
+            },
             error: providerError("TIMEOUT", "OpenAI request timed out", true),
           };
         return {
@@ -363,15 +487,21 @@ export function createOpenAIProviderGateway(
           model,
           status: "FAILED",
           latencyMs: Date.now() - startedAt,
+          ...(safeErrorStatus === undefined ? {} : { httpStatus: safeErrorStatus }),
+          evidence: {
+            requestAttempted: sdkRequestAttempted,
+            responseReceived: false,
+            ...(Number.isInteger(errorStatus) ? { httpStatus: errorStatus } : {}),
+            resolvedModel: model,
+            jsonParseStatus: "NOT_REACHED",
+          },
           error: providerError(
             "PROVIDER_ERROR",
             "OpenAI request failed",
-            typeof error === "object" && error !== null && "status" in error
-              ? Number(error.status) >= 500
+            safeErrorStatus !== undefined
+              ? safeErrorStatus >= 500
               : true,
-            typeof error === "object" && error !== null && "status" in error
-              ? Number(error.status)
-              : undefined,
+            safeErrorStatus,
           ),
         };
       } finally {

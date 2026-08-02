@@ -9,7 +9,7 @@ export interface AgentResultMetadata {
   readonly modelPolicyId: string;
   readonly model?: string;
   readonly contextHash: string;
-  readonly providerRequestId?: string;
+  readonly providerRequestIdHash?: string;
   readonly attempt: number;
   readonly latencyMs: number;
   readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };

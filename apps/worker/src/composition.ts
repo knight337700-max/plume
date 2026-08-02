@@ -20,6 +20,10 @@ import {
   type LiveSmokeLifecycleStore,
 } from "../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 import {
+  PostgresLiveSmokeValidationEvidenceStore,
+  type LiveSmokeValidationEvidenceStore,
+} from "../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
+import {
   S3ObjectStorage,
   type ObjectStorage,
 } from "../../../packages/infrastructure/src/storage/s3-object-storage.js";
@@ -48,6 +52,7 @@ export interface WorkerRuntimeCompositionOptions {
   readonly liveSmokeBudgetStore?: LiveSmokeBudgetStore;
   readonly liveSmokeCoverageStore?: LiveSmokeCoverageStore;
   readonly liveSmokeLifecycleStore?: LiveSmokeLifecycleStore;
+  readonly liveSmokeValidationEvidenceStore?: LiveSmokeValidationEvidenceStore;
 }
 
 function envValue(name: string, fallback: string): string {
@@ -81,6 +86,8 @@ export function createWorkerRuntimeComposition(
     options.liveSmokeCoverageStore ?? new PostgresLiveSmokeCoverageStore(sql);
   const liveSmokeLifecycleStore =
     options.liveSmokeLifecycleStore ?? new PostgresLiveSmokeLifecycleStore(sql);
+  const liveSmokeValidationEvidenceStore =
+    options.liveSmokeValidationEvidenceStore ?? new PostgresLiveSmokeValidationEvidenceStore(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
@@ -97,6 +104,7 @@ export function createWorkerRuntimeComposition(
     liveSmokeBudgetStore,
     liveSmokeCoverageStore,
     liveSmokeLifecycleStore,
+    liveSmokeValidationEvidenceStore,
     providerMode: aiRuntime.provider.mode,
   });
   let closed = false;

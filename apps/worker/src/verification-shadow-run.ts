@@ -25,6 +25,9 @@ export interface CreateVerificationShadowRunInput {
   readonly verificationRunId?: string;
   readonly smokeRunId?: string;
   readonly budgetEpochId?: string;
+  readonly budgetLimit?: number;
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
 }
 
 export interface VerificationShadowRun {
@@ -49,10 +52,14 @@ export async function createVerificationShadowRun(
     smokeRunId,
     budgetEpochId,
     parentBudgetEpochId: null,
-    limit: 8,
-    reason: "GATE_H_PHASE_2C6_VERIFICATION_ONLY_SHADOW_QUEUE",
+    limit: input.budgetLimit ?? 8,
+    reason:
+      input.budgetLimit === undefined
+        ? "GATE_H_PHASE_2C6_VERIFICATION_ONLY_SHADOW_QUEUE"
+        : "GATE_H_PHASE_2C9_DIAGNOSTIC_SCHEMA_EVIDENCE",
   });
-  if (epoch.limit !== 8) throw new Error("VERIFICATION_SHADOW_BUDGET_LIMIT_MISMATCH");
+  if (epoch.limit !== (input.budgetLimit ?? 8))
+    throw new Error("VERIFICATION_SHADOW_BUDGET_LIMIT_MISMATCH");
   const run = await input.coverageStore.createVerificationRun({
     verificationRunId,
     workspaceId: input.workspaceId,
@@ -78,7 +85,9 @@ export async function createVerificationShadowRun(
     workspaceId: input.workspaceId,
     smokeRunId,
     budgetEpochId,
-    workflowCallBudget: 8,
+    workflowCallBudget: input.budgetLimit ?? 8,
+    ...(input.retryEnabled === undefined ? {} : { retryEnabled: input.retryEnabled }),
+    ...(input.repairEnabled === undefined ? {} : { repairEnabled: input.repairEnabled }),
     verificationOnly: true,
   });
   const first = await input.publisher.enqueue({

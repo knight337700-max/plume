@@ -9,6 +9,22 @@ import { validateWithOneRepair, type JsonSchema } from "./result-repair.js";
 import { createStrictOutputAdapter } from "./strict-output-adapter.js";
 import { toolRegistry } from "./tool-registry.js";
 import type { AgentResult } from "./agent-result.js";
+import type { ValidationEvidence } from "./result-validator.js";
+
+export type ProviderEvidenceStatus = "PASS" | "FAIL" | "NOT_REACHED";
+
+export interface ProviderEvidence {
+  readonly requestAttempted: boolean;
+  readonly responseReceived: boolean;
+  readonly httpStatus?: number | undefined;
+  readonly requestIdHash?: string | undefined;
+  readonly resolvedModel?: string | undefined;
+  readonly jsonParseStatus: ProviderEvidenceStatus;
+  readonly outputFingerprint?: string | undefined;
+  readonly outputLengthBytes?: number | undefined;
+  readonly inputUnits?: number | undefined;
+  readonly outputUnits?: number | undefined;
+}
 
 interface ProviderRequest {
   readonly taskId: string;
@@ -20,6 +36,7 @@ interface ProviderRequest {
   readonly outputSchema: JsonSchema;
   readonly imageInputs: readonly never[];
   readonly timeoutSeconds: number;
+  readonly onSdkRequestAttempt?: () => Promise<void> | void;
   readonly metadata: {
     readonly workspaceId: string;
     readonly agentCode: string;
@@ -33,10 +50,12 @@ export interface ProviderResult {
   readonly model?: string;
   readonly outputJson?: unknown;
   readonly providerRequestId?: string;
+  readonly providerRequestIdHash?: string;
   readonly latencyMs: number;
   readonly httpStatus?: number;
   readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };
   readonly error?: { readonly code: string; readonly message: string; readonly retryable: boolean };
+  readonly evidence?: ProviderEvidence;
 }
 
 export interface AgentProviderGateway {
@@ -51,8 +70,16 @@ export interface AgentOrchestratorOptions {
   readonly policies?: ModelPolicyRegistry;
   /** Runs immediately before each provider call so durable budgets can reserve atomically. */
   readonly beforeProviderCall?: (kind: ProviderCallKind) => Promise<void>;
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
   /** Runs immediately after a provider result is received. */
   readonly afterProviderCall?: (kind: ProviderCallKind, result: ProviderResult) => Promise<void>;
+  /** Runs after the returned output is validated, without receiving raw output. */
+  readonly afterProviderValidation?: (
+    kind: ProviderCallKind,
+    result: ProviderResult,
+    evidence?: ValidationEvidence,
+  ) => Promise<void>;
 }
 export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
   readonly taskId: string;
@@ -65,6 +92,8 @@ export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
   readonly outputSchema: JsonSchema;
   readonly requestedToolCodes?: readonly string[];
   readonly timeoutSeconds?: number;
+  /** Called by the provider gateway at the SDK method invocation boundary. */
+  readonly onSdkRequestAttempt?: (kind: ProviderCallKind) => Promise<void> | void;
 }
 
 export interface AgentSuccessHandler<T> {
@@ -84,6 +113,7 @@ function providerRequest(
   modelPolicyId: string,
   messages: AgentTaskInput["messages"],
   outputSchema: JsonSchema,
+  callKind: ProviderCallKind,
 ): ProviderRequest {
   return {
     taskId: input.taskId,
@@ -92,6 +122,9 @@ function providerRequest(
     outputSchema,
     imageInputs: [],
     timeoutSeconds: input.timeoutSeconds ?? 30,
+    ...(input.onSdkRequestAttempt
+      ? { onSdkRequestAttempt: () => input.onSdkRequestAttempt!(callKind) }
+      : {}),
     metadata: {
       workspaceId: context.workspaceId,
       agentCode: input.agentCode,
@@ -125,14 +158,28 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
       const started = Date.now();
       await options.beforeProviderCall?.("initial");
       let first = await options.gateway.execute(
-        providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
+        providerRequest(
+          input,
+          context,
+          policy.policyId,
+          input.messages,
+          adapter.transportSchema,
+          "initial",
+        ),
       );
       await options.afterProviderCall?.("initial", first);
       let providerAttempts = 1;
-      if (first.status === "FAILED" && first.error?.retryable) {
+      if (options.retryEnabled !== false && first.status === "FAILED" && first.error?.retryable) {
         await options.beforeProviderCall?.("retry");
         first = await options.gateway.execute(
-          providerRequest(input, context, policy.policyId, input.messages, adapter.transportSchema),
+          providerRequest(
+            input,
+            context,
+            policy.policyId,
+            input.messages,
+            adapter.transportSchema,
+            "retry",
+          ),
         );
         await options.afterProviderCall?.("retry", first);
         providerAttempts = 2;
@@ -155,7 +202,12 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
           errorCode: first.error?.code ?? "PROVIDER_ERROR",
           metadata: {
             ...baseMetadata,
-            ...(first.providerRequestId ? { providerRequestId: first.providerRequestId } : {}),
+            ...(first.evidence?.requestIdHash || first.providerRequestIdHash
+              ? {
+                  providerRequestIdHash:
+                    first.evidence?.requestIdHash ?? first.providerRequestIdHash,
+                }
+              : {}),
             attempt: providerAttempts,
             latencyMs: first.latencyMs,
             ...(first.usage ? { usage: first.usage } : {}),
@@ -163,35 +215,60 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
           stateTransitions: transitions,
         });
       }
+      const validationKind: ProviderCallKind = providerAttempts === 2 ? "retry" : "initial";
+      let validationProviderResult = first;
       const outcome = await validateWithOneRepair<T>({
         raw: first.outputJson,
         schema: input.outputSchema,
         decode: adapter.decode,
-        repair: async ({ errorPaths }) => {
-          const repairMessages = [
-            ...input.messages,
-            {
-              role: "system" as const,
-              content: `Repair only schema error paths: ${errorPaths.map((error) => error.path).join(", ")}`,
-            },
-          ];
-          await options.beforeProviderCall?.("repair");
-          const repaired = await options.gateway.execute(
-            providerRequest(
-              input,
-              context,
-              policy.policyId,
-              repairMessages,
-              adapter.transportSchema,
-            ),
+        onValidation: async (phase, validation) => {
+          await options.afterProviderValidation?.(
+            phase === "repair" ? "repair" : validationKind,
+            validationProviderResult,
+            validation.evidence,
           );
-          await options.afterProviderCall?.("repair", repaired);
-          return repaired.status === "COMPLETED" ? repaired.outputJson : undefined;
         },
+        ...(options.repairEnabled === false
+          ? {}
+          : {
+              repair: async ({
+                errorPaths,
+              }: {
+                readonly errorPaths: readonly { readonly path: string }[];
+              }) => {
+                const repairMessages = [
+                  ...input.messages,
+                  {
+                    role: "system" as const,
+                    content: `Repair only schema error paths: ${errorPaths
+                      .map((error) => error.path)
+                      .join(", ")}`,
+                  },
+                ];
+                await options.beforeProviderCall?.("repair");
+                const repaired = await options.gateway.execute(
+                  providerRequest(
+                    input,
+                    context,
+                    policy.policyId,
+                    repairMessages,
+                    adapter.transportSchema,
+                    "repair",
+                  ),
+                );
+                validationProviderResult = repaired;
+                await options.afterProviderCall?.("repair", repaired);
+                return repaired.status === "COMPLETED" ? repaired.outputJson : undefined;
+              },
+            }),
       });
       const metadata = {
         ...baseMetadata,
-        ...(first.providerRequestId ? { providerRequestId: first.providerRequestId } : {}),
+        ...(first.evidence?.requestIdHash || first.providerRequestIdHash
+          ? {
+              providerRequestIdHash: first.evidence?.requestIdHash ?? first.providerRequestIdHash,
+            }
+          : {}),
         attempt: providerAttempts + outcome.repairAttempts,
         latencyMs: Date.now() - started,
         ...(first.usage ? { usage: first.usage } : {}),
