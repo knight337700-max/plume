@@ -29,6 +29,7 @@ export {
   type AsyncCommandDefinition,
   type AsyncCommandPayload,
   type AiLiveSmokePayload,
+  type AiLiveSmokeCanaryPayload,
   type AiLiveSmokeVerificationPayload,
   type CreativeGeneratePayload,
   type CreativeRenderPayload,

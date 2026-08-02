@@ -26,6 +26,7 @@ export const CATALOG_JOB_TYPES = Object.freeze([...Object.keys(COMMAND_QUEUE_ROU
 export const STAGING_ENABLED_JOB_TYPES = Object.freeze([
   "ai.live_smoke",
   "ai.live_smoke.verify",
+  "ai.live_smoke.canary",
   "creative.generate",
   "creative.render",
   "validation.run",

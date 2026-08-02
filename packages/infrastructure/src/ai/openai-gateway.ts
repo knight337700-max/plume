@@ -48,6 +48,7 @@ export interface AIExecutionResult {
     readonly costMicros?: number;
   };
   readonly latencyMs: number;
+  readonly httpStatus?: number;
   readonly finishReason?: string;
   readonly providerRequestId?: string;
   readonly safetyMetadata?: Readonly<Record<string, unknown>>;
@@ -300,7 +301,10 @@ export function createOpenAIProviderGateway(
           const response = await client.responses.create(requestBody(request, model) as never, {
             signal: controller.signal,
           });
-          return normalizeResponse(response as unknown as ResponsePayload, model, startedAt);
+          return {
+            ...normalizeResponse(response as unknown as ResponsePayload, model, startedAt),
+            httpStatus: 200,
+          };
         }
         const response = await requestFetch(endpoint, {
           method: "POST",
@@ -314,6 +318,7 @@ export function createOpenAIProviderGateway(
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
+            httpStatus: 429,
             error: providerError("RATE_LIMIT", "OpenAI rate limit", true, 429),
           };
         if (!response.ok)
@@ -322,6 +327,7 @@ export function createOpenAIProviderGateway(
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
+            httpStatus: response.status,
             error: providerError(
               "PROVIDER_ERROR",
               `OpenAI provider error (${response.status})`,
@@ -338,10 +344,11 @@ export function createOpenAIProviderGateway(
             model,
             status: "FAILED",
             latencyMs: Date.now() - startedAt,
+            httpStatus: response.status,
             error: providerError("INVALID_RESPONSE", "OpenAI response was not JSON", false),
           };
         }
-        return normalizeResponse(payload, model, startedAt);
+        return { ...normalizeResponse(payload, model, startedAt), httpStatus: response.status };
       } catch (error) {
         if (controller.signal.aborted)
           return {

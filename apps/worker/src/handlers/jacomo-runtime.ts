@@ -21,10 +21,15 @@ import {
 } from "../../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import type { Sql } from "postgres";
 import type { AgentProviderGateway } from "../../../../packages/core/src/agents/orchestrator.js";
-import { createLiveSmokeHandler, createLiveSmokeVerificationHandler } from "./ai/live-smoke.js";
+import {
+  createLiveSmokeHandler,
+  createLiveSmokeProviderCanaryHandler,
+  createLiveSmokeVerificationHandler,
+} from "./ai/live-smoke.js";
 import type { LiveSmokeBudgetStore } from "../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import type { LiveSmokeProviderMode } from "../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import type { LiveSmokeCoverageStore } from "../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
+import type { LiveSmokeLifecycleStore } from "../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -35,6 +40,7 @@ interface RuntimeDependencies {
   readonly providerGateway: AgentProviderGateway;
   readonly liveSmokeBudgetStore: LiveSmokeBudgetStore;
   readonly liveSmokeCoverageStore: LiveSmokeCoverageStore;
+  readonly liveSmokeLifecycleStore: LiveSmokeLifecycleStore;
   readonly providerMode: LiveSmokeProviderMode;
 }
 
@@ -144,12 +150,24 @@ export function createJacomoRuntimeHandlers(
   const liveSmoke = createLiveSmokeHandler(
     dependencies.providerGateway,
     dependencies.liveSmokeBudgetStore,
-    { providerMode: dependencies.providerMode },
+    {
+      providerMode: dependencies.providerMode,
+      lifecycleStore: dependencies.liveSmokeLifecycleStore,
+    },
   );
   const liveSmokeVerification = createLiveSmokeVerificationHandler(
     dependencies.providerGateway,
     dependencies.liveSmokeBudgetStore,
     dependencies.liveSmokeCoverageStore,
+    {
+      providerMode: dependencies.providerMode,
+      lifecycleStore: dependencies.liveSmokeLifecycleStore,
+    },
+  );
+  const liveSmokeCanary = createLiveSmokeProviderCanaryHandler(
+    dependencies.providerGateway,
+    dependencies.liveSmokeBudgetStore,
+    dependencies.liveSmokeLifecycleStore,
     { providerMode: dependencies.providerMode },
   );
   handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>
@@ -165,6 +183,16 @@ export function createJacomoRuntimeHandlers(
     "ai.live_smoke.verify",
     async (envelope, job) =>
       liveSmokeVerification({ ...job, data: envelope.payload } as Job<unknown>, {
+        workspaceId: envelope.workspaceId,
+        smokeRunId: (envelope.payload as { readonly smokeRunId: string }).smokeRunId,
+        budgetEpochId: (envelope.payload as { readonly budgetEpochId: string }).budgetEpochId,
+        jobItemId: envelope.jobItemId!,
+      }),
+  );
+  handlers["ai.live_smoke.canary"] = withCommonContract(
+    "ai.live_smoke.canary",
+    async (envelope, job) =>
+      liveSmokeCanary({ ...job, data: envelope.payload } as Job<unknown>, {
         workspaceId: envelope.workspaceId,
         smokeRunId: (envelope.payload as { readonly smokeRunId: string }).smokeRunId,
         budgetEpochId: (envelope.payload as { readonly budgetEpochId: string }).budgetEpochId,
@@ -323,7 +351,11 @@ export function createJacomoRuntimeHandlers(
     envelope: ReturnType<typeof jobEnvelope>,
     outcome: unknown,
   ): Promise<void> {
-    if (command === "ai.live_smoke" || command === "ai.live_smoke.verify") {
+    if (
+      command === "ai.live_smoke" ||
+      command === "ai.live_smoke.verify" ||
+      command === "ai.live_smoke.canary"
+    ) {
       await dependencies.workflow.completeRootIfReady(envelope.workspaceId, envelope.jobId);
       return;
     }

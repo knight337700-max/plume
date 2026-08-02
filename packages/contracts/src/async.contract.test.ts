@@ -10,7 +10,7 @@ const id = "00000000-0000-4000-8000-000000000001";
 
 describe("async command contracts", () => {
   it("keeps the catalog definitions aligned with queue routing", () => {
-    expect(Object.keys(ASYNC_COMMAND_DEFINITIONS)).toHaveLength(24);
+    expect(Object.keys(ASYNC_COMMAND_DEFINITIONS)).toHaveLength(25);
     expect(JACOMO_EXTERNAL_COMMANDS).toEqual(["creative.generate"]);
     expect(JACOMO_INTERNAL_COMMANDS).toEqual([
       "creative.render",

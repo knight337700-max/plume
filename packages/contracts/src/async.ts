@@ -58,6 +58,16 @@ export interface AiLiveSmokeVerificationPayload {
   readonly verificationOnly: true;
 }
 
+export interface AiLiveSmokeCanaryPayload {
+  readonly verificationRunId: string;
+  readonly parentWorkflowJobId: string;
+  readonly workspaceId: string;
+  readonly smokeRunId: string;
+  readonly budgetEpochId: string;
+  readonly workflowCallBudget: number;
+  readonly canary: true;
+}
+
 export interface CreativeRenderPayload {
   readonly creativeVersionId: string;
   readonly campaignId?: string;
@@ -92,6 +102,7 @@ export type AsyncCommandPayload =
   | CreativeGeneratePayload
   | AiLiveSmokePayload
   | AiLiveSmokeVerificationPayload
+  | AiLiveSmokeCanaryPayload
   | CreativeRenderPayload
   | ValidationRunPayload
   | ExportPackagePayload
@@ -183,6 +194,20 @@ function validateAiLiveSmokeVerification(
   );
 }
 
+function validateAiLiveSmokeCanary(payload: unknown): payload is AiLiveSmokeCanaryPayload {
+  return (
+    isRecord(payload) &&
+    isUuidLike(payload.verificationRunId) &&
+    isUuidLike(payload.parentWorkflowJobId) &&
+    isUuidLike(payload.workspaceId) &&
+    isUuidLike(payload.smokeRunId) &&
+    isUuidLike(payload.budgetEpochId) &&
+    isPositiveInteger(payload.workflowCallBudget) &&
+    payload.workflowCallBudget <= 7 &&
+    payload.canary === true
+  );
+}
+
 function validateRender(payload: unknown): payload is CreativeRenderPayload {
   if (
     !isRecord(payload) ||
@@ -236,16 +261,18 @@ const definitions: Record<AsyncCommand, AsyncCommandDefinition> = Object.fromEnt
           ? validateAiLiveSmoke
           : typedCommand === "ai.live_smoke.verify"
             ? validateAiLiveSmokeVerification
-            : typedCommand === "creative.render" ||
-                typedCommand === "creative.preview.render" ||
-                typedCommand === "validation.render" ||
-                typedCommand === "export.render"
-              ? validateRender
-              : typedCommand === "validation.run"
-                ? validateValidation
-                : typedCommand === "export.render_and_package"
-                  ? validateExport
-                  : genericPayload;
+            : typedCommand === "ai.live_smoke.canary"
+              ? validateAiLiveSmokeCanary
+              : typedCommand === "creative.render" ||
+                  typedCommand === "creative.preview.render" ||
+                  typedCommand === "validation.render" ||
+                  typedCommand === "export.render"
+                ? validateRender
+                : typedCommand === "validation.run"
+                  ? validateValidation
+                  : typedCommand === "export.render_and_package"
+                    ? validateExport
+                    : genericPayload;
     const activation = JACOMO_EXTERNAL_COMMANDS.includes(command as JacomoExternalCommand)
       ? "external-entry"
       : JACOMO_INTERNAL_COMMANDS.includes(command as JacomoInternalCommand)

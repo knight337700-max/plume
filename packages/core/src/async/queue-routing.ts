@@ -27,6 +27,7 @@ export const COMMAND_QUEUE_ROUTES = Object.freeze({
   "creative.generate": "ai-standard",
   "ai.live_smoke": "ai-standard",
   "ai.live_smoke.verify": "ai-standard",
+  "ai.live_smoke.canary": "ai-standard",
   "natural_language.edit": "ai-high",
   "validation.ai_review": "ai-standard",
   "creative.render": "render",
