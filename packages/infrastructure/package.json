@@ -8,6 +8,7 @@
     "@plume/core": "workspace:*",
     "@plume/db": "workspace:*",
     "bullmq": "5.52.2",
+    "openai": "7.3.0",
     "postgres": "3.4.7"
   },
   "scripts": {

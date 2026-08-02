@@ -72,4 +72,36 @@ describe("agent orchestrator", () => {
     expect(result.metadata.attempt).toBe(2);
     expect(handled).toBe(1);
   });
+
+  it("retries one transient provider failure and records the bounded attempt", async () => {
+    let calls = 0;
+    const orchestrator = createAgentOrchestrator({
+      gateway: {
+        execute: async () => {
+          calls += 1;
+          return calls === 1
+            ? {
+                status: "FAILED" as const,
+                latencyMs: 1,
+                error: { code: "RATE_LIMIT", message: "synthetic", retryable: true },
+              }
+            : { status: "COMPLETED" as const, outputJson: { ok: true }, latencyMs: 1 };
+        },
+      },
+    });
+    const result = await orchestrator.run({
+      taskId: "retry-task",
+      agentCode: "COPY_GENERATOR",
+      workspaceId: "workspace-1",
+      subjectType: "CAMPAIGN",
+      subjectId: "campaign-1",
+      correlationId: "corr-retry",
+      data: {},
+      messages: [{ role: "user", content: "Retry." }],
+      outputSchema: schema,
+    });
+    expect(result.status).toBe("COMPLETED");
+    expect(result.metadata.attempt).toBe(2);
+    expect(calls).toBe(2);
+  });
 });

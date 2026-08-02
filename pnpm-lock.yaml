@@ -44,9 +44,27 @@ importers:
       '@fastify/session':
         specifier: 11.1.0
         version: 11.1.0
+      '@plume/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@plume/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@plume/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@plume/infrastructure':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure
+      '@plume/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       bullmq:
         specifier: 5.52.2
         version: 5.52.2(supports-color@7.2.0)
+      drizzle-orm:
+        specifier: 0.44.5
+        version: 0.44.5(postgres@3.4.7)
       fastify:
         specifier: 5.3.3
         version: 5.3.3
@@ -126,6 +144,12 @@ importers:
       bullmq:
         specifier: 5.52.2
         version: 5.52.2(supports-color@7.2.0)
+      drizzle-orm:
+        specifier: 0.44.5
+        version: 0.44.5(postgres@3.4.7)
+      openai:
+        specifier: 7.3.0
+        version: 7.3.0(zod@4.4.3)
       postgres:
         specifier: 3.4.7
         version: 3.4.7
@@ -166,6 +190,9 @@ importers:
       bullmq:
         specifier: 5.52.2
         version: 5.52.2(supports-color@7.2.0)
+      openai:
+        specifier: 7.3.0
+        version: 7.3.0(zod@4.4.3)
       postgres:
         specifier: 3.4.7
         version: 3.4.7
@@ -1862,6 +1889,27 @@ packages:
   on-exit-leak-free@2.1.2:
     resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
     engines: {node: '>=14.0.0'}
+
+  openai@7.3.0:
+    resolution: {integrity: sha512-FLnIAkDEP3grs+BSDpqxEWVR37yG97/hs95lajF8SnHuA5nqtssh0uJVXbPhODNEoZqar+nEd+fIeGJgwoLUmg==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -3845,6 +3893,10 @@ snapshots:
   node-releases@2.0.51: {}
 
   on-exit-leak-free@2.1.2: {}
+
+  openai@7.3.0(zod@4.4.3):
+    optionalDependencies:
+      zod: 4.4.3
 
   optionator@0.9.4:
     dependencies:

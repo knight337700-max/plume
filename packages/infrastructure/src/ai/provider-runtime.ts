@@ -1,4 +1,5 @@
-import type { AgentProviderGateway } from "@plume/core/src/public.js";
+// eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
+import { resolveLlmModel, type AgentProviderGateway } from "../../../core/src/public.js";
 import {
   createOpenAIProviderGateway,
   type OpenAIProviderGateway,
@@ -30,12 +31,16 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
       });
       return {
         status: result.status,
+        ...(result.model ? { model: result.model } : {}),
         ...(result.outputJson === undefined ? {} : { outputJson: result.outputJson }),
-        ...(result.providerRequestId
-          ? { providerRequestId: result.providerRequestId }
+        ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+        ...(result.providerRequestIdHash
+          ? { providerRequestIdHash: result.providerRequestIdHash }
           : {}),
         latencyMs: result.latencyMs,
+        ...(result.httpStatus === undefined ? {} : { httpStatus: result.httpStatus }),
         ...(result.usage ? { usage: result.usage } : {}),
+        ...(result.evidence ? { evidence: result.evidence } : {}),
         ...(result.error
           ? {
               error: {
@@ -50,9 +55,12 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
   };
 }
 
-function providerMode(environment: Readonly<Record<string, string | undefined>>): OpenAIProviderMode {
+function providerMode(
+  environment: Readonly<Record<string, string | undefined>>,
+): OpenAIProviderMode {
   const mode = environment.OPENAI_PROVIDER_MODE?.trim() || "mock";
-  if (mode !== "mock" && mode !== "live") throw new Error("OPENAI_PROVIDER_MODE must be mock or live");
+  if (mode !== "mock" && mode !== "live")
+    throw new Error("OPENAI_PROVIDER_MODE must be mock or live");
   return mode;
 }
 
@@ -65,11 +73,14 @@ export function createOpenAIProviderRuntime(options: ProviderRuntimeOptions = {}
       gateway: asAgentGateway(options.mockGateway ?? createDeterministicMockProviderGateway()),
     };
   }
-  if (!environment.OPENAI_API_KEY?.trim()) throw new Error("OPENAI_API_KEY is required in live provider mode");
-  if (!environment.OPENAI_DEFAULT_MODEL?.trim()) throw new Error("OPENAI_DEFAULT_MODEL is required in live provider mode");
-  const gateway = options.liveGateway ?? createOpenAIProviderGateway({
-    ...options.liveGatewayOptions,
-    environment,
-  });
+  if (!environment.OPENAI_API_KEY?.trim())
+    throw new Error("OPENAI_API_KEY is required in live provider mode");
+  resolveLlmModel(environment.OPENAI_MODEL);
+  const gateway =
+    options.liveGateway ??
+    createOpenAIProviderGateway({
+      ...options.liveGatewayOptions,
+      environment,
+    });
   return { mode, gateway: asAgentGateway(gateway) };
 }

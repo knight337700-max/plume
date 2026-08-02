@@ -20,6 +20,8 @@ describe("natural language editor handler", () => {
       summary: "Resize headline",
       requiresAssetSelection: false,
       requiresUserConfirmation: true,
+      assetSelectionOptions: null,
+      warnings: null,
     };
     const gateway: AgentProviderGateway = {
       execute: async () => ({ status: "COMPLETED", outputJson: output, latencyMs: 1 }),
@@ -48,6 +50,8 @@ describe("natural language editor handler", () => {
           summary: "Delete",
           requiresAssetSelection: false,
           requiresUserConfirmation: false,
+          assetSelectionOptions: null,
+          warnings: null,
         },
         latencyMs: 1,
       }),

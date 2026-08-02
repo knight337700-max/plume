@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_CODES, createPromptRegistry, promptDefinitions } from "./prompt-registry.js";
 import {
+  agentDefaultModels,
   agentModelPolicyIds,
   modelPolicies,
   modelPolicyRegistry,
@@ -18,6 +19,8 @@ describe("AI prompt and model policy registries", () => {
     }
     expect(promptDefinitions).toHaveLength(8);
     expect(modelPolicies).toHaveLength(8);
+    expect(Object.values(agentDefaultModels)).toHaveLength(8);
+    expect(Object.values(agentDefaultModels).every((model) => model === "gpt-5.6-luna")).toBe(true);
   });
 
   it("rejects an active prompt hash change", () => {

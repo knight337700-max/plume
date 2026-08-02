@@ -23,7 +23,6 @@ describe("copy and layout agent handlers", () => {
           : {
               status: "COMPLETED",
               outputJson: {
-                formatProfileId: "kakao-profile",
                 templateId: "kakao-template",
                 elements: [
                   {
@@ -51,6 +50,7 @@ describe("copy and layout agent handlers", () => {
                 usedAssetVersionIds: [],
                 copyAssets: { headline: "자코모 신제품" },
                 rationale: "safe zone",
+                riskFlags: null,
               },
               latencyMs: 1,
             },

@@ -1,4 +1,9 @@
 import type { Sql } from "postgres";
+import { Buffer } from "node:buffer";
+
+function jsonbBytes(value: unknown): Buffer {
+  return Buffer.from(JSON.stringify(value), "utf8");
+}
 
 export interface WorkflowItem {
   readonly id: string;
@@ -48,17 +53,17 @@ export class DurableWorkflowRepository {
 
   async completeItem(workspaceId: string, jobId: string, jobItemId: string, result: unknown): Promise<void> {
     await this.sql`
-      UPDATE async_job_item SET status = 'COMPLETED', progress_percent = 100, result_json = ${this.sql.json(JSON.parse(JSON.stringify(result)))}, completed_at = now()
+      UPDATE async_job_item SET status = 'COMPLETED', progress_percent = 100, result_json = convert_from(${jsonbBytes(JSON.parse(JSON.stringify(result)))}, 'UTF8')::jsonb, completed_at = now()
       WHERE id = ${jobItemId} AND async_job_id = ${jobId} AND workspace_id = ${workspaceId}
     `;
   }
 
   async failItem(workspaceId: string, jobId: string, jobItemId: string, error: unknown): Promise<void> {
     await this.sql`
-      UPDATE async_job_item SET status = 'FAILED', error_json = ${this.sql.json(JSON.parse(JSON.stringify(error)))}, completed_at = now()
+      UPDATE async_job_item SET status = 'FAILED', error_json = convert_from(${jsonbBytes(JSON.parse(JSON.stringify(error)))}, 'UTF8')::jsonb, completed_at = now()
       WHERE id = ${jobItemId} AND async_job_id = ${jobId} AND workspace_id = ${workspaceId}
     `;
-    await this.sql`UPDATE async_job SET status = 'FAILED', error_json = ${this.sql.json(JSON.parse(JSON.stringify(error)))}, completed_at = now() WHERE id = ${jobId} AND workspace_id = ${workspaceId}`;
+    await this.sql`UPDATE async_job SET status = 'FAILED', error_json = convert_from(${jsonbBytes(JSON.parse(JSON.stringify(error)))}, 'UTF8')::jsonb, completed_at = now() WHERE id = ${jobId} AND workspace_id = ${workspaceId}`;
   }
 
   async releaseItem(workspaceId: string, jobId: string, jobItemId: string): Promise<void> {
@@ -92,6 +97,6 @@ export class DurableWorkflowRepository {
   }
 
   async setRootPayload(workspaceId: string, jobId: string, payload: Readonly<Record<string, unknown>>): Promise<void> {
-    await this.sql`UPDATE async_job SET payload_json = ${this.sql.json(JSON.parse(JSON.stringify(payload)))} WHERE id = ${jobId} AND workspace_id = ${workspaceId}`;
+    await this.sql`UPDATE async_job SET payload_json = convert_from(${jsonbBytes(JSON.parse(JSON.stringify(payload)))}, 'UTF8')::jsonb WHERE id = ${jobId} AND workspace_id = ${workspaceId}`;
   }
 }

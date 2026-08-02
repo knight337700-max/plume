@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-imports -- Infrastructure composes source-level ports during the monorepo build. */
 import { createHash, randomUUID } from "node:crypto";
+import { Buffer } from "node:buffer";
 import type { Sql } from "postgres";
 import {
   getAsyncCommandDefinition,
@@ -36,6 +37,16 @@ function payloadHash(payload: unknown): string {
 
 function safeJson(value: unknown): Record<string, unknown> {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+/**
+ * Bind JSON as UTF-8 bytes and let PostgreSQL convert and cast it. Railway's
+ * runtime can expose postgres.js' sql.json Parameter without converting the
+ * object before the wire bind; a bytea parameter avoids both object binding
+ * and text-to-jsonb ambiguity while retaining a real jsonb column value.
+ */
+function jsonbBytes(value: unknown): Buffer {
+  return Buffer.from(JSON.stringify(value), "utf8");
 }
 
 export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
@@ -87,7 +98,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
             INSERT INTO async_job
               (id, workspace_id, job_type, status, subject_type, requested_by, correlation_id, idempotency_key, payload_hash, payload_json)
             VALUES
-              (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, ${transaction.json({ command: input.command, schemaVersion: input.schemaVersion })})
+              (${jobId}, ${workspaceId}, ${jobType(input.command)}, 'QUEUED', 'ASYNC_COMMAND', ${requestedBy}, ${correlationId}, ${input.idempotencyKey ?? null}, ${hash}, convert_from(${jsonbBytes({ command: input.command, schemaVersion: input.schemaVersion })}, 'UTF8')::jsonb)
           `;
         } else {
           const roots = await transaction<{ id: string; workspace_id: string; correlation_id: string }[]>`
@@ -105,7 +116,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
           INSERT INTO outbox_message
             (workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json)
           VALUES
-            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, ${transaction.json(safeJson(envelope.payload) as never)}, ${transaction.json({
+            (${workspaceId}, ${definition.queue}, ${messageId}, ${input.command}, ${input.schemaVersion}, convert_from(${jsonbBytes(safeJson(envelope.payload))}, 'UTF8')::jsonb, convert_from(${jsonbBytes({
               messageId,
               correlationId,
               ...(input.causationId === undefined ? {} : { causationId: input.causationId }),
@@ -113,7 +124,7 @@ export class DurableAsyncCommandPublisher implements AsyncCommandPublisher {
               jobItemId,
               createdAt,
               ...(input.requestedBy === undefined ? {} : { requestedBy: input.requestedBy }),
-            })})
+            })}, 'UTF8')::jsonb)
         `;
         return { jobId, jobItemId, messageId, status: "QUEUED" as const, correlationId };
       });

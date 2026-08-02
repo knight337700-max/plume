@@ -31,8 +31,21 @@ export {
   type AgentCode,
   type AgentOrchestrator,
   type AgentProviderGateway,
+  type ProviderEvidence,
   createAgentOrchestrator,
+  buildStrictTransportSchemaForLinter,
+  createStrictOutputAdapter,
+  type StrictOutputAdapter,
+  type JsonSchema,
+  type SchemaError,
+  type ValidationResult,
 } from "./agents/public.js";
+export {
+  DEFAULT_LLM_MODEL,
+  SUPPORTED_LLM_MODELS,
+  resolveLlmModel,
+  type LlmModel,
+} from "./ai-model.js";
 export {
   type AsyncCommandPublisher,
   type EnqueueCommandInput,

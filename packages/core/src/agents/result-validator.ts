@@ -2,8 +2,15 @@ export interface JsonSchema {
   readonly type?: string | readonly string[];
   readonly required?: readonly string[];
   readonly properties?: Readonly<Record<string, JsonSchema>>;
-  readonly additionalProperties?: boolean;
+  readonly additionalProperties?: boolean | JsonSchema;
   readonly items?: JsonSchema;
+  readonly anyOf?: readonly JsonSchema[];
+  readonly description?: string;
+  readonly format?: string;
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly title?: string;
+  readonly $schema?: string;
   readonly enum?: readonly unknown[];
   readonly const?: unknown;
   readonly minLength?: number;
@@ -19,14 +26,28 @@ export interface SchemaError {
   readonly message: string;
 }
 
+export type ValidationStatus = "PASS" | "FAIL" | "NOT_REACHED";
+
+export interface ValidationEvidence {
+  readonly jsonParseStatus: ValidationStatus;
+  readonly transportValidationStatus: ValidationStatus;
+  readonly transportErrorCode?: string;
+  readonly transportErrorPaths: readonly string[];
+  readonly domainValidationStatus: ValidationStatus;
+  readonly domainErrorCode?: string;
+  readonly domainErrorPaths: readonly string[];
+}
+
 export interface ValidationSuccess<T> {
   readonly valid: true;
   readonly value: T;
   readonly errors: readonly [];
+  readonly evidence?: ValidationEvidence;
 }
 export interface ValidationFailure {
   readonly valid: false;
   readonly errors: readonly SchemaError[];
+  readonly evidence?: ValidationEvidence;
 }
 export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 
@@ -101,6 +122,8 @@ function visit(value: unknown, schema: JsonSchema, path: string, errors: SchemaE
           message: "is not allowed",
         });
       else if (childSchema) visit(child, childSchema, `${path}.${key}`, errors);
+      else if (schema.additionalProperties && typeof schema.additionalProperties === "object")
+        visit(child, schema.additionalProperties, `${path}.${key}`, errors);
     }
   }
 }

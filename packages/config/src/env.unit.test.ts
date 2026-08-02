@@ -54,25 +54,40 @@ describe("loadEnvironment", () => {
   });
 
   it("rejects invalid staging and live contracts", () => {
-    expect(() => loadEnvironment({
-      ...validEnvironment,
-      NODE_ENV: "production",
-      APP_ENV: "staging",
-      QUEUE_PREFIX: "production",
-      CORS_ALLOWED_ORIGINS: "*",
-      COOKIE_SECURE: "false",
-      OPENAI_PROVIDER_MODE: "live",
-    })).toThrow(/OPENAI_API_KEY|OPENAI_DEFAULT_MODEL|QUEUE_PREFIX|CORS_ALLOWED_ORIGINS|COOKIE_SECURE/);
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        NODE_ENV: "production",
+        APP_ENV: "staging",
+        QUEUE_PREFIX: "production",
+        CORS_ALLOWED_ORIGINS: "*",
+        COOKIE_SECURE: "false",
+        OPENAI_PROVIDER_MODE: "live",
+      }),
+    ).toThrow(/OPENAI_API_KEY|OPENAI_MODEL|QUEUE_PREFIX|CORS_ALLOWED_ORIGINS|COOKIE_SECURE/);
+  });
+
+  it("uses GPT-5.6 Luna as the only model default", () => {
+    const environment = loadEnvironment(validEnvironment);
+    expect(environment.openAiModel).toBe("gpt-5.6-luna");
+    expect(loadEnvironment({ ...validEnvironment, OPENAI_MODEL: "gpt-5.6-luna" }).openAiModel).toBe(
+      "gpt-5.6-luna",
+    );
+    expect(() => loadEnvironment({ ...validEnvironment, OPENAI_MODEL: "gpt-5-mini" })).toThrow(
+      /Unsupported OPENAI_MODEL/,
+    );
   });
 
   it("rejects staging mode when NODE_ENV is staging", () => {
-    expect(() => loadEnvironment({
-      ...validEnvironment,
-      NODE_ENV: "staging",
-      APP_ENV: "staging",
-      QUEUE_PREFIX: "plume-staging",
-      CORS_ALLOWED_ORIGINS: "https://staging.example.test",
-      COOKIE_SECURE: "true",
-    })).toThrow(/NODE_ENV/);
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        NODE_ENV: "staging",
+        APP_ENV: "staging",
+        QUEUE_PREFIX: "plume-staging",
+        CORS_ALLOWED_ORIGINS: "https://staging.example.test",
+        COOKIE_SECURE: "true",
+      }),
+    ).toThrow(/NODE_ENV/);
   });
 });

@@ -1,8 +1,24 @@
 import { createHash } from "node:crypto";
-import { createExportPackagePlan, type ExportPackagePlan, type ExportRecipePlanInput } from "@plume/core/src/public.js";
-import { buildExportManifest, sha256, stableJson, type ExportManifest, type ExportManifestFile } from "./manifest.js";
+// eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
+import {
+  createExportPackagePlan,
+  type ExportPackagePlan,
+  type ExportRecipePlanInput,
+} from "../../../core/src/public.js";
+import {
+  buildExportManifest,
+  sha256,
+  stableJson,
+  type ExportManifest,
+  type ExportManifestFile,
+} from "./manifest.js";
 
-export type PackageFileRole = "CREATIVE" | "MANIFEST" | "VALIDATION_REPORT" | "COPY_CSV" | "PACKAGE";
+export type PackageFileRole =
+  | "CREATIVE"
+  | "MANIFEST"
+  | "VALIDATION_REPORT"
+  | "COPY_CSV"
+  | "PACKAGE";
 
 export interface ExportPackageItemInput {
   readonly creativeVersionId: string;
@@ -53,7 +69,10 @@ export function sanitizeFilename(value: string, maxLength = 120): string {
 }
 
 export function sanitizeRelativePath(value: string, maxSegmentLength = 120): string {
-  const segments = value.replaceAll("\\", "/").split("/").filter((segment) => segment !== "" && segment !== "." && segment !== "..");
+  const segments = value
+    .replaceAll("\\", "/")
+    .split("/")
+    .filter((segment) => segment !== "" && segment !== "." && segment !== "..");
   const safe = segments.map((segment) => sanitizeFilename(segment, maxSegmentLength));
   return (safe.length > 0 ? safe : ["file"]).join("/");
 }
@@ -86,7 +105,11 @@ function asBytes(value: string | Uint8Array): Uint8Array {
   return typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
 }
 
-function manifestFile(input: { readonly relativePath: string; readonly role: PackageFileRole; readonly bytes: Uint8Array }): BuiltPackageFile {
+function manifestFile(input: {
+  readonly relativePath: string;
+  readonly role: PackageFileRole;
+  readonly bytes: Uint8Array;
+}): BuiltPackageFile {
   const checksumSha256 = sha256(input.bytes);
   return {
     fileId: deterministicFileId(input.relativePath, checksumSha256),
@@ -99,8 +122,11 @@ function manifestFile(input: { readonly relativePath: string; readonly role: Pac
 }
 
 function csvReport(items: readonly BuiltPackageFile[]): string {
-  const header = "file_name,channel,product,placement,format_profile,validation_result,bytes,checksum_sha256";
-  const rows = items.filter((item) => item.role === "CREATIVE").map((item) => `${csvCell(item.relativePath)},,,,,PASS,${item.bytes},${item.checksumSha256}`);
+  const header =
+    "file_name,channel,product,placement,format_profile,validation_result,bytes,checksum_sha256";
+  const rows = items
+    .filter((item) => item.role === "CREATIVE")
+    .map((item) => `${csvCell(item.relativePath)},,,,,PASS,${item.bytes},${item.checksumSha256}`);
   return `${[header, ...rows].join("\n")}\n`;
 }
 
@@ -122,78 +148,188 @@ function u16(value: number): Uint8Array {
 }
 
 function u32(value: number): Uint8Array {
-  return Uint8Array.from([value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff]);
+  return Uint8Array.from([
+    value & 0xff,
+    (value >>> 8) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 24) & 0xff,
+  ]);
 }
 
 function concat(parts: readonly Uint8Array[]): Uint8Array {
   const result = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0));
   let offset = 0;
-  for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.byteLength;
+  }
   return result;
 }
 
-interface ZipCentralEntry { readonly name: Uint8Array; readonly bytes: Uint8Array; readonly crc: number; readonly offset: number }
+interface ZipCentralEntry {
+  readonly name: Uint8Array;
+  readonly bytes: Uint8Array;
+  readonly crc: number;
+  readonly offset: number;
+}
 
 /** Creates a deterministic UTF-8 ZIP using stored entries and a fixed DOS timestamp. */
-export function createDeterministicZip(files: readonly Pick<BuiltPackageFile, "relativePath" | "bytesValue">[]): Uint8Array {
+export function createDeterministicZip(
+  files: readonly Pick<BuiltPackageFile, "relativePath" | "bytesValue">[],
+): Uint8Array {
   const locals: Uint8Array[] = [];
   const centralEntries: ZipCentralEntry[] = [];
   let offset = 0;
-  for (const file of [...files].sort((left, right) => left.relativePath.localeCompare(right.relativePath))) {
+  for (const file of [...files].sort((left, right) =>
+    left.relativePath.localeCompare(right.relativePath),
+  )) {
     const name = new TextEncoder().encode(file.relativePath);
     const bytes = new Uint8Array(file.bytesValue);
     const crc = crc32(bytes);
-    const local = concat([Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(crc), u32(bytes.byteLength), u32(bytes.byteLength), u16(name.byteLength), u16(0), name, bytes]);
+    const local = concat([
+      Uint8Array.from([0x50, 0x4b, 0x03, 0x04]),
+      u16(20),
+      u16(0x0800),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(bytes.byteLength),
+      u32(bytes.byteLength),
+      u16(name.byteLength),
+      u16(0),
+      name,
+      bytes,
+    ]);
     locals.push(local);
     centralEntries.push({ name, bytes, crc, offset });
     offset += local.byteLength;
   }
   const centralOffset = offset;
-  const central = centralEntries.map((entry) => concat([Uint8Array.from([0x50, 0x4b, 0x01, 0x02]), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(entry.crc), u32(entry.bytes.byteLength), u32(entry.bytes.byteLength), u16(entry.name.byteLength), u16(0), u16(0), u16(0), u16(0), u32(0), u32(entry.offset), entry.name]));
+  const central = centralEntries.map((entry) =>
+    concat([
+      Uint8Array.from([0x50, 0x4b, 0x01, 0x02]),
+      u16(20),
+      u16(20),
+      u16(0x0800),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(entry.crc),
+      u32(entry.bytes.byteLength),
+      u32(entry.bytes.byteLength),
+      u16(entry.name.byteLength),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(0),
+      u32(entry.offset),
+      entry.name,
+    ]),
+  );
   const centralBytes = concat(central);
-  const end = concat([Uint8Array.from([0x50, 0x4b, 0x05, 0x06]), u16(0), u16(0), u16(centralEntries.length), u16(centralEntries.length), u32(centralBytes.byteLength), u32(centralOffset), u16(0)]);
+  const end = concat([
+    Uint8Array.from([0x50, 0x4b, 0x05, 0x06]),
+    u16(0),
+    u16(0),
+    u16(centralEntries.length),
+    u16(centralEntries.length),
+    u32(centralBytes.byteLength),
+    u32(centralOffset),
+    u16(0),
+  ]);
   return concat([...locals, centralBytes, end]);
 }
 
 export function buildExportPackage(input: BuildExportPackageInput): BuildExportPackageResult {
   const plan = createExportPackagePlan({ recipe: input.recipe, itemCount: input.items.length });
   const used = new Set<string>();
-  const creativeFiles = input.items.map((item) => manifestFile({ relativePath: collisionSafePath(item.relativePath, used), role: "CREATIVE", bytes: asBytes(item.bytes) }));
+  const creativeFiles = input.items.map((item) =>
+    manifestFile({
+      relativePath: collisionSafePath(item.relativePath, used),
+      role: "CREATIVE",
+      bytes: asBytes(item.bytes),
+    }),
+  );
   const files: BuiltPackageFile[] = [...creativeFiles];
   if (plan.includeCopyCsv) {
-    const copy = input.items.map((item) => item.copyCsv).filter((value): value is string => value !== undefined).join("\n");
-    files.push(manifestFile({ relativePath: collisionSafePath("copy.csv", used), role: "COPY_CSV", bytes: asBytes(copy ? `${copy}\n` : "copy_key,copy_value\n") }));
+    const copy = input.items
+      .map((item) => item.copyCsv)
+      .filter((value): value is string => value !== undefined)
+      .join("\n");
+    files.push(
+      manifestFile({
+        relativePath: collisionSafePath("copy.csv", used),
+        role: "COPY_CSV",
+        bytes: asBytes(copy ? `${copy}\n` : "copy_key,copy_value\n"),
+      }),
+    );
   }
-  if (plan.includeValidationReport) files.push(manifestFile({ relativePath: collisionSafePath("validation-report.csv", used), role: "VALIDATION_REPORT", bytes: asBytes(csvReport(creativeFiles)) }));
+  if (plan.includeValidationReport)
+    files.push(
+      manifestFile({
+        relativePath: collisionSafePath("validation-report.csv", used),
+        role: "VALIDATION_REPORT",
+        bytes: asBytes(csvReport(creativeFiles)),
+      }),
+    );
 
   const manifestFiles = files.map(({ bytesValue: _bytesValue, ...file }) => file);
-  const workspaceField = input.workspaceId !== undefined
-    ? { workspaceId: input.workspaceId }
-    : input.manifest?.workspaceId !== undefined
-      ? { workspaceId: input.manifest.workspaceId }
-      : {};
-  const campaignField = input.campaignId !== undefined
-    ? { campaignId: input.campaignId }
-    : input.manifest?.campaignId !== undefined
-      ? { campaignId: input.manifest.campaignId }
-      : {};
+  const workspaceField =
+    input.workspaceId !== undefined
+      ? { workspaceId: input.workspaceId }
+      : input.manifest?.workspaceId !== undefined
+        ? { workspaceId: input.manifest.workspaceId }
+        : {};
+  const campaignField =
+    input.campaignId !== undefined
+      ? { campaignId: input.campaignId }
+      : input.manifest?.campaignId !== undefined
+        ? { campaignId: input.manifest.campaignId }
+        : {};
   const manifest = buildExportManifest({
     ...(input.manifest ?? {}),
     ...workspaceField,
     ...campaignField,
-    exportRecipe: input.manifest?.exportRecipe ?? { id: plan.recipeId, packageType: plan.packageType },
+    exportRecipe: input.manifest?.exportRecipe ?? {
+      id: plan.recipeId,
+      packageType: plan.packageType,
+    },
     exportJobId: input.exportJobId,
     ...(input.requestedBy === undefined ? {} : { requestedBy: input.requestedBy }),
     exportedAt: input.exportedAt ?? "1970-01-01T00:00:00.000Z",
     files: manifestFiles,
   });
   const manifestBytes = asBytes(`${stableJson(manifest)}\n`);
-  if (plan.includeManifest) files.push(manifestFile({ relativePath: collisionSafePath("manifest.json", used), role: "MANIFEST", bytes: manifestBytes }));
+  if (plan.includeManifest)
+    files.push(
+      manifestFile({
+        relativePath: collisionSafePath("manifest.json", used),
+        role: "MANIFEST",
+        bytes: manifestBytes,
+      }),
+    );
   const zipBytes = createDeterministicZip(files);
-  if (plan.maxPackageBytes !== null && zipBytes.byteLength > plan.maxPackageBytes) throw new Error(`Export package exceeds recipe limit of ${plan.maxPackageBytes} bytes`);
-  const packageFile = manifestFile({ relativePath: `${input.exportJobId}.zip`, role: "PACKAGE", bytes: zipBytes });
+  if (plan.maxPackageBytes !== null && zipBytes.byteLength > plan.maxPackageBytes)
+    throw new Error(`Export package exceeds recipe limit of ${plan.maxPackageBytes} bytes`);
+  const packageFile = manifestFile({
+    relativePath: `${input.exportJobId}.zip`,
+    role: "PACKAGE",
+    bytes: zipBytes,
+  });
   const resultFiles = [...files, packageFile].map(({ bytesValue: _bytesValue, ...file }) => file);
-  return { exportJobId: input.exportJobId, status: "COMPLETED", package: packageFile, files: Object.freeze(resultFiles), manifest, zipBytes, checksumSha256: packageFile.checksumSha256, warnings: [], plan };
+  return {
+    exportJobId: input.exportJobId,
+    status: "COMPLETED",
+    package: packageFile,
+    files: Object.freeze(resultFiles),
+    manifest,
+    zipBytes,
+    checksumSha256: packageFile.checksumSha256,
+    warnings: [],
+    plan,
+  };
 }
 
 export const buildPackage = buildExportPackage;

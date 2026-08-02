@@ -1,4 +1,7 @@
-import { COMMAND_QUEUE_ROUTES, type AsyncCommand } from "../../../packages/core/src/async/queue-routing.js";
+import {
+  COMMAND_QUEUE_ROUTES,
+  type AsyncCommand,
+} from "../../../packages/core/src/async/queue-routing.js";
 import type { CommandEnvelope } from "../../../packages/core/src/async/message-envelope.js";
 
 export type JacomoExternalCommand = "creative.generate";
@@ -29,6 +32,47 @@ export interface CreativeGeneratePayload {
   readonly formatProfileIds: readonly string[];
   readonly variantCountPerProduct: number;
   readonly generationMode?: "MOCK_AI";
+}
+
+export interface AiLiveSmokePayload {
+  readonly agentCode: string;
+  /** Immutable budget epoch for this durable workflow attempt. */
+  readonly budgetEpochId: string;
+  /** Durable workflow scope. v1 payloads derive this from the root job id. */
+  readonly smokeRunId?: string;
+  /** Maximum provider calls for this workflow, including initial, retry, and repair. */
+  readonly workflowCallBudget?: number;
+  /** @deprecated v1 compatibility alias; never used as a process-local counter. */
+  readonly requestBudget?: number;
+  /** Diagnostic workflows may explicitly disable provider retry and schema repair. */
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
+  readonly workspaceId?: string;
+}
+
+export interface AiLiveSmokeVerificationPayload {
+  readonly verificationRunId: string;
+  readonly parentWorkflowJobId: string;
+  readonly agentCode: string;
+  readonly workspaceId: string;
+  readonly smokeRunId: string;
+  readonly budgetEpochId: string;
+  readonly workflowCallBudget: number;
+  /** Reuse a previously attested provider canary when the gateway stack is unchanged. */
+  readonly canaryVerificationRunId?: string;
+  readonly retryEnabled?: boolean;
+  readonly repairEnabled?: boolean;
+  readonly verificationOnly: true;
+}
+
+export interface AiLiveSmokeCanaryPayload {
+  readonly verificationRunId: string;
+  readonly parentWorkflowJobId: string;
+  readonly workspaceId: string;
+  readonly smokeRunId: string;
+  readonly budgetEpochId: string;
+  readonly workflowCallBudget: number;
+  readonly canary: true;
 }
 
 export interface CreativeRenderPayload {
@@ -63,6 +107,9 @@ export interface ExportPackagePayload {
 
 export type AsyncCommandPayload =
   | CreativeGeneratePayload
+  | AiLiveSmokePayload
+  | AiLiveSmokeVerificationPayload
+  | AiLiveSmokeCanaryPayload
   | CreativeRenderPayload
   | ValidationRunPayload
   | ExportPackagePayload
@@ -95,7 +142,8 @@ const isStringArray = (value: unknown): value is readonly string[] =>
 const isPositiveInteger = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value > 0;
 const isUuidLike = (value: unknown): value is string =>
-  typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 
 function validateCreativeGenerate(payload: unknown): payload is CreativeGeneratePayload {
   if (!isRecord(payload)) return false;
@@ -110,11 +158,81 @@ function validateCreativeGenerate(payload: unknown): payload is CreativeGenerate
   );
 }
 
+const LIVE_SMOKE_AGENT_CODES = new Set([
+  "CAMPAIGN_ANALYST",
+  "PRODUCT_MATCHER",
+  "ASSET_CURATOR",
+  "COPY_GENERATOR",
+  "LAYOUT_PLANNER",
+  "NATURAL_LANGUAGE_EDITOR",
+  "AI_POLICY_REVIEWER",
+  "EXPORT_ASSISTANT",
+]);
+
+function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
+  return (
+    isRecord(payload) &&
+    isString(payload.agentCode) &&
+    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isUuidLike(payload.budgetEpochId) &&
+    (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
+    (payload.workflowCallBudget === undefined ||
+      (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
+    (payload.requestBudget === undefined ||
+      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20)) &&
+    (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
+    (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean")
+  );
+}
+
+function validateAiLiveSmokeVerification(
+  payload: unknown,
+): payload is AiLiveSmokeVerificationPayload {
+  return (
+    isRecord(payload) &&
+    isUuidLike(payload.verificationRunId) &&
+    isUuidLike(payload.parentWorkflowJobId) &&
+    isString(payload.agentCode) &&
+    LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isUuidLike(payload.workspaceId) &&
+    isUuidLike(payload.smokeRunId) &&
+    isUuidLike(payload.budgetEpochId) &&
+    isPositiveInteger(payload.workflowCallBudget) &&
+    payload.workflowCallBudget <= 20 &&
+    (payload.canaryVerificationRunId === undefined ||
+      isUuidLike(payload.canaryVerificationRunId)) &&
+    (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
+    (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean") &&
+    payload.verificationOnly === true
+  );
+}
+
+function validateAiLiveSmokeCanary(payload: unknown): payload is AiLiveSmokeCanaryPayload {
+  return (
+    isRecord(payload) &&
+    isUuidLike(payload.verificationRunId) &&
+    isUuidLike(payload.parentWorkflowJobId) &&
+    isUuidLike(payload.workspaceId) &&
+    isUuidLike(payload.smokeRunId) &&
+    isUuidLike(payload.budgetEpochId) &&
+    isPositiveInteger(payload.workflowCallBudget) &&
+    payload.workflowCallBudget <= 7 &&
+    payload.canary === true
+  );
+}
+
 function validateRender(payload: unknown): payload is CreativeRenderPayload {
-  if (!isRecord(payload) || !isString(payload.creativeVersionId) || !isRecord(payload.creativeDocument)) return false;
+  if (
+    !isRecord(payload) ||
+    !isString(payload.creativeVersionId) ||
+    !isRecord(payload.creativeDocument)
+  )
+    return false;
   const profile = payload.outputProfile;
   return (
-    (payload.purpose === "PREVIEW" || payload.purpose === "VALIDATION" || payload.purpose === "FINAL_EXPORT") &&
+    (payload.purpose === "PREVIEW" ||
+      payload.purpose === "VALIDATION" ||
+      payload.purpose === "FINAL_EXPORT") &&
     isRecord(profile) &&
     profile.mimeType === "image/png" &&
     isPositiveInteger(profile.width) &&
@@ -152,26 +270,38 @@ const definitions: Record<AsyncCommand, AsyncCommandDefinition> = Object.fromEnt
     const validation =
       typedCommand === "creative.generate"
         ? validateCreativeGenerate
-        : typedCommand === "creative.render" || typedCommand === "creative.preview.render" || typedCommand === "validation.render" || typedCommand === "export.render"
-          ? validateRender
-          : typedCommand === "validation.run"
-            ? validateValidation
-            : typedCommand === "export.render_and_package"
-              ? validateExport
-              : genericPayload;
+        : typedCommand === "ai.live_smoke"
+          ? validateAiLiveSmoke
+          : typedCommand === "ai.live_smoke.verify"
+            ? validateAiLiveSmokeVerification
+            : typedCommand === "ai.live_smoke.canary"
+              ? validateAiLiveSmokeCanary
+              : typedCommand === "creative.render" ||
+                  typedCommand === "creative.preview.render" ||
+                  typedCommand === "validation.render" ||
+                  typedCommand === "export.render"
+                ? validateRender
+                : typedCommand === "validation.run"
+                  ? validateValidation
+                  : typedCommand === "export.render_and_package"
+                    ? validateExport
+                    : genericPayload;
     const activation = JACOMO_EXTERNAL_COMMANDS.includes(command as JacomoExternalCommand)
       ? "external-entry"
       : JACOMO_INTERNAL_COMMANDS.includes(command as JacomoInternalCommand)
         ? "internal-step"
         : "optional";
-    return [typedCommand, {
-      command: typedCommand,
-      queue: COMMAND_QUEUE_ROUTES[typedCommand],
-      schemaVersion: 1,
-      payloadSchemaId: `plume.async.${typedCommand}.v1`,
-      activation,
-      validatePayload: validation,
-    } satisfies AsyncCommandDefinition];
+    return [
+      typedCommand,
+      {
+        command: typedCommand,
+        queue: COMMAND_QUEUE_ROUTES[typedCommand],
+        schemaVersion: 1,
+        payloadSchemaId: `plume.async.${typedCommand}.v1`,
+        activation,
+        validatePayload: validation,
+      } satisfies AsyncCommandDefinition,
+    ];
   }),
 ) as Record<AsyncCommand, AsyncCommandDefinition>;
 
@@ -185,16 +315,24 @@ export function getAsyncCommandDefinition(command: string): AsyncCommandDefiniti
 
 export function validateCommandEnvelope(value: unknown): CommandEnvelope<AsyncCommandPayload> {
   if (!isRecord(value)) throw new AsyncContractError("ENVELOPE_MUST_BE_OBJECT");
-  if (!isString(value.messageId) || !isUuidLike(value.messageId)) throw new AsyncContractError("MESSAGE_ID_INVALID");
-  if (!isPositiveInteger(value.schemaVersion)) throw new AsyncContractError("SCHEMA_VERSION_INVALID");
-  if (!isString(value.workspaceId) || !isUuidLike(value.workspaceId)) throw new AsyncContractError("WORKSPACE_ID_INVALID");
+  if (!isString(value.messageId) || !isUuidLike(value.messageId))
+    throw new AsyncContractError("MESSAGE_ID_INVALID");
+  if (!isPositiveInteger(value.schemaVersion))
+    throw new AsyncContractError("SCHEMA_VERSION_INVALID");
+  if (!isString(value.workspaceId) || !isUuidLike(value.workspaceId))
+    throw new AsyncContractError("WORKSPACE_ID_INVALID");
   if (!isString(value.correlationId)) throw new AsyncContractError("CORRELATION_ID_INVALID");
-  if (!isString(value.jobId) || !isUuidLike(value.jobId)) throw new AsyncContractError("JOB_ID_INVALID");
-  if (value.jobItemId !== undefined && (!isString(value.jobItemId) || !isUuidLike(value.jobItemId))) throw new AsyncContractError("JOB_ITEM_ID_INVALID");
-  if (!isString(value.createdAt) || Number.isNaN(Date.parse(value.createdAt))) throw new AsyncContractError("CREATED_AT_INVALID");
+  if (!isString(value.jobId) || !isUuidLike(value.jobId))
+    throw new AsyncContractError("JOB_ID_INVALID");
+  if (value.jobItemId !== undefined && (!isString(value.jobItemId) || !isUuidLike(value.jobItemId)))
+    throw new AsyncContractError("JOB_ITEM_ID_INVALID");
+  if (!isString(value.createdAt) || Number.isNaN(Date.parse(value.createdAt)))
+    throw new AsyncContractError("CREATED_AT_INVALID");
   if (!isString(value.command)) throw new AsyncContractError("COMMAND_INVALID");
   const definition = getAsyncCommandDefinition(value.command);
-  if (value.schemaVersion !== definition.schemaVersion) throw new AsyncContractError("SCHEMA_VERSION_UNSUPPORTED");
-  if (!definition.validatePayload(value.payload)) throw new AsyncContractError(`PAYLOAD_INVALID:${value.command}`);
+  if (value.schemaVersion !== definition.schemaVersion)
+    throw new AsyncContractError("SCHEMA_VERSION_UNSUPPORTED");
+  if (!definition.validatePayload(value.payload))
+    throw new AsyncContractError(`PAYLOAD_INVALID:${value.command}`);
   return Object.freeze(value as unknown as CommandEnvelope<AsyncCommandPayload>);
 }
