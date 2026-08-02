@@ -51,6 +51,12 @@ export interface LiveSmokeProviderCanaryResult {
 
 export interface LiveSmokeLifecycleStore {
   record(input: LiveSmokeReservationLifecycleInput): Promise<{ readonly inserted: boolean }>;
+  markProviderRequestAttempt(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }): Promise<{ readonly updated: boolean }>;
   recordReconciliation(
     input: LiveSmokeBudgetReconciliationInput,
   ): Promise<{ readonly inserted: boolean }>;
@@ -104,6 +110,26 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
       RETURNING event_id
     `;
     return { inserted: rows.length > 0 };
+  }
+
+  async markProviderRequestAttempt(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }) {
+    const rows = await this.sql`
+      UPDATE live_smoke_reservation_lifecycle_event
+      SET provider_request_sent = true,
+          billable_request_count = 1
+      WHERE workspace_id = ${input.workspaceId}
+        AND smoke_run_id = ${input.smokeRunId}
+        AND budget_epoch_id = ${input.budgetEpochId}
+        AND reservation_key = ${input.reservationKey}
+        AND lifecycle_state = 'DISPATCH_STARTED'
+        AND provider_request_sent = false
+    `;
+    return { updated: rows.count === 1 };
   }
 
   async recordReconciliation(input: LiveSmokeBudgetReconciliationInput) {

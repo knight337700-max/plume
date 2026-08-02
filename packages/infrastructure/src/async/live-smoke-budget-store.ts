@@ -10,6 +10,9 @@ export interface LiveSmokeBudgetReservationInput {
   readonly providerMode: LiveSmokeProviderMode;
   readonly units: number;
   readonly limit: number;
+  readonly reservedMicroUsd?: number;
+  readonly model?: string;
+  readonly pricingVersion?: string;
 }
 
 export interface LiveSmokeBudgetReservation {
@@ -41,6 +44,30 @@ export interface LiveSmokeBudgetEpoch {
 export interface LiveSmokeBudgetStore {
   createEpoch(input: LiveSmokeBudgetEpochInput): Promise<LiveSmokeBudgetEpoch>;
   reserve(input: LiveSmokeBudgetReservationInput): Promise<LiveSmokeBudgetReservation>;
+  markDispatchStarted(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }): Promise<{ readonly marked: boolean; readonly duplicate: boolean }>;
+  settle(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+    readonly providerRequestIdHash: string;
+    readonly model: string;
+    readonly pricingVersion: string;
+    readonly inputUnits: number;
+    readonly outputUnits: number;
+    readonly settledMicroUsd: number;
+  }): Promise<{ readonly settled: boolean; readonly duplicate: boolean }>;
+  markUnknownBillable(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }): Promise<{ readonly marked: boolean; readonly duplicate: boolean }>;
   releasePreDispatch?(input: {
     readonly workspaceId: string;
     readonly smokeRunId: string;
@@ -63,6 +90,11 @@ function assertReservationInput(input: LiveSmokeBudgetReservationInput): void {
     throw new Error("LIVE_SMOKE_RESERVATION_KEY_INVALID");
   if (input.providerMode !== "mock" && input.providerMode !== "live")
     throw new Error("LIVE_SMOKE_PROVIDER_MODE_INVALID");
+  if (
+    input.reservedMicroUsd !== undefined &&
+    (!Number.isSafeInteger(input.reservedMicroUsd) || input.reservedMicroUsd < 0)
+  )
+    throw new Error("LIVE_SMOKE_RESERVED_COST_INVALID");
 }
 
 interface EpochRow {
@@ -143,6 +175,24 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
       if (!ledger) throw new Error("LIVE_SMOKE_BUDGET_EPOCH_NOT_FOUND");
       if (ledger.call_limit !== input.limit)
         throw new Error("LIVE_SMOKE_BUDGET_EPOCH_LIMIT_MISMATCH");
+
+      const existing = await transaction<{ units: number }[]>`
+        SELECT units
+        FROM live_smoke_budget_epoch_reservation
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+      `;
+      if (existing.length > 0) {
+        return {
+          allowed: true,
+          duplicate: true,
+          used: ledger.used_units,
+          remaining: Math.max(0, ledger.call_limit - ledger.used_units),
+        };
+      }
+
       if (ledger.status !== "OPEN") {
         return {
           allowed: false,
@@ -162,12 +212,7 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
         RETURNING units
       `;
       if (inserted.length === 0) {
-        return {
-          allowed: true,
-          duplicate: true,
-          used: ledger.used_units,
-          remaining: ledger.call_limit - ledger.used_units,
-        };
+        throw new Error("LIVE_SMOKE_RESERVATION_CONFLICT");
       }
 
       const updated = await transaction<EpochRow[]>`
@@ -199,12 +244,148 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
           remaining: Math.max(0, ledger.call_limit - ledger.used_units),
         };
       }
+      await transaction`
+        INSERT INTO live_smoke_spend_ledger
+          (workspace_id, smoke_run_id, budget_epoch_id, reservation_key,
+           billing_period, state, reserved_micro_usd, model, pricing_version)
+        VALUES
+          (${input.workspaceId}, ${input.smokeRunId}, ${input.budgetEpochId},
+           ${input.reservationKey}, date_trunc('month', now())::date, 'RESERVED',
+           ${input.reservedMicroUsd ?? 0}, ${input.model ?? "unspecified"},
+           ${input.pricingVersion ?? "unspecified"})
+      `;
       return {
         allowed: true,
         duplicate: false,
         used: updated[0].used_units,
         remaining: updated[0].call_limit - updated[0].used_units,
       };
+    });
+  }
+
+  async markDispatchStarted(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }) {
+    return this.sql.begin(async (transaction) => {
+      const rows = await transaction<{ state: string }[]>`
+        SELECT state
+        FROM live_smoke_spend_ledger
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+        FOR UPDATE
+      `;
+      const row = rows[0];
+      if (!row) throw new Error("LIVE_SMOKE_SPEND_RESERVATION_NOT_FOUND");
+      if (row.state !== "RESERVED") return { marked: false, duplicate: true };
+      const updated = await transaction`
+        UPDATE live_smoke_spend_ledger
+        SET state = 'DISPATCH_STARTED', updated_at = now()
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+          AND state = 'RESERVED'
+      `;
+      return { marked: updated.count === 1, duplicate: false };
+    });
+  }
+
+  async settle(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+    readonly providerRequestIdHash: string;
+    readonly model: string;
+    readonly pricingVersion: string;
+    readonly inputUnits: number;
+    readonly outputUnits: number;
+    readonly settledMicroUsd: number;
+  }) {
+    if (!/^[a-f0-9]{64}$/u.test(input.providerRequestIdHash))
+      throw new Error("LIVE_SMOKE_PROVIDER_REQUEST_HASH_INVALID");
+    if (
+      !Number.isSafeInteger(input.inputUnits) ||
+      input.inputUnits < 0 ||
+      !Number.isSafeInteger(input.outputUnits) ||
+      input.outputUnits < 0 ||
+      !Number.isSafeInteger(input.settledMicroUsd) ||
+      input.settledMicroUsd < 0
+    )
+      throw new Error("LIVE_SMOKE_SETTLEMENT_USAGE_INVALID");
+    return this.sql.begin(async (transaction) => {
+      const rows = await transaction<{ state: string; reserved_micro_usd: number }[]>`
+        SELECT state, reserved_micro_usd
+        FROM live_smoke_spend_ledger
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+        FOR UPDATE
+      `;
+      const row = rows[0];
+      if (!row) throw new Error("LIVE_SMOKE_SPEND_RESERVATION_NOT_FOUND");
+      if (row.state === "SETTLED") return { settled: false, duplicate: true };
+      if (row.state === "UNKNOWN_BILLABLE" || row.state === "RELEASED")
+        throw new Error("LIVE_SMOKE_SETTLEMENT_STATE_INVALID");
+      if (input.settledMicroUsd > row.reserved_micro_usd)
+        throw new Error("LIVE_SMOKE_SETTLEMENT_EXCEEDS_RESERVATION");
+      const updated = await transaction`
+        UPDATE live_smoke_spend_ledger
+        SET state = 'SETTLED',
+            settled_micro_usd = ${input.settledMicroUsd},
+            provider_request_id_hash = ${input.providerRequestIdHash},
+            model = ${input.model},
+            pricing_version = ${input.pricingVersion},
+            input_units = ${input.inputUnits},
+            output_units = ${input.outputUnits},
+            updated_at = now()
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+          AND state IN ('RESERVED', 'DISPATCH_STARTED')
+      `;
+      return { settled: updated.count === 1, duplicate: false };
+    });
+  }
+
+  async markUnknownBillable(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }) {
+    return this.sql.begin(async (transaction) => {
+      const rows = await transaction<{ state: string }[]>`
+        SELECT state
+        FROM live_smoke_spend_ledger
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+        FOR UPDATE
+      `;
+      const row = rows[0];
+      if (!row) throw new Error("LIVE_SMOKE_SPEND_RESERVATION_NOT_FOUND");
+      if (row.state === "UNKNOWN_BILLABLE") return { marked: false, duplicate: true };
+      if (row.state === "SETTLED" || row.state === "RELEASED")
+        throw new Error("LIVE_SMOKE_UNKNOWN_STATE_INVALID");
+      const updated = await transaction`
+        UPDATE live_smoke_spend_ledger
+        SET state = 'UNKNOWN_BILLABLE', updated_at = now()
+        WHERE workspace_id = ${input.workspaceId}
+          AND smoke_run_id = ${input.smokeRunId}
+          AND budget_epoch_id = ${input.budgetEpochId}
+          AND reservation_key = ${input.reservationKey}
+          AND state IN ('RESERVED', 'DISPATCH_STARTED')
+      `;
+      return { marked: updated.count === 1, duplicate: false };
     });
   }
 
@@ -235,6 +416,15 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
       const epoch = rows[0];
       if (!epoch) throw new Error("LIVE_SMOKE_BUDGET_EPOCH_NOT_FOUND");
       if (removed.length > 0) {
+        await transaction`
+          UPDATE live_smoke_spend_ledger
+          SET state = 'RELEASED', updated_at = now()
+          WHERE workspace_id = ${input.workspaceId}
+            AND smoke_run_id = ${input.smokeRunId}
+            AND budget_epoch_id = ${input.budgetEpochId}
+            AND reservation_key = ${input.reservationKey}
+            AND state = 'RESERVED'
+        `;
         const updated = await transaction<EpochRow[]>`
           UPDATE live_smoke_budget_epoch
           SET used_units = used_units - ${removed[0]!.units},

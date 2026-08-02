@@ -5,6 +5,7 @@ import {
   promptRegistry,
   type AgentCode,
 } from "../../../../../packages/core/src/agents/prompt-registry.js";
+import { modelPolicyRegistry } from "../../../../../packages/core/src/agents/model-policy-registry.js";
 import {
   createAgentOrchestrator,
   type AgentProviderGateway,
@@ -25,6 +26,11 @@ import type {
   LiveSmokeBudgetStore,
   LiveSmokeProviderMode,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import {
+  calculateLiveSmokeCostMicroUsd,
+  calculateLiveSmokeReservationMicroUsd,
+  type LiveSmokePricingPolicy,
+} from "../../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 import type { LiveSmokeCoverageStore } from "../../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import type {
   LiveSmokeLifecycleStore,
@@ -147,6 +153,7 @@ export function createLiveSmokeHandler(
   budgetStore: LiveSmokeBudgetStore,
   options: {
     readonly providerMode?: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
     readonly lifecycleStore?: LiveSmokeLifecycleStore;
     readonly validationEvidenceStore?: LiveSmokeValidationEvidenceStore;
     readonly onCoverageWrite?: (
@@ -177,6 +184,7 @@ export function createLiveSmokeHandler(
     const verificationRunId = (payload as { readonly verificationRunId?: string })
       .verificationRunId;
     const prompt = promptRegistry.resolve(payload.agentCode);
+    const modelPolicy = modelPolicyRegistry.forAgent(payload.agentCode);
     const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
     if (!schema) throw new Error(`AI_LIVE_SMOKE_SCHEMA_NOT_FOUND:${prompt.outputSchemaId}`);
     const workflowCallBudget =
@@ -273,6 +281,7 @@ export function createLiveSmokeHandler(
       repairEnabled,
       beforeProviderCall: async (kind) => {
         if (providerMode === "mock") return;
+        if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
         const key = reservationKey(kind);
         let reserved = false;
         let dispatchStarted = false;
@@ -285,6 +294,13 @@ export function createLiveSmokeHandler(
             providerMode,
             units: 1,
             limit: workflowCallBudget,
+            reservedMicroUsd: calculateLiveSmokeReservationMicroUsd(
+              options.pricingPolicy,
+              modelPolicy.maxInputUnits,
+              modelPolicy.maxOutputUnits,
+            ),
+            model: options.pricingPolicy.model,
+            pricingVersion: options.pricingPolicy.pricingVersion,
           });
           if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
           if (reservation.duplicate)
@@ -298,20 +314,32 @@ export function createLiveSmokeHandler(
             agentCode: payload.agentCode,
             providerMode,
           } as const;
-          await options.lifecycleStore?.record(
+          const reservedEvent = await options.lifecycleStore?.record(
             lifecycleInput(base, "RESERVED", {
               providerRequestSent: false,
               providerResponseReceived: false,
               billableRequestCount: 0,
             }),
           );
-          await options.lifecycleStore?.record(
+          if (reservedEvent && !reservedEvent.inserted)
+            throw budgetError("LIVE_SMOKE_RESERVED_LIFECYCLE_WRITE_FAILED");
+          const dispatchEvent = await options.lifecycleStore?.record(
             lifecycleInput(base, "DISPATCH_STARTED", {
-              providerRequestSent: true,
+              providerRequestSent: false,
               providerResponseReceived: false,
-              billableRequestCount: 1,
+              billableRequestCount: 0,
             }),
           );
+          if (dispatchEvent && !dispatchEvent.inserted)
+            throw budgetError("LIVE_SMOKE_DISPATCH_LIFECYCLE_WRITE_FAILED");
+          const dispatch = await budgetStore.markDispatchStarted({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: key,
+          });
+          if (!dispatch.marked && dispatch.duplicate)
+            throw budgetError("LIVE_SMOKE_DISPATCH_ALREADY_STARTED");
           dispatchStarted = true;
         } catch (error) {
           if (reserved && !dispatchStarted) {
@@ -345,6 +373,9 @@ export function createLiveSmokeHandler(
       },
       afterProviderCall: async (kind, providerResult) => {
         if (providerMode !== "live") return;
+        const providerEvidence = providerResult.evidence;
+        const requestAttempted = providerEvidence?.requestAttempted === true;
+        const responseReceived = providerEvidence?.responseReceived === true;
         const providerFacts = {
           workspaceId,
           smokeRunId,
@@ -368,16 +399,51 @@ export function createLiveSmokeHandler(
         } as const;
         await options.lifecycleStore?.record(
           lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
-            providerRequestSent: true,
-            providerResponseReceived: true,
-            billableRequestCount: 1,
+            providerRequestSent: requestAttempted,
+            providerResponseReceived: responseReceived,
+            billableRequestCount: requestAttempted ? 1 : 0,
           }),
         );
+        const requestIdHash = evidenceRequestHash(providerResult);
+        const usage = providerResult.usage;
+        const unknownBillable = !requestAttempted || !responseReceived || !requestIdHash || !usage;
         await recordEvidence({
           evidenceStage: "PROVIDER_RESPONSE",
           callKind: kind,
           providerResult,
         });
+        if (unknownBillable) {
+          await budgetStore.markUnknownBillable({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: reservationKey(kind),
+          });
+          throw budgetError("LIVE_SMOKE_UNKNOWN_BILLABLE");
+        } else {
+          try {
+            await budgetStore.settle({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: reservationKey(kind),
+              providerRequestIdHash: requestIdHash,
+              model: evidenceModel(providerResult) ?? options.pricingPolicy?.model ?? "",
+              pricingVersion: options.pricingPolicy?.pricingVersion ?? "",
+              inputUnits: usage.inputUnits,
+              outputUnits: usage.outputUnits,
+              settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy!, usage),
+            });
+          } catch {
+            await budgetStore.markUnknownBillable({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: reservationKey(kind),
+            });
+            throw budgetError("LIVE_SMOKE_UNKNOWN_BILLABLE");
+          }
+        }
       },
       afterProviderValidation: async (kind, providerResult, validation) => {
         lastCallEvidence = {
@@ -407,6 +473,15 @@ export function createLiveSmokeHandler(
       outputSchema: schema as unknown as JsonSchema,
       timeoutSeconds: 60,
       onSdkRequestAttempt: async (kind) => {
+        if (providerMode === "live" && options.lifecycleStore) {
+          const updated = await options.lifecycleStore.markProviderRequestAttempt({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: reservationKey(kind),
+          });
+          if (!updated.updated) throw budgetError("LIVE_SMOKE_SDK_ATTEMPT_BOUNDARY_FAILED");
+        }
         await recordEvidence({
           evidenceStage: "SDK_ATTEMPT",
           callKind: kind,
@@ -439,6 +514,7 @@ export function createLiveSmokeVerificationHandler(
   coverageStore: LiveSmokeCoverageStore,
   options: {
     readonly providerMode: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
     readonly lifecycleStore?: LiveSmokeLifecycleStore;
     readonly validationEvidenceStore?: LiveSmokeValidationEvidenceStore;
   },
@@ -511,6 +587,7 @@ export function createLiveSmokeVerificationHandler(
     : undefined;
   const liveSmoke = createLiveSmokeHandler(gateway, budgetStore, {
     providerMode: "live",
+    ...(options.pricingPolicy ? { pricingPolicy: options.pricingPolicy } : {}),
     ...(options.lifecycleStore ? { lifecycleStore: options.lifecycleStore } : {}),
     ...(options.validationEvidenceStore
       ? { validationEvidenceStore: options.validationEvidenceStore }
@@ -657,7 +734,10 @@ export function createLiveSmokeProviderCanaryHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
   lifecycleStore: LiveSmokeLifecycleStore,
-  options: { readonly providerMode: LiveSmokeProviderMode },
+  options: {
+    readonly providerMode: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
+  },
 ): LiveSmokeRuntimeHandler {
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
     if (options.providerMode !== "live") {
@@ -682,6 +762,8 @@ export function createLiveSmokeProviderCanaryHandler(
       agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
       providerMode: "live" as const,
     };
+    if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+    const canaryPolicy = modelPolicyRegistry.resolve("balanced-structured-v1");
     const reservation = await budgetStore.reserve({
       workspaceId,
       smokeRunId,
@@ -690,25 +772,42 @@ export function createLiveSmokeProviderCanaryHandler(
       providerMode: "live",
       units: 1,
       limit: payload.workflowCallBudget,
+      reservedMicroUsd: calculateLiveSmokeReservationMicroUsd(
+        options.pricingPolicy,
+        canaryPolicy.maxInputUnits,
+        canaryPolicy.maxOutputUnits,
+      ),
+      model: options.pricingPolicy.model,
+      pricingVersion: options.pricingPolicy.pricingVersion,
     });
     if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
     if (reservation.duplicate) throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
     let dispatchStarted = false;
     try {
-      await lifecycleStore.record(
+      const reservedEvent = await lifecycleStore.record(
         lifecycleInput(base, "RESERVED", {
           providerRequestSent: false,
           providerResponseReceived: false,
           billableRequestCount: 0,
         }),
       );
-      await lifecycleStore.record(
+      if (!reservedEvent.inserted) throw budgetError("LIVE_SMOKE_RESERVED_LIFECYCLE_WRITE_FAILED");
+      const dispatchEvent = await lifecycleStore.record(
         lifecycleInput(base, "DISPATCH_STARTED", {
-          providerRequestSent: true,
+          providerRequestSent: false,
           providerResponseReceived: false,
-          billableRequestCount: 1,
+          billableRequestCount: 0,
         }),
       );
+      if (!dispatchEvent.inserted) throw budgetError("LIVE_SMOKE_DISPATCH_LIFECYCLE_WRITE_FAILED");
+      const dispatch = await budgetStore.markDispatchStarted({
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+        reservationKey,
+      });
+      if (!dispatch.marked && dispatch.duplicate)
+        throw budgetError("LIVE_SMOKE_DISPATCH_ALREADY_STARTED");
       dispatchStarted = true;
     } catch (error) {
       if (!dispatchStarted) {
@@ -750,6 +849,15 @@ export function createLiveSmokeProviderCanaryHandler(
           promptVersion: "1.0.0",
           correlationId: `gate-h-2c7-canary-${jobItemId}`,
         },
+        onSdkRequestAttempt: async () => {
+          const updated = await lifecycleStore.markProviderRequestAttempt({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey,
+          });
+          if (!updated.updated) throw budgetError("LIVE_SMOKE_SDK_ATTEMPT_BOUNDARY_FAILED");
+        },
       });
     } catch (error) {
       await lifecycleStore.record(
@@ -787,16 +895,62 @@ export function createLiveSmokeProviderCanaryHandler(
     } as const;
     await lifecycleStore.record(
       lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
-        providerRequestSent: true,
-        providerResponseReceived: true,
-        billableRequestCount: 1,
+        providerRequestSent: result.evidence?.requestAttempted === true,
+        providerResponseReceived: result.evidence?.responseReceived === true,
+        billableRequestCount: result.evidence?.requestAttempted === true ? 1 : 0,
       }),
     );
+    const requestIdHash = evidenceRequestHash(result);
+    const usage = result.usage;
+    if (
+      !result.evidence?.requestAttempted ||
+      !result.evidence.responseReceived ||
+      !requestIdHash ||
+      !usage
+    ) {
+      await budgetStore.markUnknownBillable({
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+        reservationKey,
+      });
+    } else {
+      try {
+        await budgetStore.settle({
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          reservationKey,
+          providerRequestIdHash: requestIdHash,
+          model: evidenceModel(result) ?? options.pricingPolicy.model,
+          pricingVersion: options.pricingPolicy.pricingVersion,
+          inputUnits: usage.inputUnits,
+          outputUnits: usage.outputUnits,
+          settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy, usage),
+        });
+      } catch {
+        await budgetStore.markUnknownBillable({
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          reservationKey,
+        });
+      }
+    }
     const http200 = result.httpStatus === 200 || result.status === "COMPLETED";
     const strictOutputValid = result.status === "COMPLETED" && isCanaryOutput(result.outputJson);
     const domainValidationValid = strictOutputValid;
+    const dispatchEvidenceComplete =
+      result.evidence?.requestAttempted === true &&
+      result.evidence.responseReceived === true &&
+      evidenceRequestHash(result) !== undefined &&
+      result.usage !== undefined;
     const passed =
-      http200 && result.model === "gpt-5.6-luna" && strictOutputValid && domainValidationValid;
+      http200 &&
+      result.model === "gpt-5.6-luna" &&
+      strictOutputValid &&
+      domainValidationValid &&
+      dispatchEvidenceComplete;
     await lifecycleStore.recordCanary({
       verificationRunId: payload.verificationRunId,
       providerRequestSent: true,

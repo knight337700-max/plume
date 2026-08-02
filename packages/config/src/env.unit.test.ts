@@ -194,4 +194,41 @@ describe("loadEnvironment", () => {
       }),
     ).toThrow(/OPENAI_LIVE_APPROVED|OPENAI_MONTHLY_BUDGET_USD/);
   });
+
+  it("requires explicit fixed-precision pricing for Production Live mode", () => {
+    expect(() =>
+      loadEnvironment({
+        NODE_ENV: "production",
+        APP_ENV: "production",
+        DATABASE_URL: "postgresql://prod-db/plume",
+        REDIS_URL: "rediss://prod-redis:6379",
+        QUEUE_PREFIX: "plume-production",
+        S3_ENDPOINT: "https://storage.prod.test",
+        S3_BUCKET: "plume-production-assets",
+        S3_ACCESS_KEY_ID: "production-access-id",
+        S3_SECRET_ACCESS_KEY: "production-secret-value",
+        SESSION_SECRET: "production-session-secret-with-enough-entropy",
+        CORS_ALLOWED_ORIGINS: "https://web.prod.test",
+        COOKIE_SECURE: "true",
+        COOKIE_SAME_SITE: "strict",
+        OPENAI_PROVIDER_MODE: "live",
+        OPENAI_MODEL: "gpt-5.6-luna",
+        OPENAI_API_KEY: "not-used-in-test",
+        OPENAI_LIVE_APPROVED: "true",
+        OPENAI_MONTHLY_BUDGET_USD: "10",
+        OPENAI_SOFT_STOP_USD: "8",
+        OPENAI_HARD_STOP_USD: "10",
+        OPENAI_MAX_CONCURRENCY: "1",
+        PUBLIC_WEB_URL: "https://web.prod.test",
+        PUBLIC_API_URL: "https://api.prod.test",
+        REQUEST_BODY_LIMIT_BYTES: "1048576",
+        RATE_LIMIT_WINDOW_MS: "60000",
+        RATE_LIMIT_MAX_REQUESTS: "60",
+        UPLOAD_MAX_BYTES: "104857600",
+        UPLOAD_MAX_PIXELS: "100000000",
+        UPLOAD_ALLOWED_MIME_TYPES: "image/png",
+        UPLOAD_SIGNED_URL_TTL_SECONDS: "900",
+      }),
+    ).toThrow(/OPENAI_PRICING_VERSION|OPENAI_INPUT_COST_MICRO_USD_PER_MILLION/);
+  });
 });

@@ -33,6 +33,7 @@ import { createOutboxDispatcher } from "./outbox-dispatcher.js";
 import { createWorkerAIRuntime } from "./ai-runtime.js";
 import type { WorkerReadinessCheck } from "./bootstrap.js";
 import { loadEnvironment, type Environment } from "../../../packages/config/src/index.js";
+import { createLiveSmokePricingPolicy } from "../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -100,6 +101,7 @@ export function createWorkerRuntimeComposition(
     leaseMs: Number(process.env.OUTBOX_LEASE_MS ?? 30_000),
   });
   const aiRuntime = createWorkerAIRuntime({ environment: process.env });
+  const pricingPolicy = createLiveSmokePricingPolicy(process.env);
   const handlers = createJacomoRuntimeHandlers({
     sql,
     publisher,
@@ -112,6 +114,7 @@ export function createWorkerRuntimeComposition(
     liveSmokeLifecycleStore,
     liveSmokeValidationEvidenceStore,
     providerMode: aiRuntime.provider.mode,
+    ...(pricingPolicy ? { pricingPolicy } : {}),
   });
   let closed = false;
 
@@ -132,6 +135,14 @@ export function createWorkerRuntimeComposition(
       name: "object-storage",
       check: async () => {
         if (storage instanceof S3ObjectStorage) await storage.checkBucket();
+      },
+    },
+    {
+      name: "spend-ledger",
+      check: async () => {
+        if (aiRuntime.provider.mode === "live" && !pricingPolicy)
+          throw new Error("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+        await sql`SELECT to_regclass('public.live_smoke_spend_ledger')`;
       },
     },
   ]);

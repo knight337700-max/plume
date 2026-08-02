@@ -31,6 +31,7 @@ import type { LiveSmokeProviderMode } from "../../../../packages/infrastructure/
 import type { LiveSmokeCoverageStore } from "../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import type { LiveSmokeLifecycleStore } from "../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 import type { LiveSmokeValidationEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
+import type { LiveSmokePricingPolicy } from "../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -44,6 +45,7 @@ interface RuntimeDependencies {
   readonly liveSmokeLifecycleStore: LiveSmokeLifecycleStore;
   readonly liveSmokeValidationEvidenceStore: LiveSmokeValidationEvidenceStore;
   readonly providerMode: LiveSmokeProviderMode;
+  readonly pricingPolicy?: LiveSmokePricingPolicy;
 }
 
 export function assertJobWorkspaceScope(envelope: {
@@ -166,6 +168,7 @@ export function createJacomoRuntimeHandlers(
     dependencies.liveSmokeBudgetStore,
     {
       providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
     },
@@ -176,6 +179,7 @@ export function createJacomoRuntimeHandlers(
     dependencies.liveSmokeCoverageStore,
     {
       providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
     },
@@ -184,7 +188,10 @@ export function createJacomoRuntimeHandlers(
     dependencies.providerGateway,
     dependencies.liveSmokeBudgetStore,
     dependencies.liveSmokeLifecycleStore,
-    { providerMode: dependencies.providerMode },
+    {
+      providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
+    },
   );
   handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>
     liveSmoke({ ...job, data: envelope.payload } as Job<unknown>, {

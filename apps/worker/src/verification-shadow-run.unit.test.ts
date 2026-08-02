@@ -57,6 +57,15 @@ function fakes() {
     async reserve() {
       return { allowed: true, duplicate: false, used: 1, remaining: 7 };
     },
+    async markDispatchStarted() {
+      return { marked: true, duplicate: false };
+    },
+    async settle() {
+      return { settled: true, duplicate: false };
+    },
+    async markUnknownBillable() {
+      return { marked: true, duplicate: false };
+    },
   };
   const coverageStore: LiveSmokeCoverageStore = {
     async createVerificationRun(input: LiveSmokeVerificationRunInput) {

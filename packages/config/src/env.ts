@@ -29,6 +29,9 @@ export interface Environment {
   readonly openaiApiKey?: string;
   readonly openAiProviderMode: "mock" | "live";
   readonly openAiModel: string;
+  readonly openAiPricingVersion?: string;
+  readonly openAiInputCostMicroUsdPerMillion?: number;
+  readonly openAiOutputCostMicroUsdPerMillion?: number;
   readonly queuePrefix: string;
   readonly cookieSecure: boolean;
   readonly cookieSameSite: "lax" | "strict" | "none";
@@ -336,6 +339,35 @@ export function loadEnvironment(
   const openAiMaxConcurrency = input.OPENAI_MAX_CONCURRENCY?.trim()
     ? positiveInteger("OPENAI_MAX_CONCURRENCY", 1)
     : undefined;
+  const positiveMicroUsdRate = (key: string): number | undefined => {
+    const raw = input[key]?.trim();
+    if (!raw) {
+      if (isProduction && openAiProviderMode === "live")
+        issues.push({
+          key,
+          message: "explicit positive integer micro-USD rate is required in Production Live mode",
+        });
+      return undefined;
+    }
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      issues.push({ key, message: "must be a positive integer micro-USD rate" });
+      return undefined;
+    }
+    return value;
+  };
+  const openAiPricingVersion = input.OPENAI_PRICING_VERSION?.trim();
+  if (isProduction && openAiProviderMode === "live" && !openAiPricingVersion)
+    issues.push({
+      key: "OPENAI_PRICING_VERSION",
+      message: "explicit pricing version is required in Production Live mode",
+    });
+  const openAiInputCostMicroUsdPerMillion = positiveMicroUsdRate(
+    "OPENAI_INPUT_COST_MICRO_USD_PER_MILLION",
+  );
+  const openAiOutputCostMicroUsdPerMillion = positiveMicroUsdRate(
+    "OPENAI_OUTPUT_COST_MICRO_USD_PER_MILLION",
+  );
   if (isProduction && openAiProviderMode === "live" && openAiMaxConcurrency !== 1)
     issues.push({
       key: "OPENAI_MAX_CONCURRENCY",
@@ -364,6 +396,13 @@ export function loadEnvironment(
     s3Bucket: input.S3_BUCKET?.trim() || "plume-local",
     openAiProviderMode,
     openAiModel,
+    ...(openAiPricingVersion ? { openAiPricingVersion } : {}),
+    ...(openAiInputCostMicroUsdPerMillion === undefined
+      ? {}
+      : { openAiInputCostMicroUsdPerMillion }),
+    ...(openAiOutputCostMicroUsdPerMillion === undefined
+      ? {}
+      : { openAiOutputCostMicroUsdPerMillion }),
     queuePrefix,
     cookieSecure,
     cookieSameSite,
