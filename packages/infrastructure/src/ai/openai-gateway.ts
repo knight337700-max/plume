@@ -46,6 +46,7 @@ export interface AIExecutionResult {
   readonly outputJson?: unknown;
   readonly usage?: {
     readonly inputUnits: number;
+    readonly cachedInputUnits?: number;
     readonly outputUnits: number;
     readonly costMicros?: number;
   };
@@ -66,7 +67,11 @@ interface ResponsePayload {
   readonly output?: readonly {
     readonly content?: readonly { readonly text?: string; readonly type?: string }[];
   }[];
-  readonly usage?: { readonly input_tokens?: number; readonly output_tokens?: number };
+  readonly usage?: {
+    readonly input_tokens?: number;
+    readonly output_tokens?: number;
+    readonly input_tokens_details?: { readonly cached_tokens?: number };
+  };
   readonly incomplete_details?: { readonly reason?: string };
 }
 
@@ -255,6 +260,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),
@@ -285,6 +293,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),
@@ -296,6 +307,9 @@ function normalizeResponse(
         ? {
             usage: {
               inputUnits: payload.usage.input_tokens ?? 0,
+              ...(payload.usage.input_tokens_details?.cached_tokens === undefined
+                ? {}
+                : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
               outputUnits: payload.usage.output_tokens ?? 0,
             },
           }
@@ -317,6 +331,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),

@@ -35,6 +35,7 @@ export interface LiveSmokeValidationEvidenceInput {
   readonly coverageWriteSucceeded: boolean;
   readonly coverageWriteErrorCode?: string;
   readonly inputUnits?: number;
+  readonly cachedInputUnits?: number;
   readonly outputUnits?: number;
   readonly outputFingerprint?: string;
   readonly outputLengthBytes?: number;
@@ -45,14 +46,10 @@ export interface LiveSmokeValidationEvidenceStore {
 }
 
 function redactedPaths(paths: readonly string[] | undefined): readonly string[] {
-  return Object.freeze(
-    [...new Set((paths ?? []).filter((path) => path.length > 0))].slice(0, 20),
-  );
+  return Object.freeze([...new Set((paths ?? []).filter((path) => path.length > 0))].slice(0, 20));
 }
 
-export class PostgresLiveSmokeValidationEvidenceStore
-  implements LiveSmokeValidationEvidenceStore
-{
+export class PostgresLiveSmokeValidationEvidenceStore implements LiveSmokeValidationEvidenceStore {
   public constructor(private readonly sql: Sql) {}
 
   async record(input: LiveSmokeValidationEvidenceInput) {
@@ -66,7 +63,7 @@ export class PostgresLiveSmokeValidationEvidenceStore
          domain_validation_status, domain_error_code, domain_error_paths,
          repair_eligible, retry_eligible, coverage_write_attempted,
          coverage_write_succeeded, coverage_write_error_code, input_units, output_units,
-         output_fingerprint, output_length_bytes)
+         cached_input_units, output_fingerprint, output_length_bytes)
       VALUES
         (${input.evidenceKey}, ${input.evidenceStage}, ${input.workspaceId},
          ${input.smokeRunId}, ${input.budgetEpochId}, ${input.verificationRunId ?? null},
@@ -81,6 +78,7 @@ export class PostgresLiveSmokeValidationEvidenceStore
          ${input.repairEligible}, ${input.retryEligible}, ${input.coverageWriteAttempted},
          ${input.coverageWriteSucceeded}, ${input.coverageWriteErrorCode ?? null},
          ${input.inputUnits ?? null}, ${input.outputUnits ?? null},
+         ${input.cachedInputUnits ?? null},
          ${input.outputFingerprint ?? null}, ${input.outputLengthBytes ?? null})
       ON CONFLICT (evidence_key) DO NOTHING
       RETURNING event_id
