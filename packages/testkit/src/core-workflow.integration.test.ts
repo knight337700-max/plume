@@ -15,7 +15,7 @@ import {
   createMediaSelectionUseCases,
   createProductMatchingUseCases,
 } from "@plume/core/src/modules/campaign/public.js";
-import { createInMemoryCatalogRepository } from "@plume/core/src/modules/media-catalog/public.js";
+import { createCanonicalCatalogRepository } from "@plume/core/src/modules/media-catalog/public.js";
 
 describe("core workflow integration", () => {
   it("runs upload -> asset version -> brief -> matching -> selection -> generation", async () => {
@@ -97,7 +97,7 @@ describe("core workflow integration", () => {
       status: "SELECTED",
       licenseStatus: "VALID",
     });
-    const catalog = createMediaSelectionUseCases(createInMemoryCatalogRepository());
+    const catalog = createMediaSelectionUseCases(createCanonicalCatalogRepository());
     const selection = await catalog.validate({
       channels: [{ channelCode: "KAKAO_MOMENT" }],
       formats: [],

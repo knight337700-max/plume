@@ -11,7 +11,7 @@ import { createCampaignAssetPoolUseCases, type CampaignAssetPoolUseCases } from 
 import { productMatchingRoutes } from "./product-matching.js";
 import { assetPoolRoutes } from "./asset-pool.js";
 import { createMediaSelectionUseCases, type MediaSelectionUseCases } from "../../../../../packages/core/src/modules/campaign/media-selection-use-cases.js";
-import { createInMemoryCatalogRepository } from "../../../../../packages/core/src/modules/media-catalog/repositories.js";
+import { createCanonicalCatalogRepository } from "../../../../../packages/core/src/modules/media-catalog/repositories.js";
 import { mediaSelectionRoutes } from "./media-selection.js";
 import { createGenerationUseCases, type GenerationUseCases } from "../../../../../packages/core/src/modules/campaign/generation-use-cases.js";
 import { generationRoutes } from "./generation.js";
@@ -25,7 +25,7 @@ export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, optio
   const briefs = options.briefs ?? createBriefUseCases(repositories);
   const matching = options.matching ?? createProductMatchingUseCases(repositories);
   const pool = options.pool ?? createCampaignAssetPoolUseCases(repositories);
-  const campaignCatalog = createInMemoryCatalogRepository();
+  const campaignCatalog = createCanonicalCatalogRepository();
   const selection = options.selection ?? createMediaSelectionUseCases(campaignCatalog);
   const generation = options.generation ?? createGenerationUseCases(repositories);
   await app.register(campaignRoutes, { campaigns });
