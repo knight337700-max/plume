@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 const sourcePng = Buffer.from(
@@ -33,7 +34,8 @@ test("completes the Jacomo campaign from sign-in to export", async ({ page }) =>
   await page.getByRole("button", { name: "Continue to assets" }).click();
   await page.getByRole("button", { name: "Use hero asset" }).click();
   await page.getByRole("button", { name: "Continue to channel" }).click();
-  await page.getByRole("combobox", { name: "Channel" }).selectOption("Kakao");
+  await page.getByRole("combobox", { name: "Channel" }).selectOption("KAKAO_MOMENT");
+  await page.getByRole("combobox", { name: "Format" }).selectOption("kakao-moment-bizboard-1029x258");
   await page.getByRole("button", { name: "Continue to generation" }).click();
 
   await page.getByRole("button", { name: "Generate three creatives" }).click();
@@ -57,5 +59,16 @@ test("completes the Jacomo campaign from sign-in to export", async ({ page }) =>
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("jacomo-spring-campaign-export.json");
+  const downloadedPath = await download.path();
+  expect(downloadedPath).not.toBeNull();
+  const manifest = JSON.parse(await readFile(downloadedPath!, "utf8")) as {
+    channel?: { id?: string };
+    formatProfile?: { id?: string; channelCode?: string };
+  };
+  expect(manifest.channel).toMatchObject({ id: "KAKAO_MOMENT" });
+  expect(manifest.formatProfile).toMatchObject({
+    id: "kakao-moment-bizboard-1029x258",
+    channelCode: "KAKAO_MOMENT",
+  });
   await expect(page.getByText("Export downloaded successfully.")).toBeVisible();
 });

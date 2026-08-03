@@ -77,6 +77,7 @@ describe("copy and layout agent handlers", () => {
       campaignId: "campaign-1",
       creativeId: "creative-1",
       productId: "product-1",
+      channel: { code: "KAKAO_MOMENT" },
       formatProfile: { id: "kakao-profile", width: 1029, height: 258 },
       template: { id: "kakao-template" },
       assets: [],

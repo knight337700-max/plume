@@ -1,4 +1,8 @@
 import { useMemo, useState } from "react";
+import {
+  APPROVED_FORMAT_PROFILES,
+  CANONICAL_CHANNELS,
+} from "../../../../../packages/core/src/modules/media-catalog/canonical-catalog";
 
 type StepId =
   | "workspace"
@@ -59,6 +63,35 @@ const secondaryButtonStyle = {
   color: "#111827",
 };
 
+const LOCAL_QA_MEDIA_SELECTION_KEY = "plume.local-qa.jacomo-media-selection";
+
+interface LocalQaMediaSelection {
+  readonly channelCode: string;
+  readonly formatProfileId: string;
+}
+
+function readLocalQaMediaSelection(): LocalQaMediaSelection {
+  try {
+    const value = globalThis.localStorage?.getItem(LOCAL_QA_MEDIA_SELECTION_KEY);
+    if (!value) return { channelCode: "", formatProfileId: "" };
+    const parsed = JSON.parse(value) as Partial<LocalQaMediaSelection>;
+    return {
+      channelCode: typeof parsed.channelCode === "string" ? parsed.channelCode : "",
+      formatProfileId: typeof parsed.formatProfileId === "string" ? parsed.formatProfileId : "",
+    };
+  } catch {
+    return { channelCode: "", formatProfileId: "" };
+  }
+}
+
+function persistLocalQaMediaSelection(selection: LocalQaMediaSelection): void {
+  try {
+    globalThis.localStorage?.setItem(LOCAL_QA_MEDIA_SELECTION_KEY, JSON.stringify(selection));
+  } catch {
+    // Local QA remains functional when browser storage is unavailable.
+  }
+}
+
 export function JacomoWorkflowScreen() {
   const [activeStep, setActiveStep] = useState<StepId>("workspace");
   const [signedIn, setSignedIn] = useState(false);
@@ -68,7 +101,7 @@ export function JacomoWorkflowScreen() {
   const [brief, setBrief] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [assetReady, setAssetReady] = useState(false);
-  const [channel, setChannel] = useState("");
+  const [mediaSelection, setMediaSelection] = useState(readLocalQaMediaSelection);
   const [generated, setGenerated] = useState(false);
   const [aiPreview, setAiPreview] = useState(false);
   const [aiApplied, setAiApplied] = useState(false);
@@ -82,6 +115,23 @@ export function JacomoWorkflowScreen() {
       products.filter((product) => selectedProducts.has(product.id)).map((product) => product.name),
     [selectedProducts],
   );
+  const channel = mediaSelection.channelCode;
+  const formatProfileId = mediaSelection.formatProfileId;
+  const selectedChannel = CANONICAL_CHANNELS.find((item) => item.id === channel);
+  const selectedFormat = APPROVED_FORMAT_PROFILES.find((item) => item.id === formatProfileId);
+  const formatOptions = APPROVED_FORMAT_PROFILES.filter((item) => item.channelCode === channel);
+
+  function selectChannel(channelCode: string) {
+    const next = { channelCode, formatProfileId: "" };
+    setMediaSelection(next);
+    persistLocalQaMediaSelection(next);
+  }
+
+  function selectFormat(nextFormatProfileId: string) {
+    const next = { channelCode: channel, formatProfileId: nextFormatProfileId };
+    setMediaSelection(next);
+    persistLocalQaMediaSelection(next);
+  }
 
   function toggleProduct(productId: string) {
     setSelectedProducts((current) => {
@@ -98,8 +148,17 @@ export function JacomoWorkflowScreen() {
   function exportPackage() {
     const manifest = {
       campaign: campaignName,
-      channel,
-      format: "Kakao 1029x258",
+      channel: selectedChannel
+        ? { id: selectedChannel.id, label: selectedChannel.label }
+        : { id: channel },
+      formatProfile: selectedFormat
+        ? {
+            id: selectedFormat.id,
+            channelCode: selectedFormat.channelCode,
+            productCode: selectedFormat.productCode,
+            specificationVersion: selectedFormat.specificationVersion,
+          }
+        : { status: "CATALOG_NOT_READY" },
       creatives: 3,
       checksum: "sha256:jacomo-deterministic-export",
     };
@@ -321,10 +380,10 @@ export function JacomoWorkflowScreen() {
             <p>Step 7 of {steps.length}</p>
             <h2 id="media-heading">Choose media format</h2>
             <label htmlFor="channel">Channel</label>
-            <select
-              id="channel"
-              value={channel}
-              onChange={(event) => setChannel((event.target as unknown as { value: string }).value)}
+             <select
+               id="channel"
+               value={channel}
+               onChange={(event) => selectChannel((event.target as unknown as { value: string }).value)}
               style={{
                 display: "block",
                 margin: "8px 0 16px",
@@ -332,16 +391,44 @@ export function JacomoWorkflowScreen() {
                 width: "100%",
                 maxWidth: 420,
               }}
-            >
-              <option value="">Select a channel</option>
-              <option value="Kakao">Kakao</option>
-              <option value="Instagram">Instagram</option>
-            </select>
-            <p>Selected format: {channel ? `${channel} 1029x258` : "None"}</p>
-            <button
-              type="button"
-              onClick={() => continueTo("generation")}
-              disabled={!channel}
+             >
+               <option value="">Select a channel</option>
+               {CANONICAL_CHANNELS.map((item) => (
+                 <option key={item.id} value={item.id}>
+                   {item.label}
+                 </option>
+               ))}
+             </select>
+             <label htmlFor="format-profile">Format</label>
+             <select
+               id="format-profile"
+               value={formatProfileId}
+               onChange={(event) => selectFormat((event.target as unknown as { value: string }).value)}
+               disabled={!channel}
+               style={{
+                 display: "block",
+                 margin: "8px 0 16px",
+                 padding: 10,
+                 width: "100%",
+                 maxWidth: 420,
+               }}
+             >
+               <option value="">Select a format</option>
+               {formatOptions.map((item) => (
+                 <option key={item.id} value={item.id}>
+                   {item.productName} — {item.name}
+                 </option>
+               ))}
+             </select>
+             <p role="status">
+               {channel && formatOptions.length === 0
+                 ? `${selectedChannel?.label ?? channel}: CATALOG_NOT_READY — no approved repository format is available.`
+                 : `Selected format: ${selectedFormat?.name ?? "None"}`}
+             </p>
+             <button
+               type="button"
+               onClick={() => continueTo("generation")}
+               disabled={!channel || (formatOptions.length > 0 && !formatProfileId)}
               style={buttonStyle}
             >
               Continue to generation
@@ -372,7 +459,9 @@ export function JacomoWorkflowScreen() {
           <section aria-labelledby="gallery-heading">
             <p>Step 9 of {steps.length}</p>
             <h2 id="gallery-heading">Generated gallery</h2>
-            <p role="status">3 creatives generated for {channel} 1029x258.</p>
+             <p role="status">
+               3 creatives generated for {selectedChannel?.label ?? channel} — {selectedFormat?.name ?? "CATALOG_NOT_READY"}.
+             </p>
             <ol aria-label="Generated creatives">
               <li>Variant 01 — Hero product composition</li>
               <li>Variant 02 — Seasonal product composition</li>
@@ -487,7 +576,9 @@ export function JacomoWorkflowScreen() {
           <section aria-labelledby="export-heading">
             <p>Step 13 of {steps.length}</p>
             <h2 id="export-heading">Export package</h2>
-            <p>Ready: 3 creatives, Kakao 1029x258, checksum verified.</p>
+            <p>
+              Ready: 3 creatives, {selectedChannel?.label ?? channel} — {selectedFormat?.name ?? "CATALOG_NOT_READY"}, checksum verified.
+            </p>
             <button type="button" onClick={exportPackage} style={buttonStyle}>
               Export
             </button>
@@ -507,7 +598,7 @@ export function JacomoWorkflowScreen() {
           Plume · Jacomo
         </p>
         <h1>Jacomo campaign workflow</h1>
-        <p>From source material to an approved, downloadable Kakao creative package.</p>
+         <p>From source material to an approved, downloadable channel-specific creative package.</p>
         <nav aria-label="Campaign workflow steps" style={{ margin: "24px 0" }}>
           <ol
             style={{

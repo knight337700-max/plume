@@ -36,12 +36,12 @@ export interface ContextBuilderInput {
 const MINIMUM_KEYS: Readonly<Record<AgentCode, readonly string[]>> = Object.freeze({
   CAMPAIGN_ANALYST: ["sourceIds", "sourceText", "citations", "brandProfile"],
   PRODUCT_MATCHER: ["productNames", "candidates", "products"],
-  ASSET_CURATOR: ["product", "formatProfile", "brief", "assets"],
+  ASSET_CURATOR: ["product", "channel", "formatProfile", "brief", "assets"],
   COPY_GENERATOR: ["brief", "product", "textSlots", "brandProfile"],
-  LAYOUT_PLANNER: ["assets", "template", "formatProfile", "safeZones", "copy"],
+  LAYOUT_PLANNER: ["assets", "template", "channel", "formatProfile", "safeZones", "copy"],
   NATURAL_LANGUAGE_EDITOR: ["creativeDocument", "editRequest", "validation"],
-  AI_POLICY_REVIEWER: ["render", "brief", "product", "rules", "landingSnapshot"],
-  EXPORT_ASSISTANT: ["campaign", "creative", "exportRecipe"],
+  AI_POLICY_REVIEWER: ["render", "brief", "product", "rules", "landingSnapshot", "channel", "formatProfile"],
+  EXPORT_ASSISTANT: ["campaign", "creative", "channel", "formatProfile", "exportRecipe"],
 });
 
 function assertWorkspaceScope(value: unknown, workspaceId: string, path = "$data"): void {
