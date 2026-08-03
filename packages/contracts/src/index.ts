@@ -23,6 +23,7 @@ export {
   JACOMO_EXTERNAL_COMMANDS,
   JACOMO_INTERNAL_COMMANDS,
   JACOMO_OPTIONAL_COMMANDS,
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
   getAsyncCommandDefinition,
   validateCommandEnvelope,
   AsyncContractError,

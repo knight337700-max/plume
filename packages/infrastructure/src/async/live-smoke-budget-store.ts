@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX } from "@plume/core/src/public.js";
 
 export type LiveSmokeProviderMode = "mock" | "live";
 
@@ -91,7 +92,7 @@ export interface LiveSmokeBudgetStore {
 }
 
 function assertLimit(limit: number): void {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 20)
+  if (!Number.isInteger(limit) || limit < 1 || limit > LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)
     throw new Error("LIVE_SMOKE_BUDGET_LIMIT_INVALID");
 }
 
@@ -132,7 +133,7 @@ function assertPolicyInput(policy: LiveSmokeBudgetPolicyInput): void {
     policy.perRunSoftStopMicroUsd >= policy.perRunHardCapMicroUsd ||
     policy.perRunHardCapMicroUsd >= policy.monthlyLimitMicroUsd ||
     policy.safetyBufferMicroUsd >= policy.perRunHardCapMicroUsd ||
-    policy.absoluteProviderCallCap > 20 ||
+    policy.absoluteProviderCallCap > LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX ||
     !policy.billingScope.trim()
   )
     throw new Error("LIVE_SMOKE_BUDGET_POLICY_RELATION_INVALID");

@@ -17,10 +17,11 @@ import type {
   JsonSchema,
   ValidationEvidence,
 } from "../../../../../packages/core/src/agents/result-validator.js";
-import type {
-  AiLiveSmokeCanaryPayload,
-  AiLiveSmokePayload,
-  AiLiveSmokeVerificationPayload,
+import {
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
+  type AiLiveSmokeCanaryPayload,
+  type AiLiveSmokePayload,
+  type AiLiveSmokeVerificationPayload,
 } from "../../../../../packages/contracts/src/async.js";
 import type {
   LiveSmokeBudgetStore,
@@ -206,7 +207,8 @@ export function createLiveSmokeHandler(
         : Number.isInteger(payload.requestBudget) && payload.requestBudget! > 0
           ? payload.requestBudget!
           : 20;
-    if (workflowCallBudget > 20) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
+    if (workflowCallBudget > LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)
+      throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
     if (
       providerMode === "live" &&
       options.pricingPolicy?.absoluteProviderCallCap !== undefined &&
