@@ -6,6 +6,7 @@ import type {
 } from "../../../packages/core/src/async/command-publisher.js";
 import type { AiLiveSmokeVerificationPayload } from "../../../packages/contracts/src/async.js";
 import type { LiveSmokeBudgetStore } from "../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import type { LiveSmokePricingPolicy } from "../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 import type { LiveSmokeCoverageStore } from "../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 
 export const MOCK_ONLY_AGENT_CODES = Object.freeze([
@@ -28,6 +29,7 @@ export interface CreateVerificationShadowRunInput {
   readonly budgetLimit?: number;
   readonly retryEnabled?: boolean;
   readonly repairEnabled?: boolean;
+  readonly pricingPolicy?: LiveSmokePricingPolicy;
 }
 
 export interface VerificationShadowRun {
@@ -47,19 +49,34 @@ export async function createVerificationShadowRun(
   const verificationRunId = input.verificationRunId ?? randomUUID();
   const smokeRunId = input.smokeRunId ?? randomUUID();
   const budgetEpochId = input.budgetEpochId ?? randomUUID();
+  const epochLimit = input.pricingPolicy?.absoluteProviderCallCap ?? input.budgetLimit ?? 8;
   const epoch = await input.budgetStore.createEpoch({
     workspaceId: input.workspaceId,
     smokeRunId,
     budgetEpochId,
     parentBudgetEpochId: null,
-    limit: input.budgetLimit ?? 8,
+    limit: epochLimit,
     reason:
       input.budgetLimit === undefined
         ? "GATE_H_PHASE_2C6_VERIFICATION_ONLY_SHADOW_QUEUE"
         : "GATE_H_PHASE_2C9_DIAGNOSTIC_SCHEMA_EVIDENCE",
+    ...(input.pricingPolicy
+      ? {
+          policy: {
+            cachedInputMicroUsdPerMillionTokens:
+              input.pricingPolicy.cachedInputMicroUsdPerMillionTokens!,
+            maxEstimatedInputTokens: input.pricingPolicy.maxEstimatedInputTokens!,
+            perRunSoftStopMicroUsd: input.pricingPolicy.perRunSoftStopMicroUsd!,
+            perRunHardCapMicroUsd: input.pricingPolicy.perRunHardCapMicroUsd!,
+            monthlyLimitMicroUsd: input.pricingPolicy.monthlyLimitMicroUsd!,
+            safetyBufferMicroUsd: input.pricingPolicy.safetyBufferMicroUsd!,
+            absoluteProviderCallCap: input.pricingPolicy.absoluteProviderCallCap!,
+            billingScope: input.pricingPolicy.billingScope!,
+          },
+        }
+      : {}),
   });
-  if (epoch.limit !== (input.budgetLimit ?? 8))
-    throw new Error("VERIFICATION_SHADOW_BUDGET_LIMIT_MISMATCH");
+  if (epoch.limit !== epochLimit) throw new Error("VERIFICATION_SHADOW_BUDGET_LIMIT_MISMATCH");
   const run = await input.coverageStore.createVerificationRun({
     verificationRunId,
     workspaceId: input.workspaceId,
@@ -85,7 +102,7 @@ export async function createVerificationShadowRun(
     workspaceId: input.workspaceId,
     smokeRunId,
     budgetEpochId,
-    workflowCallBudget: input.budgetLimit ?? 8,
+    workflowCallBudget: epochLimit,
     ...(input.retryEnabled === undefined ? {} : { retryEnabled: input.retryEnabled }),
     ...(input.repairEnabled === undefined ? {} : { repairEnabled: input.repairEnabled }),
     verificationOnly: true,

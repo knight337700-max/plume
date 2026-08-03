@@ -23,6 +23,7 @@ export interface ProviderEvidence {
   readonly outputFingerprint?: string | undefined;
   readonly outputLengthBytes?: number | undefined;
   readonly inputUnits?: number | undefined;
+  readonly cachedInputUnits?: number | undefined;
   readonly outputUnits?: number | undefined;
 }
 
@@ -53,7 +54,11 @@ export interface ProviderResult {
   readonly providerRequestIdHash?: string;
   readonly latencyMs: number;
   readonly httpStatus?: number;
-  readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };
+  readonly usage?: {
+    readonly inputUnits: number;
+    readonly cachedInputUnits?: number;
+    readonly outputUnits: number;
+  };
   readonly error?: { readonly code: string; readonly message: string; readonly retryable: boolean };
   readonly evidence?: ProviderEvidence;
 }

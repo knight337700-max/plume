@@ -32,6 +32,14 @@ export interface Environment {
   readonly openAiPricingVersion?: string;
   readonly openAiInputCostMicroUsdPerMillion?: number;
   readonly openAiOutputCostMicroUsdPerMillion?: number;
+  readonly openAiCachedInputCostMicroUsdPerMillion?: number;
+  readonly openAiLiveMaxEstimatedInputTokens?: number;
+  readonly openAiLivePerRunSoftStopMicroUsd?: number;
+  readonly openAiLivePerRunHardCapMicroUsd?: number;
+  readonly openAiLiveMonthlyLimitMicroUsd?: number;
+  readonly openAiLiveSafetyBufferMicroUsd?: number;
+  readonly openAiLiveAbsoluteProviderCallCap?: number;
+  readonly openAiLiveBillingScope?: string;
   readonly queuePrefix: string;
   readonly cookieSecure: boolean;
   readonly cookieSameSite: "lax" | "strict" | "none";
@@ -368,6 +376,71 @@ export function loadEnvironment(
   const openAiOutputCostMicroUsdPerMillion = positiveMicroUsdRate(
     "OPENAI_OUTPUT_COST_MICRO_USD_PER_MILLION",
   );
+  const openAiCachedInputCostMicroUsdPerMillion = positiveMicroUsdRate(
+    "OPENAI_CACHED_INPUT_COST_MICRO_USD_PER_MILLION",
+  );
+  const liveGuardInteger = (key: string, max?: number): number | undefined => {
+    const raw = input[key]?.trim();
+    if (!raw) {
+      if (isProduction && openAiProviderMode === "live")
+        issues.push({
+          key,
+          message: "explicit positive integer is required in Production Live mode",
+        });
+      return undefined;
+    }
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value <= 0 || (max !== undefined && value > max)) {
+      issues.push({ key, message: "must be a positive integer within the supported limit" });
+      return undefined;
+    }
+    return value;
+  };
+  const openAiLiveMaxEstimatedInputTokens = liveGuardInteger(
+    "OPENAI_LIVE_MAX_ESTIMATED_INPUT_TOKENS",
+  );
+  const openAiLivePerRunSoftStopMicroUsd = liveGuardInteger(
+    "OPENAI_LIVE_PER_RUN_SOFT_STOP_MICRO_USD",
+  );
+  const openAiLivePerRunHardCapMicroUsd = liveGuardInteger(
+    "OPENAI_LIVE_PER_RUN_HARD_CAP_MICRO_USD",
+  );
+  const openAiLiveMonthlyLimitMicroUsd = liveGuardInteger("OPENAI_LIVE_MONTHLY_LIMIT_MICRO_USD");
+  const openAiLiveSafetyBufferMicroUsd = liveGuardInteger("OPENAI_LIVE_SAFETY_BUFFER_MICRO_USD");
+  const openAiLiveAbsoluteProviderCallCap = liveGuardInteger(
+    "OPENAI_LIVE_ABSOLUTE_PROVIDER_CALL_CAP",
+    20,
+  );
+  const openAiLiveBillingScope = input.OPENAI_LIVE_BILLING_SCOPE?.trim();
+  if (isProduction && openAiProviderMode === "live" && !openAiLiveBillingScope)
+    issues.push({ key: "OPENAI_LIVE_BILLING_SCOPE", message: "required in Production Live mode" });
+  if (
+    openAiLivePerRunSoftStopMicroUsd !== undefined &&
+    openAiLivePerRunHardCapMicroUsd !== undefined &&
+    openAiLivePerRunSoftStopMicroUsd >= openAiLivePerRunHardCapMicroUsd
+  )
+    issues.push({
+      key: "OPENAI_LIVE_PER_RUN_SOFT_STOP_MICRO_USD",
+      message: "must be less than the hard cap",
+    });
+  if (
+    openAiLivePerRunHardCapMicroUsd !== undefined &&
+    openAiLiveMonthlyLimitMicroUsd !== undefined &&
+    openAiLivePerRunHardCapMicroUsd >= openAiLiveMonthlyLimitMicroUsd
+  )
+    issues.push({
+      key: "OPENAI_LIVE_MONTHLY_LIMIT_MICRO_USD",
+      message: "must exceed the per-run hard cap",
+    });
+  if (
+    openAiLiveSafetyBufferMicroUsd !== undefined &&
+    openAiLivePerRunHardCapMicroUsd !== undefined &&
+    openAiLiveSafetyBufferMicroUsd >= openAiLivePerRunHardCapMicroUsd
+  )
+    issues.push({
+      key: "OPENAI_LIVE_SAFETY_BUFFER_MICRO_USD",
+      message: "must be less than the per-run hard cap",
+    });
   if (isProduction && openAiProviderMode === "live" && openAiMaxConcurrency !== 1)
     issues.push({
       key: "OPENAI_MAX_CONCURRENCY",
@@ -403,6 +476,20 @@ export function loadEnvironment(
     ...(openAiOutputCostMicroUsdPerMillion === undefined
       ? {}
       : { openAiOutputCostMicroUsdPerMillion }),
+    ...(openAiCachedInputCostMicroUsdPerMillion === undefined
+      ? {}
+      : { openAiCachedInputCostMicroUsdPerMillion }),
+    ...(openAiLiveMaxEstimatedInputTokens === undefined
+      ? {}
+      : { openAiLiveMaxEstimatedInputTokens }),
+    ...(openAiLivePerRunSoftStopMicroUsd === undefined ? {} : { openAiLivePerRunSoftStopMicroUsd }),
+    ...(openAiLivePerRunHardCapMicroUsd === undefined ? {} : { openAiLivePerRunHardCapMicroUsd }),
+    ...(openAiLiveMonthlyLimitMicroUsd === undefined ? {} : { openAiLiveMonthlyLimitMicroUsd }),
+    ...(openAiLiveSafetyBufferMicroUsd === undefined ? {} : { openAiLiveSafetyBufferMicroUsd }),
+    ...(openAiLiveAbsoluteProviderCallCap === undefined
+      ? {}
+      : { openAiLiveAbsoluteProviderCallCap }),
+    ...(openAiLiveBillingScope ? { openAiLiveBillingScope } : {}),
     queuePrefix,
     cookieSecure,
     cookieSameSite,

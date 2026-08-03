@@ -27,8 +27,10 @@ import type {
   LiveSmokeProviderMode,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import {
+  assertLiveSmokeInputEstimate,
   calculateLiveSmokeCostMicroUsd,
   calculateLiveSmokeReservationMicroUsd,
+  estimateLiveSmokeInputTokens,
   type LiveSmokePricingPolicy,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 import type { LiveSmokeCoverageStore } from "../../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
@@ -187,6 +189,17 @@ export function createLiveSmokeHandler(
     const modelPolicy = modelPolicyRegistry.forAgent(payload.agentCode);
     const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
     if (!schema) throw new Error(`AI_LIVE_SMOKE_SCHEMA_NOT_FOUND:${prompt.outputSchemaId}`);
+    const requestMessages =
+      payload.agentCode === "LAYOUT_PLANNER" ? LAYOUT_SYNTHETIC_MESSAGES : SYNTHETIC_MESSAGES;
+    const estimatedInputTokens = estimateLiveSmokeInputTokens({
+      messages: requestMessages,
+      outputSchema: schema,
+      metadata: { agentCode: payload.agentCode, model: options.pricingPolicy?.model },
+    });
+    if (providerMode === "live") {
+      if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+      assertLiveSmokeInputEstimate(options.pricingPolicy, estimatedInputTokens);
+    }
     const workflowCallBudget =
       Number.isInteger(payload.workflowCallBudget) && payload.workflowCallBudget! > 0
         ? payload.workflowCallBudget!
@@ -194,6 +207,12 @@ export function createLiveSmokeHandler(
           ? payload.requestBudget!
           : 20;
     if (workflowCallBudget > 20) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
+    if (
+      providerMode === "live" &&
+      options.pricingPolicy?.absoluteProviderCallCap !== undefined &&
+      workflowCallBudget !== options.pricingPolicy.absoluteProviderCallCap
+    )
+      throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH");
     const retryEnabled = payload.retryEnabled ?? true;
     const repairEnabled = payload.repairEnabled ?? true;
     const deliveryAttempt =
@@ -263,6 +282,9 @@ export function createLiveSmokeHandler(
         ...(input.providerResult?.usage?.inputUnits === undefined
           ? {}
           : { inputUnits: input.providerResult.usage.inputUnits }),
+        ...(input.providerResult?.usage?.cachedInputUnits === undefined
+          ? {}
+          : { cachedInputUnits: input.providerResult.usage.cachedInputUnits }),
         ...(input.providerResult?.usage?.outputUnits === undefined
           ? {}
           : { outputUnits: input.providerResult.usage.outputUnits }),
@@ -299,6 +321,7 @@ export function createLiveSmokeHandler(
               modelPolicy.maxInputUnits,
               modelPolicy.maxOutputUnits,
             ),
+            estimatedInputTokens,
             model: options.pricingPolicy.model,
             pricingVersion: options.pricingPolicy.pricingVersion,
           });
@@ -431,6 +454,7 @@ export function createLiveSmokeHandler(
               model: evidenceModel(providerResult) ?? options.pricingPolicy?.model ?? "",
               pricingVersion: options.pricingPolicy?.pricingVersion ?? "",
               inputUnits: usage.inputUnits,
+              cachedInputUnits: usage.cachedInputUnits ?? 0,
               outputUnits: usage.outputUnits,
               settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy!, usage),
             });
@@ -468,8 +492,7 @@ export function createLiveSmokeHandler(
       subjectId: SYNTHETIC_IDS.campaign,
       locale: "ko-KR",
       data: SYNTHETIC_DATA,
-      messages:
-        payload.agentCode === "LAYOUT_PLANNER" ? LAYOUT_SYNTHETIC_MESSAGES : SYNTHETIC_MESSAGES,
+      messages: requestMessages,
       outputSchema: schema as unknown as JsonSchema,
       timeoutSeconds: 60,
       onSdkRequestAttempt: async (kind) => {
@@ -573,6 +596,9 @@ export function createLiveSmokeVerificationHandler(
           ...(providerEvidence?.inputUnits === undefined
             ? {}
             : { inputUnits: providerEvidence.inputUnits }),
+          ...(providerEvidence?.cachedInputUnits === undefined
+            ? {}
+            : { cachedInputUnits: providerEvidence.cachedInputUnits }),
           ...(providerEvidence?.outputUnits === undefined
             ? {}
             : { outputUnits: providerEvidence.outputUnits }),
@@ -763,7 +789,24 @@ export function createLiveSmokeProviderCanaryHandler(
       providerMode: "live" as const,
     };
     if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+    if (
+      options.pricingPolicy.absoluteProviderCallCap !== undefined &&
+      payload.workflowCallBudget !== options.pricingPolicy.absoluteProviderCallCap
+    )
+      throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH");
     const canaryPolicy = modelPolicyRegistry.resolve("balanced-structured-v1");
+    const estimatedInputTokens = estimateLiveSmokeInputTokens({
+      messages: [
+        {
+          role: "system",
+          content: "Staging provider canary. Return only the registered JSON object.",
+        },
+        { role: "user", content: "Return status ok, environment staging, provider openai." },
+      ],
+      outputSchema: CANARY_SCHEMA,
+      metadata: { agentCode: "PROVIDER_ACCESSIBILITY_CANARY", model: options.pricingPolicy.model },
+    });
+    assertLiveSmokeInputEstimate(options.pricingPolicy, estimatedInputTokens);
     const reservation = await budgetStore.reserve({
       workspaceId,
       smokeRunId,
@@ -777,6 +820,7 @@ export function createLiveSmokeProviderCanaryHandler(
         canaryPolicy.maxInputUnits,
         canaryPolicy.maxOutputUnits,
       ),
+      estimatedInputTokens,
       model: options.pricingPolicy.model,
       pricingVersion: options.pricingPolicy.pricingVersion,
     });
@@ -890,6 +934,9 @@ export function createLiveSmokeProviderCanaryHandler(
           }
         : {}),
       ...(result.usage?.inputUnits === undefined ? {} : { inputUnits: result.usage.inputUnits }),
+      ...(result.usage?.cachedInputUnits === undefined
+        ? {}
+        : { cachedInputUnits: result.usage.cachedInputUnits }),
       ...(result.usage?.outputUnits === undefined ? {} : { outputUnits: result.usage.outputUnits }),
       ...(result.error?.code ? { terminalErrorCode: result.error.code } : {}),
     } as const;
@@ -925,6 +972,7 @@ export function createLiveSmokeProviderCanaryHandler(
           model: evidenceModel(result) ?? options.pricingPolicy.model,
           pricingVersion: options.pricingPolicy.pricingVersion,
           inputUnits: usage.inputUnits,
+          cachedInputUnits: usage.cachedInputUnits ?? 0,
           outputUnits: usage.outputUnits,
           settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy, usage),
         });

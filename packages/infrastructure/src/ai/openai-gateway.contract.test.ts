@@ -31,7 +31,11 @@ describe("OpenAI provider gateway", () => {
             id: "req-1",
             status: "completed",
             output_text: '{"items":[{"id":"p1"}]}',
-            usage: { input_tokens: 4, output_tokens: 2 },
+            usage: {
+              input_tokens: 4,
+              output_tokens: 2,
+              input_tokens_details: { cached_tokens: 1 },
+            },
           }),
           { status: 200 },
         );
@@ -69,7 +73,10 @@ describe("OpenAI provider gateway", () => {
       httpStatus: 200,
       resolvedModel: "gpt-5.6-luna",
       jsonParseStatus: "PASS",
+      inputUnits: 4,
+      cachedInputUnits: 1,
     });
+    expect(result.usage).toEqual({ inputUnits: 4, cachedInputUnits: 1, outputUnits: 2 });
     expect(JSON.stringify(result)).not.toContain("req-1");
   });
 

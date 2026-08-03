@@ -12,7 +12,11 @@ export interface AgentResultMetadata {
   readonly providerRequestIdHash?: string;
   readonly attempt: number;
   readonly latencyMs: number;
-  readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };
+  readonly usage?: {
+    readonly inputUnits: number;
+    readonly cachedInputUnits?: number;
+    readonly outputUnits: number;
+  };
 }
 
 export interface AgentResult<T = unknown> {

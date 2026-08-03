@@ -61,6 +61,23 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
         created_at timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (workspace_id, smoke_run_id, budget_epoch_id, reservation_key)
       );
+      CREATE TABLE IF NOT EXISTS live_smoke_budget_policy (
+        workspace_id uuid NOT NULL,
+        smoke_run_id uuid NOT NULL,
+        budget_epoch_id uuid NOT NULL,
+        cached_input_micro_usd_per_million bigint NOT NULL DEFAULT 1,
+        max_estimated_input_tokens integer NOT NULL DEFAULT 250000,
+        per_run_soft_stop_micro_usd bigint NOT NULL DEFAULT 1000000,
+        per_run_hard_cap_micro_usd bigint NOT NULL DEFAULT 2000000,
+        monthly_limit_micro_usd bigint NOT NULL DEFAULT 5000000,
+        safety_buffer_micro_usd bigint NOT NULL DEFAULT 500000,
+        absolute_provider_call_cap integer NOT NULL DEFAULT 13,
+        billing_scope varchar(250) NOT NULL DEFAULT 'integration-test',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, smoke_run_id, budget_epoch_id)
+      );
+      ALTER TABLE live_smoke_spend_ledger
+        ADD COLUMN IF NOT EXISTS cached_input_units integer NOT NULL DEFAULT 0;
     `);
     await new PostgresLiveSmokeBudgetStore(sql).createEpoch({
       workspaceId,
@@ -74,6 +91,10 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
   afterAll(async () => {
     await sql`
       DELETE FROM live_smoke_spend_ledger
+      WHERE workspace_id = ${workspaceId} AND smoke_run_id = ${smokeRunId}
+    `;
+    await sql`
+      DELETE FROM live_smoke_budget_policy
       WHERE workspace_id = ${workspaceId} AND smoke_run_id = ${smokeRunId}
     `;
     await sql`
@@ -270,5 +291,53 @@ describe.skipIf(!enabled)("postgres live smoke budget store", () => {
         reservationKey: "unknown-key",
       }),
     ).toEqual({ marked: false, duplicate: true });
+  });
+
+  it("enforces a durable policy snapshot and blocks the fourteenth call", async () => {
+    const policyEpochId = "00000000-0000-4000-8000-0000000003d4";
+    const store = new PostgresLiveSmokeBudgetStore(sql);
+    await store.createEpoch({
+      workspaceId,
+      smokeRunId,
+      budgetEpochId: policyEpochId,
+      limit: 13,
+      reason: "runtime-spend-guard",
+      policy: {
+        cachedInputMicroUsdPerMillionTokens: 100000,
+        maxEstimatedInputTokens: 250000,
+        perRunSoftStopMicroUsd: 1000000,
+        perRunHardCapMicroUsd: 2000000,
+        monthlyLimitMicroUsd: 5000000,
+        safetyBufferMicroUsd: 500000,
+        absoluteProviderCallCap: 13,
+        billingScope: "plume-controlled-live-qa",
+      },
+    });
+    const input = (reservationKey: string) => ({
+      workspaceId,
+      smokeRunId,
+      budgetEpochId: policyEpochId,
+      reservationKey,
+      providerMode: "live" as const,
+      units: 1,
+      limit: 13,
+      reservedMicroUsd: 0,
+      estimatedInputTokens: 250000,
+      model: "gpt-5.6-luna",
+      pricingVersion: "test-v1",
+    });
+    const reservations = await Promise.all(
+      Array.from({ length: 13 }, (_, index) => store.reserve(input(`cap-${index}`))),
+    );
+    expect(reservations.every((reservation) => reservation.allowed)).toBe(true);
+    expect(await store.reserve(input("cap-13"))).toMatchObject({
+      allowed: false,
+      duplicate: false,
+      used: 13,
+      remaining: 0,
+    });
+    expect(
+      await store.reserve({ ...input("estimate-too-large"), estimatedInputTokens: 250001 }),
+    ).toMatchObject({ allowed: false, duplicate: false });
   });
 });

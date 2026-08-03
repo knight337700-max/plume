@@ -17,7 +17,7 @@ import { DEFAULT_LLM_MODEL } from "../../../packages/core/src/ai-model.js";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const CAMPAIGN_ID = "00000000-0000-4000-8000-0000000002c1";
-const MAX_REQUESTS = Number(process.env.LIVE_SMOKE_REQUEST_CAP?.trim() || "20");
+const MAX_REQUESTS = Number(process.env.LIVE_SMOKE_REQUEST_CAP?.trim() || "13");
 
 function stableSmokeRunId(idempotencyKey: string): string {
   const digest = createHash("sha256").update(idempotencyKey, "utf8").digest("hex");
@@ -100,11 +100,12 @@ function isConnectivitySuccess(value: unknown): boolean {
 }
 
 async function main(): Promise<void> {
-  if (!Number.isInteger(MAX_REQUESTS) || MAX_REQUESTS < 1 || MAX_REQUESTS > 20)
+  if (!Number.isInteger(MAX_REQUESTS) || MAX_REQUESTS < 1 || MAX_REQUESTS > 13)
     throw new Error("LIVE_SMOKE_REQUEST_CAP_INVALID");
   if ((process.env.OPENAI_MODEL?.trim() || DEFAULT_LLM_MODEL) !== DEFAULT_LLM_MODEL)
     throw new Error("LIVE_SMOKE_MODEL_MISMATCH");
   const provider = createOpenAIProviderRuntime();
+  if (provider.mode === "live") throw new Error("LIVE_SMOKE_DURABLE_LEDGER_REQUIRED");
   let liveRequests = 0;
   const usage: Array<{ inputUnits: number; outputUnits: number; latencyMs: number }> = [];
   const countedGateway: AgentProviderGateway = {
