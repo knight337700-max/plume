@@ -3,6 +3,7 @@ import {
   type AsyncCommand,
 } from "../../../packages/core/src/async/queue-routing.js";
 import type { CommandEnvelope } from "../../../packages/core/src/async/message-envelope.js";
+import { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX } from "../../../packages/core/src/public.js";
 
 export type JacomoExternalCommand = "creative.generate";
 export type JacomoInternalCommand =
@@ -158,6 +159,8 @@ function validateCreativeGenerate(payload: unknown): payload is CreativeGenerate
   );
 }
 
+export { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX };
+
 const LIVE_SMOKE_AGENT_CODES = new Set([
   "CAMPAIGN_ANALYST",
   "PRODUCT_MATCHER",
@@ -177,9 +180,11 @@ function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
     isUuidLike(payload.budgetEpochId) &&
     (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
     (payload.workflowCallBudget === undefined ||
-      (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
+      (isPositiveInteger(payload.workflowCallBudget) &&
+        payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)) &&
     (payload.requestBudget === undefined ||
-      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20)) &&
+      (isPositiveInteger(payload.requestBudget) &&
+        payload.requestBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
     (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean")
   );
@@ -198,7 +203,7 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
-    payload.workflowCallBudget <= 20 &&
+    payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX &&
     (payload.canaryVerificationRunId === undefined ||
       isUuidLike(payload.canaryVerificationRunId)) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
@@ -216,7 +221,7 @@ function validateAiLiveSmokeCanary(payload: unknown): payload is AiLiveSmokeCana
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
-    payload.workflowCallBudget <= 7 &&
+    payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX &&
     payload.canary === true
   );
 }

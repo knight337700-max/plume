@@ -3,6 +3,7 @@ import {
   ASYNC_COMMAND_DEFINITIONS,
   JACOMO_EXTERNAL_COMMANDS,
   JACOMO_INTERNAL_COMMANDS,
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
   validateCommandEnvelope,
 } from "./async.js";
 
@@ -82,6 +83,59 @@ describe("async command contracts", () => {
         payload: { agentCode: "COPY_GENERATOR", budgetEpochId: id, workflowCallBudget: 21 },
       }),
     ).toThrow("PAYLOAD_INVALID");
+  });
+
+  it("uses one transport ceiling for canary, agent, and verification budgets", () => {
+    expect(LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX).toBe(20);
+    const envelope = (command: string, payload: unknown) => ({
+      messageId: id,
+      schemaVersion: 1,
+      workspaceId: id,
+      correlationId: id,
+      jobId: id,
+      jobItemId: id,
+      createdAt: new Date().toISOString(),
+      command,
+      payload,
+    });
+    const canaryPayload = (workflowCallBudget: number) => ({
+      verificationRunId: id,
+      parentWorkflowJobId: id,
+      workspaceId: id,
+      smokeRunId: id,
+      budgetEpochId: id,
+      workflowCallBudget,
+      canary: true,
+    });
+
+    for (const workflowCallBudget of [1, 7, 13, 20]) {
+      expect(() =>
+        validateCommandEnvelope(
+          envelope("ai.live_smoke.canary", canaryPayload(workflowCallBudget)),
+        ),
+      ).not.toThrow();
+    }
+    for (const workflowCallBudget of [0, -1, 1.5, 21]) {
+      expect(() =>
+        validateCommandEnvelope(
+          envelope("ai.live_smoke.canary", canaryPayload(workflowCallBudget)),
+        ),
+      ).toThrow("PAYLOAD_INVALID");
+    }
+    expect(() =>
+      validateCommandEnvelope(
+        envelope("ai.live_smoke.verify", {
+          verificationRunId: id,
+          parentWorkflowJobId: id,
+          agentCode: "LAYOUT_PLANNER",
+          workspaceId: id,
+          smokeRunId: id,
+          budgetEpochId: id,
+          workflowCallBudget: 13,
+          verificationOnly: true,
+        }),
+      ),
+    ).not.toThrow();
   });
 
   it("accepts only bounded verification-only live smoke payloads", () => {

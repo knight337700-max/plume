@@ -107,6 +107,21 @@ const fakeJob = (agentCode = "COPY_GENERATOR") =>
     data: { agentCode, budgetEpochId: ids.budgetEpochId, workflowCallBudget: 7 },
   }) as never;
 
+const fakeCanaryJob = (workflowCallBudget: number) =>
+  ({
+    id: ids.jobItemId,
+    attemptsMade: 0,
+    data: {
+      canary: true,
+      verificationRunId: ids.verificationRunId,
+      parentWorkflowJobId: ids.smokeRunId,
+      workspaceId: ids.workspaceId,
+      smokeRunId: ids.smokeRunId,
+      budgetEpochId: ids.budgetEpochId,
+      workflowCallBudget,
+    },
+  }) as never;
+
 const successGateway = (): { gateway: AgentProviderGateway; calls: number } => {
   let calls = 0;
   return {
@@ -330,26 +345,39 @@ describe("Phase 2C.7 provider lifecycle", () => {
         pricingVersion: "test",
         inputMicroUsdPerMillionTokens: 1,
         outputMicroUsdPerMillionTokens: 1,
+        absoluteProviderCallCap: 13,
       },
     });
-    await handler(
-      {
-        id: ids.jobItemId,
-        attemptsMade: 0,
-        data: {
-          canary: true,
-          verificationRunId: ids.verificationRunId,
-          parentWorkflowJobId: ids.smokeRunId,
-          workspaceId: ids.workspaceId,
-          smokeRunId: ids.smokeRunId,
-          budgetEpochId: ids.budgetEpochId,
-          workflowCallBudget: 7,
-        },
-      } as never,
-      ids,
-    );
+    await handler(fakeCanaryJob(13), ids);
     expect(provider.calls).toBe(1);
+    expect(budget.events).toEqual(["reserve", "dispatch-started"]);
     expect(lifecycle.canaryStatus).toBe("PASS");
     expect(lifecycle.canaryResults).toHaveLength(1);
   });
+
+  it.each([7, 20])(
+    "rejects canary budget %s against runtime cap 13 before reservation or SDK",
+    async (workflowCallBudget) => {
+      const budget = new FakeBudgetStore();
+      const lifecycle = new FakeLifecycleStore();
+      const provider = successGateway();
+      const handler = createLiveSmokeProviderCanaryHandler(provider.gateway, budget, lifecycle, {
+        providerMode: "live",
+        pricingPolicy: {
+          model: "gpt-5.6-luna",
+          pricingVersion: "test",
+          inputMicroUsdPerMillionTokens: 1,
+          outputMicroUsdPerMillionTokens: 1,
+          absoluteProviderCallCap: 13,
+        },
+      });
+
+      await expect(handler(fakeCanaryJob(workflowCallBudget), ids)).rejects.toThrow(
+        "LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH",
+      );
+      expect(budget.events).toEqual([]);
+      expect(provider.calls).toBe(0);
+      expect(lifecycle.events).toHaveLength(0);
+    },
+  );
 });

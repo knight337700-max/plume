@@ -1,4 +1,4 @@
-import { resolveLlmModel } from "@plume/core/src/public.js";
+import { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX, resolveLlmModel } from "@plume/core/src/public.js";
 
 const MICRO_USD_PER_MILLION_TOKENS = 1_000_000;
 
@@ -56,7 +56,7 @@ function assertRuntimeLimitRelations(policy: LiveSmokePricingPolicy): void {
     policy.perRunHardCapMicroUsd! >= policy.monthlyLimitMicroUsd! ||
     policy.safetyBufferMicroUsd! >= policy.perRunHardCapMicroUsd! ||
     policy.absoluteProviderCallCap! < 1 ||
-    policy.absoluteProviderCallCap! > 20
+    policy.absoluteProviderCallCap! > LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX
   )
     throw new Error("LIVE_SMOKE_RUNTIME_SPEND_POLICY_RELATION_INVALID");
   if (!policy.billingScope?.trim()) throw new Error("OPENAI_LIVE_BILLING_SCOPE is required");
