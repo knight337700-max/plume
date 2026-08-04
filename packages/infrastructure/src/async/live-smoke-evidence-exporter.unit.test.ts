@@ -5,6 +5,7 @@ import type { Sql } from "postgres";
 import { describe, expect, it } from "vitest";
 import {
   exportLiveSmokeEvidence,
+  mapEvidenceCounts,
   type LiveSmokeEvidenceExportInput,
 } from "./live-smoke-evidence-exporter.js";
 
@@ -20,14 +21,15 @@ function fakeSql(options?: { readonly validationCount?: number }): Sql {
   let auditBundleHash: string | undefined;
   let auditWritten = false;
   const counts = {
-    budgetEpoch: 0,
-    spendLedger: 0,
+    budget_epoch: 0,
+    spend_ledger: 0,
     lifecycle: 0,
-    validationEvidence: options?.validationCount ?? 0,
+    validation_evidence: options?.validationCount ?? 0,
     coverage: 0,
     failure: 0,
     canary: 0,
   };
+
   const runQuery = (strings: TemplateStringsArray, values: readonly unknown[]) => {
     const query = strings.join(" ");
     if (query.includes("SELECT count(*)::int FROM live_smoke_budget_epoch"))
@@ -50,6 +52,63 @@ function fakeSql(options?: { readonly validationCount?: number }): Sql {
     callback(transaction);
   return sql as unknown as Sql;
 }
+
+describe("evidence count mapping", () => {
+  it("maps one epoch and zero provider evidence to canonical keys", () => {
+    expect(
+      mapEvidenceCounts({
+        budget_epoch: 1,
+        spend_ledger: 0,
+        lifecycle: 0,
+        validation_evidence: 0,
+        coverage: 0,
+        failure: 0,
+        canary: 0,
+      }),
+    ).toEqual({
+      budgetEpoch: 1,
+      spendLedger: 0,
+      lifecycle: 0,
+      validationEvidence: 0,
+      coverage: 0,
+      failure: 0,
+      canary: 0,
+    });
+  });
+
+  it("maps all non-zero counts without coercion", () => {
+    expect(
+      mapEvidenceCounts({
+        budget_epoch: 1,
+        spend_ledger: 2,
+        lifecycle: 3,
+        validation_evidence: 4,
+        coverage: 5,
+        failure: 6,
+        canary: 7,
+      }),
+    ).toEqual({
+      budgetEpoch: 1,
+      spendLedger: 2,
+      lifecycle: 3,
+      validationEvidence: 4,
+      coverage: 5,
+      failure: 6,
+      canary: 7,
+    });
+  });
+
+  it.each([
+    ["missing", {}],
+    ["null", { budget_epoch: null }],
+    ["string", { budget_epoch: "1" }],
+    ["negative", { budget_epoch: -1 }],
+    ["fraction", { budget_epoch: 1.5 }],
+    ["unsafe integer", { budget_epoch: Number.MAX_SAFE_INTEGER + 1 }],
+  ])("rejects %s values", (_label, value) => {
+    expect(() => mapEvidenceCounts(value)).toThrow("LIVE_SMOKE_EVIDENCE_COUNT_INVALID:budgetEpoch");
+  });
+});
 
 async function createInput(exportRoot: string, sql: Sql): Promise<LiveSmokeEvidenceExportInput> {
   return {
