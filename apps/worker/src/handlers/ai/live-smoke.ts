@@ -28,6 +28,10 @@ import type {
   LiveSmokeProviderMode,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import {
+  isApprovedLiveSmokeSyntheticScenarioId,
+  resolveLiveSmokeSyntheticScenario,
+} from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
+import {
   assertLiveSmokeInputEstimate,
   calculateLiveSmokeCostMicroUsd,
   calculateLiveSmokeReservationMicroUsd,
@@ -44,65 +48,6 @@ import type {
   LiveSmokeValidationEvidenceStore,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
 
-const SYNTHETIC_IDS = Object.freeze({
-  campaign: "00000000-0000-4000-8000-0000000002c1",
-  product: "00000000-0000-4000-8000-0000000002c2",
-  format: "00000000-0000-4000-8000-0000000002c3",
-  asset: "00000000-0000-4000-8000-0000000002c4",
-  creative: "00000000-0000-4000-8000-0000000002c5",
-});
-
-const SYNTHETIC_DATA: Readonly<Record<string, unknown>> = Object.freeze({
-  sourceIds: ["00000000-0000-4000-8000-0000000002c6"],
-  sourceText: "Synthetic JACOMO Autumn Sofa Preview brief for staging validation.",
-  citations: [],
-  brandProfile: { brand: "JACOMO", market: "KR", synthetic: true },
-  productNames: ["Synthetic Autumn Sofa"],
-  candidates: [],
-  products: [{ id: SYNTHETIC_IDS.product, name: "Synthetic Autumn Sofa" }],
-  product: { id: SYNTHETIC_IDS.product, name: "Synthetic Autumn Sofa" },
-  formatProfile: { id: SYNTHETIC_IDS.format, width: 1200, height: 628 },
-  brief: {
-    campaign: "Synthetic Autumn Sofa Preview",
-    objective: "Generate validation-safe staging planning metadata",
-  },
-  assets: [],
-  template: { id: "synthetic-template", safeZone: true },
-  safeZones: [],
-  copy: { headline: "Synthetic autumn comfort" },
-  creativeDocument: { schemaVersion: "1.0.0", metadata: { campaignId: SYNTHETIC_IDS.campaign } },
-  editRequest: "Move the synthetic headline slightly lower.",
-  validation: [],
-  render: { mimeType: "image/png", synthetic: true },
-  rules: [],
-  landingSnapshot: null,
-  campaign: { id: SYNTHETIC_IDS.campaign, name: "Synthetic Autumn Sofa Preview" },
-  creative: { id: SYNTHETIC_IDS.creative, synthetic: true },
-  exportRecipe: { id: "synthetic-export", packageType: "ZIP" },
-});
-
-const SYNTHETIC_MESSAGES = Object.freeze([
-  {
-    role: "system" as const,
-    content:
-      "Staging-only synthetic evaluation. Return only the registered JSON schema. Do not use tools or external data.",
-  },
-  {
-    role: "user" as const,
-    content:
-      "Evaluate the synthetic JACOMO Autumn Sofa Preview brief for a KR Naver GFA planning workflow. Customer data, images, and external URLs are absent.",
-  },
-]);
-
-const LAYOUT_SYNTHETIC_MESSAGES = Object.freeze([
-  ...SYNTHETIC_MESSAGES,
-  {
-    role: "system" as const,
-    content:
-      "LAYOUT_PLANNER contract: formatProfileId is derived from input.formatProfile.id and must not be emitted by the model. Emit the required elements array; an empty array is valid for this synthetic input. Keep templateId, usedAssetVersionIds, copyAssets, and rationale in the registered schema.",
-  },
-]);
-
 function isAgentCode(value: string): value is AgentCode {
   return (AGENT_CODES as readonly string[]).includes(value);
 }
@@ -112,6 +57,7 @@ export interface LiveSmokeInvocationContext {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly jobItemId: string;
+  readonly syntheticScenarioId?: string;
 }
 
 export type LiveSmokeRuntimeHandler = (
@@ -151,6 +97,28 @@ function evidenceRequestHash(result: ProviderResult): string | undefined {
   return result.evidence?.requestIdHash ?? result.providerRequestIdHash;
 }
 
+function assertInvocationScope(
+  payload: {
+    readonly workspaceId?: string;
+    readonly smokeRunId?: string;
+    readonly budgetEpochId: string;
+    readonly syntheticScenarioId?: string;
+  },
+  invocation: LiveSmokeInvocationContext | undefined,
+  scenarioId: string,
+): void {
+  if (payload.syntheticScenarioId !== scenarioId)
+    throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+  if (
+    invocation &&
+    ((payload.workspaceId && payload.workspaceId !== invocation.workspaceId) ||
+      (payload.smokeRunId && payload.smokeRunId !== invocation.smokeRunId) ||
+      payload.budgetEpochId !== invocation.budgetEpochId ||
+      (invocation.syntheticScenarioId && invocation.syntheticScenarioId !== scenarioId))
+  )
+    throw new Error("LIVE_SMOKE_SCOPE_MISMATCH");
+}
+
 export function createLiveSmokeHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
@@ -176,6 +144,10 @@ export function createLiveSmokeHandler(
   const providerMode = options.providerMode ?? "live";
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
     const payload = job.data as AiLiveSmokePayload & { readonly workspaceId?: string };
+    if (!isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId))
+      throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+    const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+    assertInvocationScope(payload, invocation, scenario.id);
     if (!isAgentCode(payload.agentCode)) throw new Error("AI_LIVE_SMOKE_AGENT_NOT_REGISTERED");
     const workspaceId =
       invocation?.workspaceId ?? payload.workspaceId ?? "00000000-0000-4000-8000-0000000002c0";
@@ -191,7 +163,7 @@ export function createLiveSmokeHandler(
     const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
     if (!schema) throw new Error(`AI_LIVE_SMOKE_SCHEMA_NOT_FOUND:${prompt.outputSchemaId}`);
     const requestMessages =
-      payload.agentCode === "LAYOUT_PLANNER" ? LAYOUT_SYNTHETIC_MESSAGES : SYNTHETIC_MESSAGES;
+      payload.agentCode === "LAYOUT_PLANNER" ? scenario.layoutMessages : scenario.messages;
     const estimatedInputTokens = estimateLiveSmokeInputTokens({
       messages: requestMessages,
       outputSchema: schema,
@@ -491,11 +463,16 @@ export function createLiveSmokeHandler(
       correlationId: String(job.id ?? `${payload.agentCode}-live-smoke`),
       workspaceId,
       subjectType: "CAMPAIGN",
-      subjectId: SYNTHETIC_IDS.campaign,
-      locale: "ko-KR",
-      data: SYNTHETIC_DATA,
+      subjectId: (scenario.agentData.campaign as { readonly id: string }).id,
+      locale: scenario.locale,
+      data: scenario.agentData,
       messages: requestMessages,
       outputSchema: schema as unknown as JsonSchema,
+      syntheticScenarioId: scenario.id,
+      channelCode: scenario.channel.code,
+      formatProfileId: scenario.formatProfile.id as string,
+      profileVersion: scenario.formatProfile.version as string,
+      synthetic: true,
       timeoutSeconds: 60,
       onSdkRequestAttempt: async (kind) => {
         if (providerMode === "live" && options.lifecycleStore) {
@@ -776,6 +753,10 @@ export function createLiveSmokeProviderCanaryHandler(
     }
     const payload = job.data as AiLiveSmokeCanaryPayload;
     if (payload.canary !== true) throw new Error("LIVE_SMOKE_CANARY_FLAG_REQUIRED");
+    if (!isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId))
+      throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+    const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+    assertInvocationScope(payload, invocation, scenario.id);
     const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
     const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
     const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
@@ -798,13 +779,7 @@ export function createLiveSmokeProviderCanaryHandler(
       throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH");
     const canaryPolicy = modelPolicyRegistry.resolve("balanced-structured-v1");
     const estimatedInputTokens = estimateLiveSmokeInputTokens({
-      messages: [
-        {
-          role: "system",
-          content: "Staging provider canary. Return only the registered JSON object.",
-        },
-        { role: "user", content: "Return status ok, environment staging, provider openai." },
-      ],
+      messages: [...scenario.canaryMessages],
       outputSchema: CANARY_SCHEMA,
       metadata: { agentCode: "PROVIDER_ACCESSIBILITY_CANARY", model: options.pricingPolicy.model },
     });
@@ -894,6 +869,11 @@ export function createLiveSmokeProviderCanaryHandler(
           agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
           promptVersion: "1.0.0",
           correlationId: `gate-h-2c7-canary-${jobItemId}`,
+          syntheticScenarioId: scenario.id,
+          channelCode: scenario.channel.code,
+          formatProfileId: scenario.formatProfile.id as string,
+          profileVersion: scenario.formatProfile.version as string,
+          synthetic: true,
         },
         onSdkRequestAttempt: async () => {
           const updated = await lifecycleStore.markProviderRequestAttempt({

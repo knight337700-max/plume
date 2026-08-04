@@ -11,6 +11,7 @@ import type {
   LiveSmokeLifecycleStore,
   LiveSmokeReservationLifecycleInput,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const ids = {
   workspaceId: "00000000-0000-4000-8000-0000000002c0",
@@ -104,7 +105,12 @@ const fakeJob = (agentCode = "COPY_GENERATOR") =>
   ({
     id: ids.jobItemId,
     attemptsMade: 0,
-    data: { agentCode, budgetEpochId: ids.budgetEpochId, workflowCallBudget: 7 },
+    data: {
+      agentCode,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+      budgetEpochId: ids.budgetEpochId,
+      workflowCallBudget: 7,
+    },
   }) as never;
 
 const fakeCanaryJob = (workflowCallBudget: number) =>
@@ -119,6 +125,7 @@ const fakeCanaryJob = (workflowCallBudget: number) =>
       smokeRunId: ids.smokeRunId,
       budgetEpochId: ids.budgetEpochId,
       workflowCallBudget,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
     },
   }) as never;
 
@@ -253,6 +260,57 @@ describe("Phase 2C.7 provider lifecycle", () => {
     expect(provider.calls).toBe(1);
   });
 
+  it("blocks an unapproved synthetic scope before reservation and SDK", async () => {
+    const budget = new FakeBudgetStore();
+    const provider = successGateway();
+    const handler = createLiveSmokeHandler(provider.gateway, budget, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+      },
+    });
+    const wrongScopeJob = {
+      id: ids.jobItemId,
+      attemptsMade: 0,
+      data: {
+        agentCode: "COPY_GENERATOR",
+        syntheticScenarioId: "SYNTHETIC_JACOMO_NAVER_GFA_2026_1",
+        budgetEpochId: ids.budgetEpochId,
+        workflowCallBudget: 13,
+      },
+    } as never;
+    await expect(handler(wrongScopeJob, ids)).rejects.toThrow(
+      "LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED",
+    );
+    expect(budget.events).toEqual([]);
+    expect(provider.calls).toBe(0);
+
+    await expect(
+      handler(
+        {
+          id: ids.jobItemId,
+          attemptsMade: 0,
+          data: {
+            agentCode: "COPY_GENERATOR",
+            syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+            smokeRunId: ids.smokeRunId,
+            budgetEpochId: ids.budgetEpochId,
+            workflowCallBudget: 13,
+          },
+        } as never,
+        {
+          ...ids,
+          smokeRunId: "00000000-0000-4000-8000-0000000002d8",
+        },
+      ),
+    ).rejects.toThrow("LIVE_SMOKE_SCOPE_MISMATCH");
+    expect(budget.events).toEqual([]);
+    expect(provider.calls).toBe(0);
+  });
+
   it("keeps uncertain post-dispatch failures billable and disables automatic retry", async () => {
     const budget = new FakeBudgetStore();
     const lifecycle = new FakeLifecycleStore();
@@ -326,6 +384,7 @@ describe("Phase 2C.7 provider lifecycle", () => {
             smokeRunId: ids.smokeRunId,
             budgetEpochId: ids.budgetEpochId,
             workflowCallBudget: 7,
+            syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
           },
         } as never,
         ids,

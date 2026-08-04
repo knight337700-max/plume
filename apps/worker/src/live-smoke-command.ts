@@ -14,9 +14,12 @@ import { DurableAsyncCommandPublisher } from "../../../packages/infrastructure/s
 import { DurableWorkflowRepository } from "../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import { createOpenAIProviderRuntime } from "../../../packages/infrastructure/src/ai/provider-runtime.js";
 import { DEFAULT_LLM_MODEL } from "../../../packages/core/src/ai-model.js";
+import {
+  LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+  resolveLiveSmokeSyntheticScenario,
+} from "../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
-const CAMPAIGN_ID = "00000000-0000-4000-8000-0000000002c1";
 const MAX_REQUESTS = Number(process.env.LIVE_SMOKE_REQUEST_CAP?.trim() || "13");
 
 function stableSmokeRunId(idempotencyKey: string): string {
@@ -28,48 +31,6 @@ function stableBudgetEpochId(idempotencyKey: string): string {
   return stableSmokeRunId(`${idempotencyKey}:budget-epoch`);
 }
 
-const syntheticData: Readonly<Record<string, unknown>> = {
-  sourceIds: ["00000000-0000-4000-8000-0000000002c6"],
-  sourceText: "Synthetic JACOMO Autumn Sofa Preview brief for staging validation.",
-  citations: [],
-  brandProfile: { brand: "JACOMO", market: "KR", synthetic: true },
-  productNames: ["Synthetic Autumn Sofa"],
-  candidates: [],
-  products: [{ id: "00000000-0000-4000-8000-0000000002c2", name: "Synthetic Autumn Sofa" }],
-  product: { id: "00000000-0000-4000-8000-0000000002c2", name: "Synthetic Autumn Sofa" },
-  formatProfile: { id: "00000000-0000-4000-8000-0000000002c3", width: 1200, height: 628 },
-  brief: {
-    campaign: "Synthetic Autumn Sofa Preview",
-    objective: "Generate validation-safe staging planning metadata",
-  },
-  assets: [],
-  template: { id: "synthetic-template", safeZone: true },
-  safeZones: [],
-  copy: { headline: "Synthetic autumn comfort" },
-  creativeDocument: { schemaVersion: "1.0.0" },
-  editRequest: "Move the synthetic headline slightly lower.",
-  validation: [],
-  render: { mimeType: "image/png", synthetic: true },
-  rules: [],
-  landingSnapshot: null,
-  campaign: { id: CAMPAIGN_ID, name: "Synthetic Autumn Sofa Preview" },
-  creative: { id: "00000000-0000-4000-8000-0000000002c5", synthetic: true },
-  exportRecipe: { id: "synthetic-export", packageType: "ZIP" },
-};
-
-const messages = [
-  {
-    role: "system" as const,
-    content:
-      "Staging-only synthetic evaluation. Return only the registered JSON schema. Do not use tools or external data.",
-  },
-  {
-    role: "user" as const,
-    content:
-      "Evaluate the synthetic JACOMO Autumn Sofa Preview brief for a KR Naver GFA planning workflow. Customer data, images, and external URLs are absent.",
-  },
-];
-
 function schemaFor(agentCode: AgentCode) {
   const prompt = promptRegistry.resolve(agentCode);
   const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
@@ -77,19 +38,28 @@ function schemaFor(agentCode: AgentCode) {
   return schema;
 }
 
-function requestFor(agentCode: AgentCode, taskId: string) {
+function requestFor(
+  agentCode: AgentCode,
+  taskId: string,
+  scenario: ReturnType<typeof resolveLiveSmokeSyntheticScenario>,
+) {
   return {
     taskId,
     agentCode,
     workspaceId: WORKSPACE_ID,
     correlationId: taskId,
     subjectType: "CAMPAIGN",
-    subjectId: CAMPAIGN_ID,
-    locale: "ko-KR",
-    data: syntheticData,
-    messages,
+    subjectId: (scenario.agentData.campaign as { readonly id: string }).id,
+    locale: scenario.locale,
+    data: scenario.agentData,
+    messages: scenario.messages,
     outputSchema: schemaFor(agentCode),
     timeoutSeconds: 60,
+    syntheticScenarioId: scenario.id,
+    channelCode: scenario.channel.code,
+    formatProfileId: scenario.formatProfile.id as string,
+    profileVersion: scenario.formatProfile.version as string,
+    synthetic: true,
   };
 }
 
@@ -100,6 +70,7 @@ function isConnectivitySuccess(value: unknown): boolean {
 }
 
 async function main(): Promise<void> {
+  const scenario = resolveLiveSmokeSyntheticScenario(LIVE_SMOKE_SYNTHETIC_SCENARIO_ID);
   if (!Number.isInteger(MAX_REQUESTS) || MAX_REQUESTS < 1 || MAX_REQUESTS > 13)
     throw new Error("LIVE_SMOKE_REQUEST_CAP_INVALID");
   if ((process.env.OPENAI_MODEL?.trim() || DEFAULT_LLM_MODEL) !== DEFAULT_LLM_MODEL)
@@ -126,9 +97,7 @@ async function main(): Promise<void> {
   const connectivity = await provider.gateway.execute({
     taskId: "gate-h-2c-connectivity",
     modelPolicyId: "balanced-structured-v1",
-    messages: [
-      { role: "user", content: "Return status=ok, environment=staging, provider=openai as JSON." },
-    ],
+    messages: scenario.canaryMessages,
     outputSchema: {
       type: "object",
       required: ["status", "environment", "provider"],
@@ -146,6 +115,11 @@ async function main(): Promise<void> {
       agentCode: "CONNECTIVITY_TEST",
       promptVersion: "1.0.0",
       correlationId: "gate-h-2c-connectivity",
+      syntheticScenarioId: scenario.id,
+      channelCode: scenario.channel.code,
+      formatProfileId: scenario.formatProfile.id as string,
+      profileVersion: scenario.formatProfile.version as string,
+      synthetic: true,
     },
   });
   liveRequests += 1;
@@ -159,7 +133,9 @@ async function main(): Promise<void> {
 
   const directResults: Array<Record<string, unknown>> = [];
   for (const agentCode of AGENT_CODES) {
-    const result = await orchestrator.run(requestFor(agentCode, `gate-h-2c-direct-${agentCode}`));
+    const result = await orchestrator.run(
+      requestFor(agentCode, `gate-h-2c-direct-${agentCode}`, scenario),
+    );
     if (result.status !== "COMPLETED") throw new Error(`LIVE_SMOKE_AGENT_FAILED:${agentCode}`);
     directResults.push({
       agentCode,
@@ -191,6 +167,7 @@ async function main(): Promise<void> {
       smokeRunId,
       workflowCallBudget: requestBudget,
       workspaceId: WORKSPACE_ID,
+      syntheticScenarioId: scenario.id,
     },
     requestedBy: WORKSPACE_ID,
   });
@@ -207,6 +184,7 @@ async function main(): Promise<void> {
         smokeRunId,
         workflowCallBudget: requestBudget,
         workspaceId: WORKSPACE_ID,
+        syntheticScenarioId: scenario.id,
       },
       requestedBy: WORKSPACE_ID,
     });
@@ -221,6 +199,7 @@ async function main(): Promise<void> {
       smokeRunId,
       workflowCallBudget: requestBudget,
       workspaceId: WORKSPACE_ID,
+      syntheticScenarioId: scenario.id,
     },
     requestedBy: WORKSPACE_ID,
   });
