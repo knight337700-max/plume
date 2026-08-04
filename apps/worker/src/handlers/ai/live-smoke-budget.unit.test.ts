@@ -7,6 +7,7 @@ import type {
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import { createLiveSmokeHandler } from "./live-smoke.js";
 import type { JsonSchema } from "../../../../../packages/core/src/agents/result-validator.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const SMOKE_RUN_ID = "00000000-0000-4000-8000-0000000002d0";
@@ -118,11 +119,18 @@ function fakeJob(
   itemNumber: number,
   workflowCallBudget: number,
   attemptsMade = 0,
+  scope: { readonly smokeRunId?: string; readonly budgetEpochId?: string } = {},
 ) {
   return {
     id: `message-${itemNumber}`,
     attemptsMade,
-    data: { agentCode, budgetEpochId: BUDGET_EPOCH_ID, workflowCallBudget },
+    data: {
+      agentCode,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+      ...(scope.smokeRunId ? { smokeRunId: scope.smokeRunId } : {}),
+      budgetEpochId: scope.budgetEpochId ?? BUDGET_EPOCH_ID,
+      workflowCallBudget,
+    },
   } as never;
 }
 
@@ -317,12 +325,18 @@ describe("live smoke workflow budget", () => {
         outputMicroUsdPerMillionTokens: 1,
       },
     });
-    const result = await handler(fakeJob("COPY_GENERATOR", 99, 3), {
-      workspaceId: WORKSPACE_ID,
-      smokeRunId: "00000000-0000-4000-8000-0000000002d1",
-      budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
-      jobItemId: "00000000-0000-4000-8000-000000000399",
-    });
+    const result = await handler(
+      fakeJob("COPY_GENERATOR", 99, 3, 0, {
+        smokeRunId: "00000000-0000-4000-8000-0000000002d1",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
+      }),
+      {
+        workspaceId: WORKSPACE_ID,
+        smokeRunId: "00000000-0000-4000-8000-0000000002d1",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
+        jobItemId: "00000000-0000-4000-8000-000000000399",
+      },
+    );
     expect(result).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
     expect(calls).toHaveLength(3);
 
@@ -397,19 +411,31 @@ describe("live smoke workflow budget", () => {
       },
     });
     await expect(
-      handler(fakeJob("COPY_GENERATOR", 100, 3, 0), {
+      handler(
+        fakeJob("COPY_GENERATOR", 100, 3, 0, {
+          smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+          budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
+        }),
+        {
+          workspaceId: WORKSPACE_ID,
+          smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+          budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
+          jobItemId: "00000000-0000-4000-8000-000000000400",
+        },
+      ),
+    ).rejects.toThrow("AI_LIVE_SMOKE_AGENT_FAILED");
+    const resumed = await handler(
+      fakeJob("COPY_GENERATOR", 100, 3, 1, {
+        smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
+      }),
+      {
         workspaceId: WORKSPACE_ID,
         smokeRunId: "00000000-0000-4000-8000-0000000002d3",
         budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
         jobItemId: "00000000-0000-4000-8000-000000000400",
-      }),
-    ).rejects.toThrow("AI_LIVE_SMOKE_AGENT_FAILED");
-    const resumed = await handler(fakeJob("COPY_GENERATOR", 100, 3, 1), {
-      workspaceId: WORKSPACE_ID,
-      smokeRunId: "00000000-0000-4000-8000-0000000002d3",
-      budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
-      jobItemId: "00000000-0000-4000-8000-000000000400",
-    });
+      },
+    );
     expect(resumed).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
     expect(providerCall).toBe(3);
     expect(

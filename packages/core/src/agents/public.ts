@@ -13,6 +13,14 @@ export {
   createStrictOutputAdapter,
   type StrictOutputAdapter,
 } from "./strict-output-adapter.js";
+export {
+  LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+  isApprovedLiveSmokeSyntheticScenarioId,
+  resolveLiveSmokeSyntheticScenario,
+  resolveLiveSmokeSyntheticScenarioFromCatalog,
+  type ApprovedLiveSmokeSyntheticScenario,
+  type LiveSmokeSyntheticScenarioId,
+} from "./live-smoke-synthetic-scenarios.js";
 export type {
   JsonSchema,
   SchemaError,

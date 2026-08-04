@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { AgentCode } from "../../../packages/core/src/agents/prompt-registry.js";
+import {
+  isApprovedLiveSmokeSyntheticScenarioId,
+  type LiveSmokeSyntheticScenarioId,
+} from "../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 import type {
   AsyncCommandPublisher,
   EnqueuedCommand,
@@ -23,6 +27,7 @@ export interface CreateVerificationShadowRunInput {
   readonly parentWorkflowJobId: string;
   readonly idempotencyKey: string;
   readonly environment: "staging";
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   readonly verificationRunId?: string;
   readonly smokeRunId?: string;
   readonly budgetEpochId?: string;
@@ -46,6 +51,8 @@ export async function createVerificationShadowRun(
   input: CreateVerificationShadowRunInput,
 ): Promise<VerificationShadowRun> {
   if (input.environment !== "staging") throw new Error("VERIFICATION_SHADOW_STAGING_ONLY");
+  if (!isApprovedLiveSmokeSyntheticScenarioId(input.syntheticScenarioId))
+    throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_NOT_APPROVED");
   const verificationRunId = input.verificationRunId ?? randomUUID();
   const smokeRunId = input.smokeRunId ?? randomUUID();
   const budgetEpochId = input.budgetEpochId ?? randomUUID();
@@ -103,6 +110,7 @@ export async function createVerificationShadowRun(
     smokeRunId,
     budgetEpochId,
     workflowCallBudget: epochLimit,
+    syntheticScenarioId: input.syntheticScenarioId,
     ...(input.retryEnabled === undefined ? {} : { retryEnabled: input.retryEnabled }),
     ...(input.repairEnabled === undefined ? {} : { repairEnabled: input.repairEnabled }),
     verificationOnly: true,

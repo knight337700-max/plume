@@ -10,6 +10,7 @@ import type {
   AgentLiveCoverageInput,
 } from "../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import { createVerificationShadowRun, MOCK_ONLY_AGENT_CODES } from "./verification-shadow-run.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const UUIDS = {
   workspaceId: "00000000-0000-4000-8000-0000000002c0",
@@ -96,6 +97,7 @@ describe("verification-only shadow queue", () => {
       parentWorkflowJobId: UUIDS.parentWorkflowJobId,
       idempotencyKey: "gate-h-2c6-shadow-test",
       environment: "staging" as const,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
       verificationRunId: UUIDS.verificationRunId,
       smokeRunId: UUIDS.smokeRunId,
       budgetEpochId: UUIDS.budgetEpochId,
@@ -128,6 +130,7 @@ describe("verification-only shadow queue", () => {
         parentWorkflowJobId: UUIDS.parentWorkflowJobId,
         idempotencyKey: "gate-h-2c6-production-test",
         environment: "production" as never,
+        syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
       }),
     ).rejects.toThrow("VERIFICATION_SHADOW_STAGING_ONLY");
     expect(fake.commands).toHaveLength(0);

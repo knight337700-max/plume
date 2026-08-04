@@ -3,7 +3,11 @@ import {
   type AsyncCommand,
 } from "../../../packages/core/src/async/queue-routing.js";
 import type { CommandEnvelope } from "../../../packages/core/src/async/message-envelope.js";
-import { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX } from "../../../packages/core/src/public.js";
+import {
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
+  isApprovedLiveSmokeSyntheticScenarioId,
+  type LiveSmokeSyntheticScenarioId,
+} from "../../../packages/core/src/public.js";
 
 export type JacomoExternalCommand = "creative.generate";
 export type JacomoInternalCommand =
@@ -37,6 +41,8 @@ export interface CreativeGeneratePayload {
 
 export interface AiLiveSmokePayload {
   readonly agentCode: string;
+  /** Versioned synthetic scope resolved from the canonical media catalog. */
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   /** Immutable budget epoch for this durable workflow attempt. */
   readonly budgetEpochId: string;
   /** Durable workflow scope. v1 payloads derive this from the root job id. */
@@ -59,6 +65,7 @@ export interface AiLiveSmokeVerificationPayload {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   /** Reuse a previously attested provider canary when the gateway stack is unchanged. */
   readonly canaryVerificationRunId?: string;
   readonly retryEnabled?: boolean;
@@ -73,6 +80,7 @@ export interface AiLiveSmokeCanaryPayload {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   readonly canary: true;
 }
 
@@ -146,6 +154,22 @@ const isUuidLike = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 
+const FREEFORM_SCOPE_KEYS = new Set([
+  "channel",
+  "channelCode",
+  "product",
+  "productCode",
+  "format",
+  "formatId",
+  "formatProfile",
+  "formatProfileId",
+  "profileVersion",
+]);
+
+function hasForbiddenFreeformScope(payload: Record<string, unknown>): boolean {
+  return [...FREEFORM_SCOPE_KEYS].some((key) => key in payload);
+}
+
 function validateCreativeGenerate(payload: unknown): payload is CreativeGeneratePayload {
   if (!isRecord(payload)) return false;
   return (
@@ -177,6 +201,8 @@ function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
     isRecord(payload) &&
     isString(payload.agentCode) &&
     LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.budgetEpochId) &&
     (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
     (payload.workflowCallBudget === undefined ||
@@ -199,6 +225,8 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.parentWorkflowJobId) &&
     isString(payload.agentCode) &&
     LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.workspaceId) &&
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
@@ -215,6 +243,8 @@ function validateAiLiveSmokeVerification(
 function validateAiLiveSmokeCanary(payload: unknown): payload is AiLiveSmokeCanaryPayload {
   return (
     isRecord(payload) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.verificationRunId) &&
     isUuidLike(payload.parentWorkflowJobId) &&
     isUuidLike(payload.workspaceId) &&

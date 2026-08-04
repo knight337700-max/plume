@@ -8,6 +8,7 @@ import type {
   LiveSmokeValidationEvidenceStore,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
 import { createLiveSmokeHandler, createLiveSmokeVerificationHandler } from "./live-smoke.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const ids = {
   workspaceId: "00000000-0000-4000-8000-0000000002c0",
@@ -127,6 +128,7 @@ function job(agentCode: string) {
       smokeRunId: ids.smokeRunId,
       budgetEpochId: ids.budgetEpochId,
       workflowCallBudget: 9,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
     },
   } as never;
 }
@@ -183,7 +185,9 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
       },
       validationEvidenceStore: evidenceStore(rows),
     });
-    await expect(handler(job("LAYOUT_PLANNER"), invocation("LAYOUT_PLANNER"))).rejects.toMatchObject({
+    await expect(
+      handler(job("LAYOUT_PLANNER"), invocation("LAYOUT_PLANNER")),
+    ).rejects.toMatchObject({
       code: "LIVE_SMOKE_UNKNOWN_BILLABLE",
     });
     expect(rows.some((row) => row.evidenceStage === "SDK_ATTEMPT")).toBe(false);
