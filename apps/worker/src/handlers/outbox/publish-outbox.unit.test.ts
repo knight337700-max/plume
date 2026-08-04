@@ -99,6 +99,7 @@ describe("outbox command publishing", () => {
         budgetEpochId: id,
         workflowCallBudget: 3,
         syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+        canaryVerificationRunId: id,
         verificationOnly: true,
         retryEnabled: false,
         repairEnabled: false,

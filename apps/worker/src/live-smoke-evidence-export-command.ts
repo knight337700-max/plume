@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createDatabaseClient } from "../../../packages/db/src/client.js";
-import { exportLiveSmokeEvidence } from "../../../packages/infrastructure/src/async/live-smoke-evidence-exporter.js";
+import { exportFinalLiveSmokeEvidence } from "../../../packages/infrastructure/src/async/live-smoke-evidence-exporter.js";
 
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -8,10 +8,16 @@ const required = (name: string): string => {
   return value;
 };
 
+const requiredTrue = (name: string): true => {
+  if (process.env[name]?.trim().toLowerCase() !== "true")
+    throw new Error(`LIVE_SMOKE_EXPORT_${name}_REQUIRED`);
+  return true;
+};
+
 export async function runLiveSmokeEvidenceExport(): Promise<void> {
   const database = createDatabaseClient();
   try {
-    const result = await exportLiveSmokeEvidence({
+    const result = await exportFinalLiveSmokeEvidence({
       sql: database.sql,
       exportRoot: resolve(
         process.env.LIVE_SMOKE_EVIDENCE_EXPORT_ROOT?.trim() || "reports/live-evidence",
@@ -25,6 +31,10 @@ export async function runLiveSmokeEvidenceExport(): Promise<void> {
       conservativeCarryForwardMicroUsd: Number(
         process.env.LIVE_SMOKE_EVIDENCE_CARRY_FORWARD_MICRO_USD ?? "0",
       ),
+      workerWithSecretStopped: requiredTrue("LIVE_SMOKE_EVIDENCE_WORKER_STOPPED"),
+      additionalDispatchBlocked: requiredTrue("LIVE_SMOKE_EVIDENCE_DISPATCH_BLOCKED"),
+      runTerminal: requiredTrue("LIVE_SMOKE_EVIDENCE_RUN_TERMINAL"),
+      ledgerStateStable: requiredTrue("LIVE_SMOKE_EVIDENCE_LEDGER_STABLE"),
     });
     console.log(
       JSON.stringify({

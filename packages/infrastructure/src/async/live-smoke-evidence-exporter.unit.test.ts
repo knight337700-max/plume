@@ -1,12 +1,13 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Sql } from "postgres";
 import { describe, expect, it } from "vitest";
 import {
-  exportLiveSmokeEvidence,
+  exportFinalLiveSmokeEvidence,
+  probeLiveSmokeEvidenceExporterReadiness,
   mapEvidenceCounts,
-  type LiveSmokeEvidenceExportInput,
+  type LiveSmokeEvidenceFinalExportInput,
 } from "./live-smoke-evidence-exporter.js";
 
 type TaggedQuery = {
@@ -110,7 +111,10 @@ describe("evidence count mapping", () => {
   });
 });
 
-async function createInput(exportRoot: string, sql: Sql): Promise<LiveSmokeEvidenceExportInput> {
+async function createInput(
+  exportRoot: string,
+  sql: Sql,
+): Promise<LiveSmokeEvidenceFinalExportInput> {
   return {
     sql,
     exportRoot,
@@ -119,16 +123,40 @@ async function createInput(exportRoot: string, sql: Sql): Promise<LiveSmokeEvide
     budgetEpochId: "epoch-1",
     scenarioId: "CANARY_PLUS_CAMPAIGN_ANALYST_DIAGNOSTIC_V1",
     conservativeCarryForwardMicroUsd: 1_500_000,
+    workerWithSecretStopped: true,
+    additionalDispatchBlocked: true,
+    runTerminal: true,
+    ledgerStateStable: true,
   };
 }
 
 describe("redacted live evidence export", () => {
+  it("probes readiness without creating a canonical bundle or export audit", async () => {
+    const exportRoot = await mkdtemp(join(tmpdir(), "plume-live-evidence-probe-"));
+    try {
+      const result = await probeLiveSmokeEvidenceExporterReadiness({
+        sql: fakeSql(),
+        exportRoot,
+        scenarioId: "CANARY_PLUS_CAMPAIGN_ANALYST_DIAGNOSTIC_V1",
+      });
+      expect(result).toMatchObject({
+        status: "READY",
+        canonicalArtifactsCreated: false,
+        exportAuditRows: 0,
+        usedActualRunIdentity: false,
+      });
+      expect(await readdir(exportRoot)).toEqual([]);
+    } finally {
+      await rm(exportRoot, { recursive: true, force: true });
+    }
+  });
+
   it("writes the complete bundle and returns created=false on an idempotent replay", async () => {
     const exportRoot = await mkdtemp(join(tmpdir(), "plume-live-evidence-"));
     try {
       const sql = fakeSql();
       const input = await createInput(exportRoot, sql);
-      const first = await exportLiveSmokeEvidence(input);
+      const first = await exportFinalLiveSmokeEvidence(input);
       expect(first.status).toBe("COMPLETE");
       expect(first.created).toBe(true);
       expect(await readFile(join(first.finalDirectory, "EXPORT_COMPLETE"), "utf8")).toBe(
@@ -149,7 +177,7 @@ describe("redacted live evidence export", () => {
           "EXPORT_COMPLETE",
         ]),
       );
-      const second = await exportLiveSmokeEvidence(input);
+      const second = await exportFinalLiveSmokeEvidence(input);
       expect(second).toMatchObject({
         status: "COMPLETE",
         created: false,
@@ -162,13 +190,54 @@ describe("redacted live evidence export", () => {
     }
   });
 
+  it("accepts an existing v2 bundle during an idempotent recovery replay", async () => {
+    const exportRoot = await mkdtemp(join(tmpdir(), "plume-live-evidence-v2-replay-"));
+    try {
+      const input = await createInput(exportRoot, fakeSql());
+      const first = await exportFinalLiveSmokeEvidence(input);
+      const manifestPath = join(first.finalDirectory, "manifest.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+        exporterVersion: string;
+        bundleHash: string;
+      };
+      await writeFile(
+        manifestPath,
+        `${JSON.stringify({ ...manifest, exporterVersion: "live-smoke-evidence-exporter-v2" }, null, 2)}\n`,
+        "utf8",
+      );
+
+      await expect(exportFinalLiveSmokeEvidence(input)).resolves.toMatchObject({
+        status: "COMPLETE",
+        created: false,
+        bundleHash: first.bundleHash,
+      });
+    } finally {
+      await rm(exportRoot, { recursive: true, force: true });
+    }
+  });
+
   it("fails before creating a marker when DB row counts do not match", async () => {
     const exportRoot = await mkdtemp(join(tmpdir(), "plume-live-evidence-count-"));
     try {
       await expect(
-        exportLiveSmokeEvidence(await createInput(exportRoot, fakeSql({ validationCount: 1 }))),
+        exportFinalLiveSmokeEvidence(
+          await createInput(exportRoot, fakeSql({ validationCount: 1 })),
+        ),
       ).rejects.toThrow("LIVE_SMOKE_EVIDENCE_COUNT_MISMATCH:validationEvidence");
       expect(await readdir(exportRoot)).toHaveLength(0);
+    } finally {
+      await rm(exportRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed when final terminal preconditions are absent", async () => {
+    const exportRoot = await mkdtemp(join(tmpdir(), "plume-live-evidence-terminal-"));
+    try {
+      const input = await createInput(exportRoot, fakeSql());
+      await expect(
+        exportFinalLiveSmokeEvidence({ ...input, runTerminal: false as never }),
+      ).rejects.toThrow("LIVE_SMOKE_FINAL_EXPORT_TERMINAL_STATE_REQUIRED");
+      expect(await readdir(exportRoot)).toEqual([]);
     } finally {
       await rm(exportRoot, { recursive: true, force: true });
     }

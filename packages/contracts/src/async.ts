@@ -66,8 +66,8 @@ export interface AiLiveSmokeVerificationPayload {
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
   readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
-  /** Reuse a previously attested provider canary when the gateway stack is unchanged. */
-  readonly canaryVerificationRunId?: string;
+  /** Verification must reference the exact durable canary scope used by this run. */
+  readonly canaryVerificationRunId: string;
   readonly retryEnabled?: boolean;
   readonly repairEnabled?: boolean;
   readonly verificationOnly: true;
@@ -265,8 +265,7 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
     payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX &&
-    (payload.canaryVerificationRunId === undefined ||
-      isUuidLike(payload.canaryVerificationRunId)) &&
+    isUuidLike(payload.canaryVerificationRunId) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
     (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean") &&
     payload.verificationOnly === true

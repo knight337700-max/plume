@@ -72,6 +72,9 @@ class FakeLifecycleStore implements LiveSmokeLifecycleStore {
   public events: LiveSmokeReservationLifecycleInput[] = [];
   public canaryStatus: "PENDING" | "PASS" | "FAIL" = "PENDING";
   public canaryResults: unknown[] = [];
+  public canaryOperations: string[] = [];
+  public ensureResult = { created: true, scopeMatches: true, status: "PENDING" as const };
+  public canaryUpdate = true;
   public throwOnDispatch = false;
 
   async record(input: LiveSmokeReservationLifecycleInput) {
@@ -89,7 +92,10 @@ class FakeLifecycleStore implements LiveSmokeLifecycleStore {
     return { inserted: true };
   }
 
-  async ensureCanary() {}
+  async ensureCanary() {
+    this.canaryOperations.push("ensure");
+    return this.ensureResult;
+  }
 
   async getCanaryStatus() {
     return this.canaryStatus;
@@ -98,6 +104,10 @@ class FakeLifecycleStore implements LiveSmokeLifecycleStore {
   async recordCanary(input: unknown) {
     this.canaryResults.push(input);
     this.canaryStatus = (input as { passed: boolean }).passed ? "PASS" : "FAIL";
+    return {
+      updated: this.canaryUpdate,
+      status: this.canaryStatus,
+    };
   }
 }
 
@@ -385,6 +395,7 @@ describe("Phase 2C.7 provider lifecycle", () => {
             budgetEpochId: ids.budgetEpochId,
             workflowCallBudget: 7,
             syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+            canaryVerificationRunId: ids.verificationRunId,
           },
         } as never,
         ids,
@@ -411,6 +422,69 @@ describe("Phase 2C.7 provider lifecycle", () => {
     expect(provider.calls).toBe(1);
     expect(budget.events).toEqual(["reserve", "dispatch-started"]);
     expect(lifecycle.canaryStatus).toBe("PASS");
+    expect(lifecycle.canaryResults).toHaveLength(1);
+  });
+
+  it("creates the PENDING canary row before the first reservation", async () => {
+    const budget = new FakeBudgetStore();
+    const lifecycle = new FakeLifecycleStore();
+    const provider = successGateway();
+    const handler = createLiveSmokeProviderCanaryHandler(provider.gateway, budget, lifecycle, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+        absoluteProviderCallCap: 13,
+      },
+    });
+    await handler(fakeCanaryJob(13), ids);
+    expect(lifecycle.canaryOperations).toEqual(["ensure"]);
+    expect(budget.events[0]).toBe("reserve");
+  });
+
+  it("blocks a canary scope conflict before reservation and SDK", async () => {
+    const budget = new FakeBudgetStore();
+    const lifecycle = new FakeLifecycleStore();
+    lifecycle.ensureResult = { created: false, scopeMatches: false, status: "PENDING" };
+    const provider = successGateway();
+    const handler = createLiveSmokeProviderCanaryHandler(provider.gateway, budget, lifecycle, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+        absoluteProviderCallCap: 13,
+      },
+    });
+    await expect(handler(fakeCanaryJob(13), ids)).rejects.toThrow(
+      "LIVE_SMOKE_CANARY_SCOPE_CONFLICT",
+    );
+    expect(budget.events).toEqual([]);
+    expect(provider.calls).toBe(0);
+  });
+
+  it("fails closed when the final canary update affects zero rows", async () => {
+    const budget = new FakeBudgetStore();
+    const lifecycle = new FakeLifecycleStore();
+    lifecycle.canaryUpdate = false;
+    const provider = successGateway();
+    const handler = createLiveSmokeProviderCanaryHandler(provider.gateway, budget, lifecycle, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+        absoluteProviderCallCap: 13,
+      },
+    });
+    await expect(handler(fakeCanaryJob(13), ids)).rejects.toThrow(
+      "LIVE_SMOKE_CANARY_EVIDENCE_WRITE_FAILED",
+    );
+    expect(provider.calls).toBe(1);
     expect(lifecycle.canaryResults).toHaveLength(1);
   });
 

@@ -232,7 +232,7 @@ export class PostgresLiveSmokeFailureEvidenceStore implements LiveSmokeFailureEv
          ${input.stage}, ${input.syntheticScenarioId}, ${input.reservationCreated},
          ${input.dispatchStarted}, ${input.sdkAttempted}, ${input.providerResponseReceived},
          ${input.usagePresent}, ${input.settlementState ?? null}, ${input.validationStage ?? null},
-         ${this.sql.json(JSON.stringify(safePaths(input.schemaErrorPaths)))})
+         ${this.sql.json(safePaths(input.schemaErrorPaths))})
       ON CONFLICT (failure_key) DO NOTHING
       RETURNING failure_event_id
     `;

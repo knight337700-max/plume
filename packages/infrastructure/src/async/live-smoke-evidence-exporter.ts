@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, open, readFile, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Sql } from "postgres";
 
-const EXPORTER_VERSION = "live-smoke-evidence-exporter-v2";
+export const LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION = "live-smoke-evidence-exporter-v3";
 const FILES = [
   "run-summary.json",
   "budget-epoch.json",
@@ -66,6 +66,28 @@ export interface LiveSmokeEvidenceExportInput {
   readonly exporterVersion?: string;
 }
 
+export interface LiveSmokeEvidenceExporterProbeInput {
+  readonly sql: Sql;
+  readonly exportRoot: string;
+  readonly scenarioId: string;
+}
+
+export interface LiveSmokeEvidenceExporterProbeResult {
+  readonly status: "READY";
+  readonly canonicalArtifactsCreated: false;
+  readonly exportAuditRows: 0;
+  readonly usedActualRunIdentity: false;
+  readonly fileCount: number;
+  readonly probeHash: string;
+}
+
+export interface LiveSmokeEvidenceFinalExportInput extends LiveSmokeEvidenceExportInput {
+  readonly workerWithSecretStopped: true;
+  readonly additionalDispatchBlocked: true;
+  readonly runTerminal: true;
+  readonly ledgerStateStable: true;
+}
+
 export interface LiveSmokeEvidenceExportResult {
   readonly status: "COMPLETE";
   readonly created: boolean;
@@ -73,6 +95,21 @@ export interface LiveSmokeEvidenceExportResult {
   readonly bundleHash: string;
   readonly manifestHash: string;
   readonly counts: EvidenceCounts;
+}
+
+function validateExporterInput(input: LiveSmokeEvidenceExportInput): void {
+  if (!input.scenarioId.trim()) throw new Error("LIVE_SMOKE_EXPORT_SCENARIO_REQUIRED");
+  if (
+    input.conservativeCarryForwardMicroUsd !== undefined &&
+    (!Number.isSafeInteger(input.conservativeCarryForwardMicroUsd) ||
+      input.conservativeCarryForwardMicroUsd < 0)
+  )
+    throw new Error("LIVE_SMOKE_EXPORT_CARRY_FORWARD_INVALID");
+  if (
+    input.exporterVersion !== undefined &&
+    input.exporterVersion !== LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION
+  )
+    throw new Error("LIVE_SMOKE_EXPORTER_VERSION_MISMATCH");
 }
 
 function sha256(value: string | Uint8Array): string {
@@ -355,7 +392,7 @@ function bundleFiles(
     providerRequestIdHashes: ledgers.filter((row) => row.providerRequestIdHash).length,
   };
   const runSummary = {
-    exporterVersion: input.exporterVersion ?? EXPORTER_VERSION,
+    exporterVersion: LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION,
     approvalId: input.approvalId,
     smokeRunIdHash: hashIdentifier(input.smokeRunId),
     budgetEpochIdHash: hashIdentifier(input.budgetEpochId),
@@ -406,16 +443,58 @@ function assertSnapshotCounts(snapshot: Awaited<ReturnType<typeof readSnapshot>>
   }
 }
 
-export async function exportLiveSmokeEvidence(
-  input: LiveSmokeEvidenceExportInput,
-): Promise<LiveSmokeEvidenceExportResult> {
+export async function probeLiveSmokeEvidenceExporterReadiness(
+  input: LiveSmokeEvidenceExporterProbeInput,
+): Promise<LiveSmokeEvidenceExporterProbeResult> {
   if (!input.scenarioId.trim()) throw new Error("LIVE_SMOKE_EXPORT_SCENARIO_REQUIRED");
-  if (
-    input.conservativeCarryForwardMicroUsd !== undefined &&
-    (!Number.isSafeInteger(input.conservativeCarryForwardMicroUsd) ||
-      input.conservativeCarryForwardMicroUsd < 0)
-  )
-    throw new Error("LIVE_SMOKE_EXPORT_CARRY_FORWARD_INVALID");
+  const probeRoot = resolve(input.exportRoot);
+  await mkdir(probeRoot, { recursive: true });
+  const probeInput: LiveSmokeEvidenceExportInput = {
+    sql: input.sql,
+    exportRoot: probeRoot,
+    approvalId: `probe-${randomUUID()}`,
+    smokeRunId: randomUUID(),
+    scenarioId: input.scenarioId,
+    exporterVersion: LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION,
+  };
+  const snapshot = await readSnapshot(probeInput);
+  assertSnapshotCounts(snapshot);
+  const files = bundleFiles(snapshot, probeInput);
+  const temporaryDirectory = await mkdtemp(join(probeRoot, `.probe-${randomUUID()}-`));
+  try {
+    for (const [name, contents] of files) {
+      const path = join(temporaryDirectory, name);
+      await writeFlushedFile(path, contents);
+      await access(path);
+    }
+    const probeHash = sha256(
+      [...files.entries()].map(([name, contents]) => `${name}:${sha256(contents)}`).join("\n"),
+    );
+    return {
+      status: "READY",
+      canonicalArtifactsCreated: false,
+      exportAuditRows: 0,
+      usedActualRunIdentity: false,
+      fileCount: files.size,
+      probeHash,
+    };
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+export async function exportFinalLiveSmokeEvidence(
+  input: LiveSmokeEvidenceFinalExportInput,
+): Promise<LiveSmokeEvidenceExportResult> {
+  validateExporterInput(input);
+  if (input.workerWithSecretStopped !== true)
+    throw new Error("LIVE_SMOKE_FINAL_EXPORT_WORKER_NOT_STOPPED");
+  if (input.additionalDispatchBlocked !== true)
+    throw new Error("LIVE_SMOKE_FINAL_EXPORT_DISPATCH_NOT_BLOCKED");
+  if (input.runTerminal !== true)
+    throw new Error("LIVE_SMOKE_FINAL_EXPORT_TERMINAL_STATE_REQUIRED");
+  if (input.ledgerStateStable !== true)
+    throw new Error("LIVE_SMOKE_FINAL_EXPORT_LEDGER_NOT_STABLE");
   const approvalId = safeSegment(input.approvalId, "APPROVAL_ID");
   const smokeRunId = safeSegment(input.smokeRunId, "SMOKE_RUN_ID");
   const finalDirectory = resolve(input.exportRoot, approvalId, smokeRunId);
@@ -434,7 +513,7 @@ export async function exportLiveSmokeEvidence(
       .join("\n"),
   );
   const manifest = {
-    exporterVersion: input.exporterVersion ?? EXPORTER_VERSION,
+    exporterVersion: LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION,
     approvalId,
     smokeRunIdHash: hashIdentifier(input.smokeRunId),
     bundleHash,
@@ -457,7 +536,7 @@ export async function exportLiveSmokeEvidence(
         (approval_id, smoke_run_id, budget_epoch_id, bundle_hash, exporter_version, export_status)
       VALUES
         (${approvalId}, ${input.smokeRunId}, ${input.budgetEpochId ?? null}, ${bundleHash},
-         ${input.exporterVersion ?? EXPORTER_VERSION}, 'COMPLETE')
+         ${LIVE_SMOKE_EVIDENCE_EXPORTER_VERSION}, 'COMPLETE')
       ON CONFLICT (approval_id, smoke_run_id) DO NOTHING
       RETURNING export_id
     `;
