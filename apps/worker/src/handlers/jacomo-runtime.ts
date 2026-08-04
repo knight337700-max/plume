@@ -31,6 +31,7 @@ import type { LiveSmokeProviderMode } from "../../../../packages/infrastructure/
 import type { LiveSmokeCoverageStore } from "../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import type { LiveSmokeLifecycleStore } from "../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 import type { LiveSmokeValidationEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
+import type { LiveSmokeFailureEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-failure-evidence-store.js";
 import type { LiveSmokePricingPolicy } from "../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 
 interface RuntimeDependencies {
@@ -44,6 +45,7 @@ interface RuntimeDependencies {
   readonly liveSmokeCoverageStore: LiveSmokeCoverageStore;
   readonly liveSmokeLifecycleStore: LiveSmokeLifecycleStore;
   readonly liveSmokeValidationEvidenceStore: LiveSmokeValidationEvidenceStore;
+  readonly liveSmokeFailureEvidenceStore: LiveSmokeFailureEvidenceStore;
   readonly providerMode: LiveSmokeProviderMode;
   readonly pricingPolicy?: LiveSmokePricingPolicy;
 }
@@ -171,6 +173,7 @@ export function createJacomoRuntimeHandlers(
       ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
     },
   );
   const liveSmokeVerification = createLiveSmokeVerificationHandler(
@@ -182,6 +185,7 @@ export function createJacomoRuntimeHandlers(
       ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
     },
   );
   const liveSmokeCanary = createLiveSmokeProviderCanaryHandler(
@@ -191,6 +195,7 @@ export function createJacomoRuntimeHandlers(
     {
       providerMode: dependencies.providerMode,
       ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
     },
   );
   handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>

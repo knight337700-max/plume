@@ -325,8 +325,20 @@ export class PostgresLiveSmokeBudgetStore implements LiveSmokeBudgetStore {
           WHERE p.billing_scope = ${policy.billing_scope}
             AND l.billing_period = date_trunc('month', now())::date
         `;
+        const adjustmentTable = await transaction<{ exists: boolean }[]>`
+          SELECT to_regclass('public.live_smoke_reconciliation_adjustments') IS NOT NULL AS exists
+        `;
+        const carryForward = adjustmentTable[0]?.exists
+          ? await transaction<{ exposure: number }[]>`
+              SELECT COALESCE(SUM(conservative_micro_usd), 0)::bigint AS exposure
+              FROM live_smoke_reconciliation_adjustments
+              WHERE billing_scope = ${policy.billing_scope}
+                AND billing_period_utc = date_trunc('month', now())::date
+            `
+          : [{ exposure: 0 }];
         const runExposure = Number(currentRun[0]?.exposure ?? 0);
-        const monthlyExposure = Number(monthly[0]?.exposure ?? 0);
+        const monthlyExposure =
+          Number(monthly[0]?.exposure ?? 0) + Number(carryForward[0]?.exposure ?? 0);
         const effectiveHardCap = policy.per_run_hard_cap_micro_usd - policy.safety_buffer_micro_usd;
         if (
           !Number.isSafeInteger(reservedMicroUsd) ||

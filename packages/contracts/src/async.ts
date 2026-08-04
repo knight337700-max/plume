@@ -84,6 +84,39 @@ export interface AiLiveSmokeCanaryPayload {
   readonly canary: true;
 }
 
+export type LiveSmokeFailureClass =
+  | "PRE_DISPATCH_VALIDATION"
+  | "BUDGET_RESERVATION"
+  | "DISPATCH_EVIDENCE"
+  | "PROVIDER_TRANSPORT"
+  | "PROVIDER_REJECTED"
+  | "PROVIDER_RESPONSE_PARSE"
+  | "STRUCTURED_OUTPUT_SCHEMA"
+  | "DOMAIN_VALIDATION"
+  | "USAGE_MISSING"
+  | "USAGE_INVALID"
+  | "SETTLEMENT"
+  | "EVIDENCE_WRITE"
+  | "UNKNOWN_BILLABLE"
+  | "INTERNAL_UNKNOWN";
+
+export const LIVE_SMOKE_FAILURE_CLASSES = Object.freeze([
+  "PRE_DISPATCH_VALIDATION",
+  "BUDGET_RESERVATION",
+  "DISPATCH_EVIDENCE",
+  "PROVIDER_TRANSPORT",
+  "PROVIDER_REJECTED",
+  "PROVIDER_RESPONSE_PARSE",
+  "STRUCTURED_OUTPUT_SCHEMA",
+  "DOMAIN_VALIDATION",
+  "USAGE_MISSING",
+  "USAGE_INVALID",
+  "SETTLEMENT",
+  "EVIDENCE_WRITE",
+  "UNKNOWN_BILLABLE",
+  "INTERNAL_UNKNOWN",
+] as const satisfies readonly LiveSmokeFailureClass[]);
+
 export interface CreativeRenderPayload {
   readonly creativeVersionId: string;
   readonly campaignId?: string;

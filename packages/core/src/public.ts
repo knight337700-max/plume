@@ -53,6 +53,12 @@ export {
 } from "./async/command-publisher.js";
 export { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX } from "./async/live-smoke-budget-contract.js";
 export {
+  LIVE_SMOKE_DIAGNOSTIC_PLAN_ID,
+  assertDiagnosticAgentAllowed,
+  resolveLiveSmokeDiagnosticPlan,
+  type LiveSmokeDiagnosticPlan,
+} from "./agents/live-smoke-diagnostic-plans.js";
+export {
   LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
   isApprovedLiveSmokeSyntheticScenarioId,
   resolveLiveSmokeSyntheticScenario,

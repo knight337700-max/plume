@@ -37,3 +37,4 @@ export {
   type ExportPackagePayload,
   type ValidationRunPayload,
 } from "./async.js";
+export { LIVE_SMOKE_FAILURE_CLASSES, type LiveSmokeFailureClass } from "./async.js";
