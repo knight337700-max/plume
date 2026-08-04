@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { exportLiveSmokeEvidence } from "./live-smoke-evidence-exporter.js";
+import { exportFinalLiveSmokeEvidence } from "./live-smoke-evidence-exporter.js";
 
 const enabled = process.env.RUN_LIVE_SMOKE_EVIDENCE_EXPORT_DB_TEST === "true";
 const databaseUrl = process.env.TEST_DATABASE_URL?.trim() || "";
@@ -92,8 +92,12 @@ describe.skipIf(!enabled)("postgres live smoke evidence export", () => {
         budgetEpochId,
         scenarioId: "SYNTHETIC_JACOMO_KAKAO_BIZBOARD_2026_1",
         conservativeCarryForwardMicroUsd: 1_500_000,
+        workerWithSecretStopped: true,
+        additionalDispatchBlocked: true,
+        runTerminal: true,
+        ledgerStateStable: true,
       } as const;
-      const first = await exportLiveSmokeEvidence(input);
+      const first = await exportFinalLiveSmokeEvidence(input);
       expect(first).toMatchObject({
         status: "COMPLETE",
         created: true,
@@ -118,7 +122,7 @@ describe.skipIf(!enabled)("postgres live smoke evidence export", () => {
         await readFile(join(first.finalDirectory, "manifest.json"), "utf8"),
       ) as { exporterVersion: string; counts: Record<string, number>; exportStatus: string };
       expect(manifest).toMatchObject({
-        exporterVersion: "live-smoke-evidence-exporter-v2",
+        exporterVersion: "live-smoke-evidence-exporter-v3",
         exportStatus: "COMPLETE",
         counts: first.counts,
       });
@@ -126,7 +130,7 @@ describe.skipIf(!enabled)("postgres live smoke evidence export", () => {
         /^[a-f0-9]{64}\n$/u,
       );
 
-      const second = await exportLiveSmokeEvidence(input);
+      const second = await exportFinalLiveSmokeEvidence(input);
       expect(second).toMatchObject({
         status: "COMPLETE",
         created: false,

@@ -712,11 +712,19 @@ export function createLiveSmokeVerificationHandler(
     }
     const payload = job.data as AiLiveSmokeVerificationPayload;
     if (payload.verificationOnly !== true) throw new Error("LIVE_SMOKE_VERIFICATION_FLAG_REQUIRED");
+    const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+    assertInvocationScope(payload, invocation, scenario.id);
+    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
+    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
+    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+    const canaryVerificationRunId = payload.canaryVerificationRunId;
     if (
       options.lifecycleStore &&
-      (await options.lifecycleStore.getCanaryStatus(
-        payload.canaryVerificationRunId ?? payload.verificationRunId,
-      )) !== "PASS"
+      (await options.lifecycleStore.getCanaryStatus(canaryVerificationRunId, {
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+      })) !== "PASS"
     )
       throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_REQUIRED"), {
         code: "LIVE_SMOKE_PROVIDER_CANARY_REQUIRED",
@@ -747,9 +755,6 @@ export function createLiveSmokeVerificationHandler(
       validationEvidence?.domainValidationStatus !== "PASS"
     )
       throw new Error("LIVE_SMOKE_VERIFICATION_VALIDATION_INCOMPLETE");
-    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
-    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
-    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
     const jobItemId = invocation?.jobItemId ?? String(job.id ?? payload.agentCode);
     try {
       const coverageResult = await coverageStore.recordCoverage({
@@ -928,6 +933,22 @@ export function createLiveSmokeProviderCanaryHandler(
       metadata: { agentCode: "PROVIDER_ACCESSIBILITY_CANARY", model: options.pricingPolicy.model },
     });
     assertLiveSmokeInputEstimate(options.pricingPolicy, estimatedInputTokens);
+    const canary = await lifecycleStore.ensureCanary({
+      verificationRunId: payload.verificationRunId,
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+    });
+    if (!canary.scopeMatches) throw budgetError("LIVE_SMOKE_CANARY_SCOPE_CONFLICT");
+    if (canary.status === "PASS") {
+      return {
+        status: "COMPLETED",
+        agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
+        metadata: { model: options.pricingPolicy.model },
+        replayed: true,
+      };
+    }
+    if (canary.status === "FAIL") throw budgetError("LIVE_SMOKE_CANARY_ALREADY_FAILED");
     const reservation = await budgetStore.reserve({
       workspaceId,
       smokeRunId,
@@ -1043,7 +1064,7 @@ export function createLiveSmokeProviderCanaryHandler(
           { providerRequestSent: true, providerResponseReceived: true, billableRequestCount: 1 },
         ),
       );
-      await lifecycleStore.recordCanary({
+      const canaryUpdate = await lifecycleStore.recordCanary({
         verificationRunId: payload.verificationRunId,
         providerRequestSent: true,
         providerResponseReceived: true,
@@ -1056,6 +1077,7 @@ export function createLiveSmokeProviderCanaryHandler(
         passed: false,
         errorCode: "PROVIDER_EXECUTION_THROWN",
       });
+      if (!canaryUpdate.updated) throw budgetError("LIVE_SMOKE_CANARY_EVIDENCE_WRITE_FAILED");
       throw error;
     }
     const providerFacts = {
@@ -1131,7 +1153,7 @@ export function createLiveSmokeProviderCanaryHandler(
       strictOutputValid &&
       domainValidationValid &&
       dispatchEvidenceComplete;
-    await lifecycleStore.recordCanary({
+    const canaryUpdate = await lifecycleStore.recordCanary({
       verificationRunId: payload.verificationRunId,
       providerRequestSent: true,
       providerResponseReceived: true,
@@ -1145,6 +1167,7 @@ export function createLiveSmokeProviderCanaryHandler(
       passed,
       ...(result.error?.code ? { errorCode: result.error.code } : {}),
     });
+    if (!canaryUpdate.updated) throw budgetError("LIVE_SMOKE_CANARY_EVIDENCE_WRITE_FAILED");
     if (!passed) {
       await recordCanaryFailure(
         new Error(result.error?.code ?? "LIVE_SMOKE_PROVIDER_CANARY_FAILED"),

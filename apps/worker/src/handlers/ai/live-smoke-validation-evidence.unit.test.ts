@@ -57,11 +57,15 @@ function lifecycleStore(): LiveSmokeLifecycleStore {
     async recordReconciliation() {
       return { inserted: true };
     },
-    async ensureCanary() {},
+    async ensureCanary() {
+      return { created: true, scopeMatches: true, status: "PENDING" as const };
+    },
     async getCanaryStatus() {
       return "PASS";
     },
-    async recordCanary() {},
+    async recordCanary() {
+      return { updated: true, status: "PASS" as const };
+    },
   };
 }
 
@@ -234,6 +238,7 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
           verificationOnly: true,
           verificationRunId: ids.verificationRunId,
           parentWorkflowJobId: ids.parentWorkflowJobId,
+          canaryVerificationRunId: ids.verificationRunId,
         },
       } as never,
       invocation("LAYOUT_PLANNER"),

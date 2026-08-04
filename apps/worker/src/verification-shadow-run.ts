@@ -111,6 +111,7 @@ export async function createVerificationShadowRun(
     budgetEpochId,
     workflowCallBudget: epochLimit,
     syntheticScenarioId: input.syntheticScenarioId,
+    canaryVerificationRunId: verificationRunId,
     ...(input.retryEnabled === undefined ? {} : { retryEnabled: input.retryEnabled }),
     ...(input.repairEnabled === undefined ? {} : { repairEnabled: input.repairEnabled }),
     verificationOnly: true,
