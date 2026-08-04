@@ -3,7 +3,7 @@ import { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Sql } from "postgres";
 
-const EXPORTER_VERSION = "live-smoke-evidence-exporter-v1";
+const EXPORTER_VERSION = "live-smoke-evidence-exporter-v2";
 const FILES = [
   "run-summary.json",
   "budget-epoch.json",
@@ -27,6 +27,34 @@ async function writeFlushedFile(path: string, contents: string): Promise<void> {
 
 type JsonRecord = Readonly<Record<string, unknown>>;
 
+export type EvidenceCounts = Readonly<{
+  budgetEpoch: number;
+  spendLedger: number;
+  lifecycle: number;
+  validationEvidence: number;
+  coverage: number;
+  failure: number;
+  canary: number;
+}>;
+
+function validCount(value: unknown, key: keyof EvidenceCounts): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+    throw new Error(`LIVE_SMOKE_EVIDENCE_COUNT_INVALID:${key}`);
+  return value;
+}
+
+export function mapEvidenceCounts(row: JsonRecord | undefined): EvidenceCounts {
+  return {
+    budgetEpoch: validCount(row?.budget_epoch, "budgetEpoch"),
+    spendLedger: validCount(row?.spend_ledger, "spendLedger"),
+    lifecycle: validCount(row?.lifecycle, "lifecycle"),
+    validationEvidence: validCount(row?.validation_evidence, "validationEvidence"),
+    coverage: validCount(row?.coverage, "coverage"),
+    failure: validCount(row?.failure, "failure"),
+    canary: validCount(row?.canary, "canary"),
+  };
+}
+
 export interface LiveSmokeEvidenceExportInput {
   readonly sql: Sql;
   readonly exportRoot: string;
@@ -44,7 +72,7 @@ export interface LiveSmokeEvidenceExportResult {
   readonly finalDirectory: string;
   readonly bundleHash: string;
   readonly manifestHash: string;
-  readonly counts: Readonly<Record<string, number>>;
+  readonly counts: EvidenceCounts;
 }
 
 function sha256(value: string | Uint8Array): string {
@@ -224,10 +252,10 @@ async function readSnapshot(input: LiveSmokeEvidenceExportInput) {
     `;
     const counts = await transaction<JsonRecord[]>`
       SELECT
-        (SELECT count(*)::int FROM live_smoke_budget_epoch WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS budgetEpoch,
-        (SELECT count(*)::int FROM live_smoke_spend_ledger WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS spendLedger,
+        (SELECT count(*)::int FROM live_smoke_budget_epoch WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS budget_epoch,
+        (SELECT count(*)::int FROM live_smoke_spend_ledger WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS spend_ledger,
         (SELECT count(*)::int FROM live_smoke_reservation_lifecycle_event WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS lifecycle,
-        (SELECT count(*)::int FROM live_smoke_validation_evidence_event WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS validationEvidence,
+        (SELECT count(*)::int FROM live_smoke_validation_evidence_event WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS validation_evidence,
         (SELECT count(*)::int FROM agent_live_coverage WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS coverage,
         (SELECT count(*)::int FROM live_smoke_failure_evidence_event WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS failure,
         (SELECT count(*)::int FROM live_smoke_provider_canary WHERE smoke_run_id = ${input.smokeRunId} AND (${budgetEpochId}::uuid IS NULL OR budget_epoch_id = ${budgetEpochId}::uuid)) AS canary
@@ -242,7 +270,7 @@ async function readSnapshot(input: LiveSmokeEvidenceExportInput) {
       failures,
       canary,
       adjustments,
-      counts: counts[0] ?? {},
+      counts: mapEvidenceCounts(counts[0]),
     };
   });
 }
@@ -371,8 +399,9 @@ function assertSnapshotCounts(snapshot: Awaited<ReturnType<typeof readSnapshot>>
     failure: snapshot.failures.length,
     canary: snapshot.canary.length,
   };
-  for (const [key, value] of Object.entries(expected)) {
-    if (Number(snapshot.counts[key] ?? -1) !== value)
+  for (const key of Object.keys(expected) as (keyof EvidenceCounts)[]) {
+    const value = expected[key];
+    if (snapshot.counts[key] !== value)
       throw new Error(`LIVE_SMOKE_EVIDENCE_COUNT_MISMATCH:${key}`);
   }
 }
@@ -456,7 +485,7 @@ export async function exportLiveSmokeEvidence(
       finalDirectory,
       bundleHash,
       manifestHash,
-      counts: snapshot.counts as Record<string, number>,
+      counts: snapshot.counts,
     };
   } catch (error) {
     if (error instanceof Error && error.message === "LIVE_SMOKE_EVIDENCE_EXPORT_CONFLICT")
@@ -483,6 +512,6 @@ export async function exportLiveSmokeEvidence(
     finalDirectory,
     bundleHash,
     manifestHash,
-    counts: snapshot.counts as Record<string, number>,
+    counts: snapshot.counts,
   };
 }
