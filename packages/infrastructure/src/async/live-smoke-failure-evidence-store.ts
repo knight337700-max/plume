@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import { serializeRedactedJsonStringArray } from "./live-smoke-jsonb.js";
 // eslint-disable-next-line no-restricted-imports -- Infrastructure composes the workspace contract source during the monorepo build.
 import type { LiveSmokeFailureClass } from "../../../contracts/src/async.js";
 
@@ -39,14 +40,6 @@ export interface LiveSmokeFailureEvidenceInput {
 
 export interface LiveSmokeFailureEvidenceStore {
   record(input: LiveSmokeFailureEvidenceInput): Promise<{ readonly inserted: boolean }>;
-}
-
-function safePaths(paths: readonly string[] | undefined): readonly string[] {
-  return Object.freeze(
-    [
-      ...new Set((paths ?? []).filter((path) => /^\$?(?:\.[A-Za-z0-9_\[\]-]+)+$/u.test(path))),
-    ].slice(0, 20),
-  );
 }
 
 export function stableErrorCode(error: unknown): string {
@@ -218,6 +211,12 @@ export class PostgresLiveSmokeFailureEvidenceStore implements LiveSmokeFailureEv
 
   async record(input: LiveSmokeFailureEvidenceInput) {
     const stableCode = stableErrorCode({ code: input.stableErrorCode });
+    const schemaErrorPaths = this.sql.typed(
+      serializeRedactedJsonStringArray(input.schemaErrorPaths, {
+        accept: (path) => /^\$?(?:\.[A-Za-z0-9_\[\]-]+)+$/u.test(path),
+      }),
+      25,
+    );
     const rows = await this.sql`
       INSERT INTO live_smoke_failure_evidence_event
         (failure_key, workspace_id, smoke_run_id, budget_epoch_id, verification_run_id,
@@ -232,7 +231,7 @@ export class PostgresLiveSmokeFailureEvidenceStore implements LiveSmokeFailureEv
          ${input.stage}, ${input.syntheticScenarioId}, ${input.reservationCreated},
          ${input.dispatchStarted}, ${input.sdkAttempted}, ${input.providerResponseReceived},
          ${input.usagePresent}, ${input.settlementState ?? null}, ${input.validationStage ?? null},
-         ${this.sql.json(safePaths(input.schemaErrorPaths))})
+         ${schemaErrorPaths}::jsonb)
       ON CONFLICT (failure_key) DO NOTHING
       RETURNING failure_event_id
     `;
