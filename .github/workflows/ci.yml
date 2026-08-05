@@ -54,13 +54,14 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Gate I Phase 2.5C-B.5 durable evidence integration
+      - name: Gate I Phase 2.5C-B.5/B.6 durable evidence integration
         env:
           DATABASE_URL: postgresql://plume:plume_local_only@localhost:5432/plume
           TEST_DATABASE_URL: postgresql://plume:plume_local_only@localhost:5432/plume_test
           RUN_GATE_I_B5_POSTGRES_TEST: "true"
+          RUN_GATE_I_B6_POSTGRES_TEST: "true"
           RUN_LIVE_SMOKE_EVIDENCE_EXPORT_DB_TEST: "true"
-        run: pnpm exec vitest run --workspace vitest.workspace.ts packages/infrastructure/src/async/live-smoke-terminal-flow.integration.test.ts packages/infrastructure/src/async/live-smoke-evidence-exporter.integration.test.ts
+        run: pnpm exec vitest run --workspace vitest.workspace.ts packages/infrastructure/src/async/live-smoke-terminal-flow.integration.test.ts packages/infrastructure/src/async/live-smoke-jsonb-array-binding.integration.test.ts packages/infrastructure/src/async/live-smoke-evidence-exporter.integration.test.ts
 
       - name: Stop test infrastructure
         if: always()
