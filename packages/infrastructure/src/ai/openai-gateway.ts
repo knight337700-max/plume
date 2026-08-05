@@ -1,10 +1,7 @@
 import OpenAI from "openai";
 import { createHash } from "node:crypto";
 // eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
-import {
-  resolveLlmModel,
-  type ProviderEvidence,
-} from "../../../core/src/public.js";
+import { resolveLlmModel, type ProviderEvidence } from "../../../core/src/public.js";
 
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
@@ -49,6 +46,7 @@ export interface AIExecutionResult {
   readonly outputJson?: unknown;
   readonly usage?: {
     readonly inputUnits: number;
+    readonly cachedInputUnits?: number;
     readonly outputUnits: number;
     readonly costMicros?: number;
   };
@@ -69,7 +67,11 @@ interface ResponsePayload {
   readonly output?: readonly {
     readonly content?: readonly { readonly text?: string; readonly type?: string }[];
   }[];
-  readonly usage?: { readonly input_tokens?: number; readonly output_tokens?: number };
+  readonly usage?: {
+    readonly input_tokens?: number;
+    readonly output_tokens?: number;
+    readonly input_tokens_details?: { readonly cached_tokens?: number };
+  };
   readonly incomplete_details?: { readonly reason?: string };
 }
 
@@ -221,7 +223,9 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
   return `{${Object.keys(value as Record<string, unknown>)
     .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+    .map(
+      (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+    )
     .join(",")}}`;
 }
 
@@ -256,6 +260,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),
@@ -286,6 +293,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),
@@ -297,6 +307,9 @@ function normalizeResponse(
         ? {
             usage: {
               inputUnits: payload.usage.input_tokens ?? 0,
+              ...(payload.usage.input_tokens_details?.cached_tokens === undefined
+                ? {}
+                : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
               outputUnits: payload.usage.output_tokens ?? 0,
             },
           }
@@ -318,6 +331,9 @@ function normalizeResponse(
         ...(payload.usage?.input_tokens === undefined
           ? {}
           : { inputUnits: payload.usage.input_tokens }),
+        ...(payload.usage?.input_tokens_details?.cached_tokens === undefined
+          ? {}
+          : { cachedInputUnits: payload.usage.input_tokens_details.cached_tokens }),
         ...(payload.usage?.output_tokens === undefined
           ? {}
           : { outputUnits: payload.usage.output_tokens }),
@@ -339,6 +355,8 @@ export function createOpenAIProviderGateway(
   options: OpenAIProviderGatewayOptions = {},
 ): OpenAIProviderGateway {
   const environment = options.environment ?? process.env;
+  if (environment.APP_ENV?.trim() === "production" && !environment.OPENAI_MODEL?.trim())
+    throw new Error("OPENAI_MODEL is required in Production");
   const model = resolveLlmModel(environment.OPENAI_MODEL);
   const apiKey = environment.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
@@ -498,9 +516,7 @@ export function createOpenAIProviderGateway(
           error: providerError(
             "PROVIDER_ERROR",
             "OpenAI request failed",
-            safeErrorStatus !== undefined
-              ? safeErrorStatus >= 500
-              : true,
+            safeErrorStatus !== undefined ? safeErrorStatus >= 500 : true,
             safeErrorStatus,
           ),
         };

@@ -134,6 +134,35 @@ function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
+function channelCode(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "code" in value) {
+    const code = (value as { readonly code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
+}
+
+function assertManifestChannelFormatConsistency(
+  channel: unknown,
+  formatProfile: unknown,
+): void {
+  const selectedChannel = channelCode(channel);
+  const selectedFormatChannel =
+    formatProfile && typeof formatProfile === "object" && "channelCode" in formatProfile
+      ? (formatProfile as { readonly channelCode?: unknown }).channelCode
+      : undefined;
+  if (
+    selectedChannel !== undefined &&
+    typeof selectedFormatChannel === "string" &&
+    selectedChannel !== selectedFormatChannel
+  ) {
+    const error = new Error("EXPORT_CHANNEL_FORMAT_MISMATCH");
+    Object.assign(error, { code: "EXPORT_CHANNEL_FORMAT_MISMATCH", statusCode: 422 });
+    throw error;
+  }
+}
+
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
   for (const byte of bytes) {
@@ -243,6 +272,7 @@ export function createDeterministicZip(
 }
 
 export function buildExportPackage(input: BuildExportPackageInput): BuildExportPackageResult {
+  assertManifestChannelFormatConsistency(input.manifest?.channel, input.manifest?.formatProfile);
   const plan = createExportPackagePlan({ recipe: input.recipe, itemCount: input.items.length });
   const used = new Set<string>();
   const creativeFiles = input.items.map((item) =>

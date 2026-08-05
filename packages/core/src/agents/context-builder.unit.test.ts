@@ -34,4 +34,32 @@ describe("agent context builder", () => {
       }),
     ).toThrow(/Cross-workspace/);
   });
+
+  it("passes channel and format context only to agents that require media routing", () => {
+    const mediaContext = {
+      channel: { id: "KAKAO_MOMENT", label: "Kakao Moment" },
+      formatProfile: { id: "kakao-moment-bizboard-1029x258", channelCode: "KAKAO_MOMENT" },
+      unrelated: "not included",
+    };
+    for (const agentCode of ["ASSET_CURATOR", "LAYOUT_PLANNER", "AI_POLICY_REVIEWER", "EXPORT_ASSISTANT"] as const) {
+      const context = buildAgentContext({
+        agentCode,
+        workspaceId: "workspace-1",
+        subjectType: "CAMPAIGN",
+        subjectId: "campaign-1",
+        data: mediaContext,
+      });
+      expect(context.data).toMatchObject({ channel: mediaContext.channel, formatProfile: mediaContext.formatProfile });
+      expect(context.data).not.toHaveProperty("unrelated");
+    }
+    const campaignContext = buildAgentContext({
+      agentCode: "CAMPAIGN_ANALYST",
+      workspaceId: "workspace-1",
+      subjectType: "CAMPAIGN",
+      subjectId: "campaign-1",
+      data: mediaContext,
+    });
+    expect(campaignContext.data).not.toHaveProperty("channel");
+    expect(campaignContext.data).not.toHaveProperty("formatProfile");
+  });
 });

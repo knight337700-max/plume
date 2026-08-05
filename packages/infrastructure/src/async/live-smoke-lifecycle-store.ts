@@ -49,8 +49,31 @@ export interface LiveSmokeProviderCanaryResult {
   readonly status: "PENDING" | "PASS" | "FAIL";
 }
 
+export interface LiveSmokeCanaryScope {
+  readonly workspaceId: string;
+  readonly smokeRunId: string;
+  readonly budgetEpochId: string;
+}
+
+export interface LiveSmokeEnsureCanaryResult {
+  readonly created: boolean;
+  readonly scopeMatches: boolean;
+  readonly status: "PENDING" | "PASS" | "FAIL";
+}
+
+export interface LiveSmokeRecordCanaryResult {
+  readonly updated: boolean;
+  readonly status: "PASS" | "FAIL";
+}
+
 export interface LiveSmokeLifecycleStore {
   record(input: LiveSmokeReservationLifecycleInput): Promise<{ readonly inserted: boolean }>;
+  markProviderRequestAttempt(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }): Promise<{ readonly updated: boolean }>;
   recordReconciliation(
     input: LiveSmokeBudgetReconciliationInput,
   ): Promise<{ readonly inserted: boolean }>;
@@ -59,8 +82,11 @@ export interface LiveSmokeLifecycleStore {
     readonly workspaceId: string;
     readonly smokeRunId: string;
     readonly budgetEpochId: string;
-  }): Promise<void>;
-  getCanaryStatus(verificationRunId: string): Promise<"PENDING" | "PASS" | "FAIL">;
+  }): Promise<LiveSmokeEnsureCanaryResult>;
+  getCanaryStatus(
+    verificationRunId: string,
+    scope?: LiveSmokeCanaryScope,
+  ): Promise<"PENDING" | "PASS" | "FAIL">;
   recordCanary(input: {
     readonly verificationRunId: string;
     readonly providerRequestSent: boolean;
@@ -74,7 +100,7 @@ export interface LiveSmokeLifecycleStore {
     readonly toolsUnused: boolean;
     readonly passed: boolean;
     readonly errorCode?: string;
-  }): Promise<void>;
+  }): Promise<LiveSmokeRecordCanaryResult>;
 }
 
 export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore {
@@ -106,6 +132,26 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
     return { inserted: rows.length > 0 };
   }
 
+  async markProviderRequestAttempt(input: {
+    readonly workspaceId: string;
+    readonly smokeRunId: string;
+    readonly budgetEpochId: string;
+    readonly reservationKey: string;
+  }) {
+    const rows = await this.sql`
+      UPDATE live_smoke_reservation_lifecycle_event
+      SET provider_request_sent = true,
+          billable_request_count = 1
+      WHERE workspace_id = ${input.workspaceId}
+        AND smoke_run_id = ${input.smokeRunId}
+        AND budget_epoch_id = ${input.budgetEpochId}
+        AND reservation_key = ${input.reservationKey}
+        AND lifecycle_state = 'DISPATCH_STARTED'
+        AND provider_request_sent = false
+    `;
+    return { updated: rows.count === 1 };
+  }
+
   async recordReconciliation(input: LiveSmokeBudgetReconciliationInput) {
     const rows = await this.sql`
       INSERT INTO live_smoke_budget_reconciliation_event
@@ -130,21 +176,71 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
     readonly workspaceId: string;
     readonly smokeRunId: string;
     readonly budgetEpochId: string;
-  }) {
-    await this.sql`
+  }): Promise<LiveSmokeEnsureCanaryResult> {
+    const inserted = await this.sql<
+      {
+        verification_run_id: string;
+        workspace_id: string;
+        smoke_run_id: string;
+        budget_epoch_id: string;
+        status: "PENDING" | "PASS" | "FAIL";
+      }[]
+    >`
       INSERT INTO live_smoke_provider_canary
         (verification_run_id, workspace_id, smoke_run_id, budget_epoch_id)
       VALUES
         (${input.verificationRunId}, ${input.workspaceId}, ${input.smokeRunId}, ${input.budgetEpochId})
-      ON CONFLICT (verification_run_id) DO NOTHING
+        ON CONFLICT (verification_run_id) DO NOTHING
+      RETURNING verification_run_id, workspace_id, smoke_run_id, budget_epoch_id, status
     `;
+    const rows =
+      inserted.length > 0
+        ? inserted
+        : await this.sql<
+            {
+              verification_run_id: string;
+              workspace_id: string;
+              smoke_run_id: string;
+              budget_epoch_id: string;
+              status: "PENDING" | "PASS" | "FAIL";
+            }[]
+          >`
+            SELECT verification_run_id, workspace_id, smoke_run_id, budget_epoch_id, status
+            FROM live_smoke_provider_canary
+            WHERE verification_run_id = ${input.verificationRunId}
+          `;
+    const row = rows[0];
+    if (!row) throw new Error("LIVE_SMOKE_CANARY_NOT_FOUND");
+    const scopeMatches =
+      row.workspace_id === input.workspaceId &&
+      row.smoke_run_id === input.smokeRunId &&
+      row.budget_epoch_id === input.budgetEpochId;
+    if (!scopeMatches) throw new Error("LIVE_SMOKE_CANARY_SCOPE_CONFLICT");
+    return { created: inserted.length === 1, scopeMatches: true, status: row.status };
   }
 
-  async getCanaryStatus(verificationRunId: string) {
+  async getCanaryStatus(verificationRunId: string, scope?: LiveSmokeCanaryScope) {
+    if (scope) {
+      const scopedRows = await this.sql<{ status: "PENDING" | "PASS" | "FAIL" }[]>`
+          SELECT status FROM live_smoke_provider_canary
+          WHERE verification_run_id = ${verificationRunId}
+            AND workspace_id = ${scope.workspaceId}
+            AND smoke_run_id = ${scope.smokeRunId}
+            AND budget_epoch_id = ${scope.budgetEpochId}
+        `;
+      if (scopedRows[0]) return scopedRows[0].status;
+      const identityRows = await this.sql<{ verification_run_id: string }[]>`
+        SELECT verification_run_id
+        FROM live_smoke_provider_canary
+        WHERE verification_run_id = ${verificationRunId}
+      `;
+      if (identityRows[0]) throw new Error("LIVE_SMOKE_CANARY_SCOPE_CONFLICT");
+      return "PENDING" as const;
+    }
     const rows = await this.sql<{ status: "PENDING" | "PASS" | "FAIL" }[]>`
-      SELECT status FROM live_smoke_provider_canary
-      WHERE verification_run_id = ${verificationRunId}
-    `;
+          SELECT status FROM live_smoke_provider_canary
+          WHERE verification_run_id = ${verificationRunId}
+        `;
     return rows[0]?.status ?? "PENDING";
   }
 
@@ -161,8 +257,8 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
     readonly toolsUnused: boolean;
     readonly passed: boolean;
     readonly errorCode?: string;
-  }) {
-    await this.sql`
+  }): Promise<LiveSmokeRecordCanaryResult> {
+    const rows = await this.sql<{ status: "PASS" | "FAIL" }[]>`
       UPDATE live_smoke_provider_canary
       SET status = ${input.passed ? "PASS" : "FAIL"},
           provider_request_sent = ${input.providerRequestSent},
@@ -177,6 +273,11 @@ export class PostgresLiveSmokeLifecycleStore implements LiveSmokeLifecycleStore 
           error_code = ${input.errorCode ?? null},
           updated_at = now()
       WHERE verification_run_id = ${input.verificationRunId}
+      RETURNING status
     `;
+    return {
+      updated: rows.length === 1,
+      status: rows[0]?.status ?? (input.passed ? "PASS" : "FAIL"),
+    };
   }
 }

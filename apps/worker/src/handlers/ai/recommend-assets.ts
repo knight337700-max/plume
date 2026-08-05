@@ -8,6 +8,7 @@ export interface RecommendAssetsInput {
   readonly workspaceId: string;
   readonly campaignId: string;
   readonly productId: string;
+  readonly channel: Readonly<Record<string, unknown>>;
   readonly formatProfile: Readonly<Record<string, unknown>>;
   readonly brief: Readonly<Record<string, unknown>>;
   readonly assets: readonly Record<string, unknown>[];
@@ -45,6 +46,7 @@ export function createAssetCuratorHandler(dependencies: {
       ...taskDefaults("ASSET_CURATOR", input.taskId, input.workspaceId, input.campaignId),
       data: {
         product: { productId: input.productId },
+        channel: input.channel,
         formatProfile: input.formatProfile,
         brief: input.brief,
         assets: input.assets,

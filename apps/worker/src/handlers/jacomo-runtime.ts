@@ -31,6 +31,8 @@ import type { LiveSmokeProviderMode } from "../../../../packages/infrastructure/
 import type { LiveSmokeCoverageStore } from "../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import type { LiveSmokeLifecycleStore } from "../../../../packages/infrastructure/src/async/live-smoke-lifecycle-store.js";
 import type { LiveSmokeValidationEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
+import type { LiveSmokeFailureEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-failure-evidence-store.js";
+import type { LiveSmokePricingPolicy } from "../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -43,7 +45,20 @@ interface RuntimeDependencies {
   readonly liveSmokeCoverageStore: LiveSmokeCoverageStore;
   readonly liveSmokeLifecycleStore: LiveSmokeLifecycleStore;
   readonly liveSmokeValidationEvidenceStore: LiveSmokeValidationEvidenceStore;
+  readonly liveSmokeFailureEvidenceStore: LiveSmokeFailureEvidenceStore;
   readonly providerMode: LiveSmokeProviderMode;
+  readonly pricingPolicy?: LiveSmokePricingPolicy;
+}
+
+export function assertJobWorkspaceScope(envelope: {
+  readonly workspaceId: string;
+  readonly payload: unknown;
+}): void {
+  if (!envelope.payload || typeof envelope.payload !== "object" || Array.isArray(envelope.payload))
+    return;
+  const payloadWorkspaceId = (envelope.payload as { readonly workspaceId?: unknown }).workspaceId;
+  if (payloadWorkspaceId !== undefined && payloadWorkspaceId !== envelope.workspaceId)
+    throw new PermanentJobError("COMMAND_PAYLOAD_WORKSPACE_MISMATCH");
 }
 
 function jobEnvelope(job: Job<unknown>, command: string) {
@@ -52,6 +67,7 @@ function jobEnvelope(job: Job<unknown>, command: string) {
     const envelope = validateCommandEnvelope(job.data);
     if (envelope.command !== command)
       throw new PermanentJobError(`COMMAND_ENVELOPE_MISMATCH:${command}`);
+    assertJobWorkspaceScope(envelope);
     return envelope;
   } catch (error) {
     if (error instanceof PermanentJobError) throw error;
@@ -154,8 +170,10 @@ export function createJacomoRuntimeHandlers(
     dependencies.liveSmokeBudgetStore,
     {
       providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
     },
   );
   const liveSmokeVerification = createLiveSmokeVerificationHandler(
@@ -164,15 +182,21 @@ export function createJacomoRuntimeHandlers(
     dependencies.liveSmokeCoverageStore,
     {
       providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
       lifecycleStore: dependencies.liveSmokeLifecycleStore,
       validationEvidenceStore: dependencies.liveSmokeValidationEvidenceStore,
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
     },
   );
   const liveSmokeCanary = createLiveSmokeProviderCanaryHandler(
     dependencies.providerGateway,
     dependencies.liveSmokeBudgetStore,
     dependencies.liveSmokeLifecycleStore,
-    { providerMode: dependencies.providerMode },
+    {
+      providerMode: dependencies.providerMode,
+      ...(dependencies.pricingPolicy ? { pricingPolicy: dependencies.pricingPolicy } : {}),
+      failureEvidenceStore: dependencies.liveSmokeFailureEvidenceStore,
+    },
   );
   handlers["ai.live_smoke"] = withCommonContract("ai.live_smoke", async (envelope, job) =>
     liveSmoke({ ...job, data: envelope.payload } as Job<unknown>, {

@@ -1,6 +1,8 @@
 export { EnvironmentValidationError, formatEnvironmentIssues, loadEnvironment } from "./env.js";
+export type { Environment, EnvironmentIssue } from "./env.js";
 export {
   cookieSameSiteValues,
+  productionRequiredEnvironmentKeys,
   requiredEnvironmentKeys,
   secretEnvironmentKeys,
   isAppEnvironment,

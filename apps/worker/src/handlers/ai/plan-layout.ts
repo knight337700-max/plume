@@ -8,6 +8,7 @@ export interface PlanLayoutInput {
   readonly campaignId: string;
   readonly creativeId: string;
   readonly productId: string;
+  readonly channel: Readonly<Record<string, unknown>>;
   readonly formatProfile: Readonly<Record<string, unknown>>;
   readonly template: Readonly<Record<string, unknown>>;
   readonly assets: readonly Record<string, unknown>[];
@@ -67,6 +68,7 @@ export function createLayoutPlannerHandler(dependencies: {
     const agentResult = await dependencies.orchestrator.run<LayoutPlanOutput>({
       ...taskDefaults("LAYOUT_PLANNER", input.taskId, input.workspaceId, input.creativeId),
       data: {
+        channel: input.channel,
         formatProfile: input.formatProfile,
         template: input.template,
         assets: input.assets,

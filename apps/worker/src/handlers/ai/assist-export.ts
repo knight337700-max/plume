@@ -7,6 +7,8 @@ export interface AssistExportInput {
   readonly workspaceId: string;
   readonly exportJobId: string;
   readonly campaign: Readonly<Record<string, unknown>>;
+  readonly channel: Readonly<Record<string, unknown>>;
+  readonly formatProfile: Readonly<Record<string, unknown>>;
   readonly creativeVersions: readonly Record<string, unknown>[];
   readonly exportRecipe: Readonly<Record<string, unknown>>;
   readonly messages: readonly {
@@ -50,6 +52,8 @@ export function createExportAssistantHandler(dependencies: {
       data: {
         campaign: input.campaign,
         creative: input.creativeVersions,
+        channel: input.channel,
+        formatProfile: input.formatProfile,
         exportRecipe: input.exportRecipe,
       },
       messages: input.messages,

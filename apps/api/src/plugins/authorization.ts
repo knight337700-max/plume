@@ -18,6 +18,11 @@ export const authorizationPlugin: FastifyPluginAsync = async (app) => {
     const input = request as unknown as RequestWithAuth;
     const roles = input.routeOptions?.config?.roles;
     if (!roles || roles.length === 0) return;
+    if (!input.workspaceMembership) {
+      const error = new Error("Authentication required");
+      Object.assign(error, { code: "RESOURCE_NOT_FOUND", statusCode: 404 });
+      throw error;
+    }
     if (!hasRequiredRole(input.workspaceMembership?.role, roles)) throw permissionDenied();
   });
 };

@@ -23,6 +23,7 @@ export interface ProviderEvidence {
   readonly outputFingerprint?: string | undefined;
   readonly outputLengthBytes?: number | undefined;
   readonly inputUnits?: number | undefined;
+  readonly cachedInputUnits?: number | undefined;
   readonly outputUnits?: number | undefined;
 }
 
@@ -42,6 +43,11 @@ interface ProviderRequest {
     readonly agentCode: string;
     readonly promptVersion: string;
     readonly correlationId: string;
+    readonly syntheticScenarioId?: string;
+    readonly channelCode?: string;
+    readonly formatProfileId?: string;
+    readonly profileVersion?: string;
+    readonly synthetic?: boolean;
   };
 }
 
@@ -53,7 +59,11 @@ export interface ProviderResult {
   readonly providerRequestIdHash?: string;
   readonly latencyMs: number;
   readonly httpStatus?: number;
-  readonly usage?: { readonly inputUnits: number; readonly outputUnits: number };
+  readonly usage?: {
+    readonly inputUnits: number;
+    readonly cachedInputUnits?: number;
+    readonly outputUnits: number;
+  };
   readonly error?: { readonly code: string; readonly message: string; readonly retryable: boolean };
   readonly evidence?: ProviderEvidence;
 }
@@ -90,6 +100,11 @@ export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
     readonly content: string;
   }[];
   readonly outputSchema: JsonSchema;
+  readonly syntheticScenarioId?: string;
+  readonly channelCode?: string;
+  readonly formatProfileId?: string;
+  readonly profileVersion?: string;
+  readonly synthetic?: boolean;
   readonly requestedToolCodes?: readonly string[];
   readonly timeoutSeconds?: number;
   /** Called by the provider gateway at the SDK method invocation boundary. */
@@ -130,6 +145,11 @@ function providerRequest(
       agentCode: input.agentCode,
       promptVersion: "1.0.0",
       correlationId: input.correlationId,
+      ...(input.syntheticScenarioId ? { syntheticScenarioId: input.syntheticScenarioId } : {}),
+      ...(input.channelCode ? { channelCode: input.channelCode } : {}),
+      ...(input.formatProfileId ? { formatProfileId: input.formatProfileId } : {}),
+      ...(input.profileVersion ? { profileVersion: input.profileVersion } : {}),
+      ...(input.synthetic === undefined ? {} : { synthetic: input.synthetic }),
     },
   };
 }

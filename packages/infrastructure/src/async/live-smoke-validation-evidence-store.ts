@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import { serializeRedactedJsonStringArray } from "./live-smoke-jsonb.js";
 
 export type LiveSmokeValidationEvidenceStage =
   | "SDK_ATTEMPT"
@@ -35,6 +36,7 @@ export interface LiveSmokeValidationEvidenceInput {
   readonly coverageWriteSucceeded: boolean;
   readonly coverageWriteErrorCode?: string;
   readonly inputUnits?: number;
+  readonly cachedInputUnits?: number;
   readonly outputUnits?: number;
   readonly outputFingerprint?: string;
   readonly outputLengthBytes?: number;
@@ -44,18 +46,18 @@ export interface LiveSmokeValidationEvidenceStore {
   record(input: LiveSmokeValidationEvidenceInput): Promise<{ readonly inserted: boolean }>;
 }
 
-function redactedPaths(paths: readonly string[] | undefined): readonly string[] {
-  return Object.freeze(
-    [...new Set((paths ?? []).filter((path) => path.length > 0))].slice(0, 20),
-  );
-}
-
-export class PostgresLiveSmokeValidationEvidenceStore
-  implements LiveSmokeValidationEvidenceStore
-{
+export class PostgresLiveSmokeValidationEvidenceStore implements LiveSmokeValidationEvidenceStore {
   public constructor(private readonly sql: Sql) {}
 
   async record(input: LiveSmokeValidationEvidenceInput) {
+    const transportErrorPaths = this.sql.typed(
+      serializeRedactedJsonStringArray(input.transportErrorPaths),
+      25,
+    );
+    const domainErrorPaths = this.sql.typed(
+      serializeRedactedJsonStringArray(input.domainErrorPaths),
+      25,
+    );
     const rows = await this.sql`
       INSERT INTO live_smoke_validation_evidence_event
         (evidence_key, evidence_stage, workspace_id, smoke_run_id, budget_epoch_id,
@@ -66,7 +68,7 @@ export class PostgresLiveSmokeValidationEvidenceStore
          domain_validation_status, domain_error_code, domain_error_paths,
          repair_eligible, retry_eligible, coverage_write_attempted,
          coverage_write_succeeded, coverage_write_error_code, input_units, output_units,
-         output_fingerprint, output_length_bytes)
+         cached_input_units, output_fingerprint, output_length_bytes)
       VALUES
         (${input.evidenceKey}, ${input.evidenceStage}, ${input.workspaceId},
          ${input.smokeRunId}, ${input.budgetEpochId}, ${input.verificationRunId ?? null},
@@ -75,12 +77,13 @@ export class PostgresLiveSmokeValidationEvidenceStore
          ${input.providerHttpStatus ?? null}, ${input.providerRequestIdHash ?? null},
          ${input.resolvedModel ?? null}, ${input.jsonParseStatus},
          ${input.transportValidationStatus}, ${input.transportErrorCode ?? null},
-        ${this.sql.json(JSON.stringify(redactedPaths(input.transportErrorPaths)))},
+        ${transportErrorPaths}::jsonb,
          ${input.domainValidationStatus}, ${input.domainErrorCode ?? null},
-        ${this.sql.json(JSON.stringify(redactedPaths(input.domainErrorPaths)))},
+        ${domainErrorPaths}::jsonb,
          ${input.repairEligible}, ${input.retryEligible}, ${input.coverageWriteAttempted},
          ${input.coverageWriteSucceeded}, ${input.coverageWriteErrorCode ?? null},
          ${input.inputUnits ?? null}, ${input.outputUnits ?? null},
+         ${input.cachedInputUnits ?? null},
          ${input.outputFingerprint ?? null}, ${input.outputLengthBytes ?? null})
       ON CONFLICT (evidence_key) DO NOTHING
       RETURNING event_id
