@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/naver-platform-composed-source-v1.1.0.schema.json",
+  "title": "Naver Platform-Composed SourceSpec v1.1",
+  "description": "Source payload for a NAVER platform-owned native/feed presentation. Collection items reuse the generic ordered multi-artifact contract; final UI coordinates remain platform-owned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "channel", "placement", "compositionMode", "artifactCardinality", "sourceProfileId", "fields", "assets"],
+  "properties": {
+    "schemaVersion": { "enum": ["1.0.0", "1.1.0"] },
+    "channel": { "const": "NAVER_GFA" },
+    "placement": { "enum": ["MOBILE_NATIVE", "PC_NATIVE", "SHOPPING_NEWS", "COMMUNICATION_AD", "MOBILE_DA_FEED"] },
+    "compositionMode": { "const": "PLATFORM_COMPOSED" },
+    "artifactCardinality": { "enum": ["SINGLE", "COLLECTION"] },
+    "sourceProfileId": { "type": "string", "minLength": 1 },
+    "fields": { "$ref": "#/$defs/fields" },
+    "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
+    "collection": { "$ref": "#/$defs/collection" },
+    "metadata": { "$ref": "#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifactCardinality": { "const": "COLLECTION" } } },
+      "then": { "required": ["collection"] }
+    },
+    {
+      "if": { "properties": { "artifactCardinality": { "const": "SINGLE" } } },
+      "then": { "not": { "required": ["collection"] } }
+    },
+    { "not": { "required": ["finalCanvas"] } },
+    { "not": { "required": ["finalCoordinates"] } },
+    { "not": { "required": ["finalUi"] } },
+    { "not": { "required": ["pixelFingerprint"] } }
+  ],
+  "$defs": {
+    "scalar": { "type": ["string", "number", "integer", "boolean", "null"] },
+    "value": {
+      "oneOf": [
+        { "$ref": "#/$defs/scalar" },
+        { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } }
+      ]
+    },
+    "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "assetRole", "sourceProfileId", "mime", "width", "height", "bytes"],
+      "properties": {
+        "assetId": { "type": "string", "minLength": 1 },
+        "assetRole": { "type": "string", "minLength": 1 },
+        "sourceProfileId": { "type": "string", "minLength": 1 },
+        "mime": { "type": "string", "pattern": "^[-a-zA-Z0-9]+/[a-zA-Z0-9.+-]+$" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "hasAlpha": { "type": "boolean" },
+        "safeArea": { "$ref": "#/$defs/sourceSafeArea" },
+        "pathRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collectionItem" }
+        }
+      }
+    },
+    "collectionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceProfileId", "assetId", "fields"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sourceProfileId": { "type": "string", "minLength": 1 },
+        "assetId": { "type": "string", "minLength": 1 },
+        "fields": { "$ref": "#/$defs/fields" },
+        "metadata": { "$ref": "#/$defs/metadataFields" }
+      }
+    },
+    "sourceSafeArea": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0 },
+        "y": { "type": "number", "minimum": 0 },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "itemCount": { "type": "integer", "minimum": 0 },
+        "notificationSubscriptionState": { "enum": ["SUBSCRIBED", "NOT_SUBSCRIBED", "UNRESOLVED"] },
+        "presentationVariant": { "type": "string", "minLength": 1 },
+        "sourceAssetRole": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" }
+      }
+    },
+    "metadataFields": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    }
+  }
+}

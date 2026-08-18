@@ -1,0 +1,547 @@
+{
+  "repository": "knight337700-max/plume-renderer",
+  "commit": "7baa272dd852ed21a09cf369c928571b3f75fd31",
+  "integrationContractVersion": "1.8.0",
+  "files": [
+    {
+      "path": "assets/fonts/LICENSE-OFL-1.1.txt",
+      "bytes": 4476,
+      "sha256": "741fbb1e6c4fbed535852d09adae1766a74fdf826570a78b65f35b9c3a5316d5"
+    },
+    {
+      "path": "assets/fonts/SpoqaHanSansBold.ttf",
+      "bytes": 29724416,
+      "sha256": "5a6b9b258145e243dfd5f70cc869119c6af708843658e380304bdfe3d4f4eaef"
+    },
+    {
+      "path": "assets/fonts/SpoqaHanSansRegular.ttf",
+      "bytes": 29648388,
+      "sha256": "1f56c8535b6592672ea7f540a67bb5792c34558d72875fc504166a3e2b28b4b1"
+    },
+    {
+      "path": "contracts/ajv-error-mapping.json",
+      "bytes": 2533,
+      "sha256": "c0c8dc07ae72b079d6f4b171776c6c66afe228c75488c20089e9f447fdc33ac2"
+    },
+    {
+      "path": "contracts/channel-capabilities.json",
+      "bytes": 5794,
+      "sha256": "4bceb9b7389ecdb49d74fa38d614c40b0865e9e2b342979920e153f77d8cc04c"
+    },
+    {
+      "path": "contracts/contract-versions.json",
+      "bytes": 106818,
+      "sha256": "eafd85e32c4584f38cfa46b595de5662e79673856cdae092ae537518752c02d6"
+    },
+    {
+      "path": "contracts/cta-registry.json",
+      "bytes": 1030,
+      "sha256": "6ea8bd5d95b45b30558dd8b888364d5032219a4df063c13bcd845358432fde04"
+    },
+    {
+      "path": "contracts/error-registry.json",
+      "bytes": 43224,
+      "sha256": "8e6f9ee6d0a8312fc33dd053f5d7619e78f8c2212be9b571faaa13e44cc13ac0"
+    },
+    {
+      "path": "contracts/font-asset-registry.json",
+      "bytes": 1476,
+      "sha256": "d52f079821b8eb72844603ec6b994b2357dd8475c6b24b8cd45c3a76454949e7"
+    },
+    {
+      "path": "contracts/input.schema.json",
+      "bytes": 6330,
+      "sha256": "e349581f4ccfbdc0850c205fb551efa80774f07836c6d32f020f01655fc652cd"
+    },
+    {
+      "path": "contracts/integration-ajv-error-mapping.json",
+      "bytes": 1054,
+      "sha256": "e2f7405f826327e70e3e4fa8cf15d5ebec3619f97cd93b2e9e729847c006c1a6"
+    },
+    {
+      "path": "contracts/integration-error-registry.json",
+      "bytes": 21668,
+      "sha256": "4a4ac221981b3fca1beecdb94be26cd2593442f22499076192a4c8d94d10931b"
+    },
+    {
+      "path": "contracts/meta-static-placement-set.schema.json",
+      "bytes": 2176,
+      "sha256": "8eead323c0d7df832cf7c20e223730fd4a8ac9ccc848ff1dc72bf26ffa8fd4f2"
+    },
+    {
+      "path": "contracts/meta-static-profiles.json",
+      "bytes": 1316,
+      "sha256": "1f864552322aa20aa66baf094094addd14fbb9253088fa8f373af15eed7f25ec"
+    },
+    {
+      "path": "contracts/multi-artifact-manifest.schema.json",
+      "bytes": 2670,
+      "sha256": "68769ea9a6c4c0c4f21cf97b964d31587c449d24539f12dad81438c2c64e1e9d"
+    },
+    {
+      "path": "contracts/naver-feed-source.json",
+      "bytes": 2120,
+      "sha256": "a1c2604c69c448106fa4837efc10982b6e8fec2ddeba27e4e86dd9217166e0ff"
+    },
+    {
+      "path": "contracts/naver-platform-composed-source-profiles.json",
+      "bytes": 32293,
+      "sha256": "fc1753888da0827fe24afd59b9cca9afa964a6ea6197cfdaca32a3fa2413650b"
+    },
+    {
+      "path": "contracts/naver-platform-composed-source-revision.json",
+      "bytes": 4225,
+      "sha256": "40c588ce8d6588ade39d1a0b1d7362f3f4d1856c72c8e326f346ea74f06988d0"
+    },
+    {
+      "path": "contracts/naver-platform-composed-source.schema.json",
+      "bytes": 4700,
+      "sha256": "dad7ce1e74348dc511a46a7fc408898e25e1010f4ce520063b6207e2d0bc6e57"
+    },
+    {
+      "path": "contracts/naver-smartchannel-asset-normalization.json",
+      "bytes": 1562,
+      "sha256": "2441761d6ddd2afedf2d64af5778df0f6469fc8413cb342f0d6055d2d1b60aab"
+    },
+    {
+      "path": "contracts/naver-smartchannel-cta-options.json",
+      "bytes": 671671,
+      "sha256": "1c041b4d8e7dc1238bed774537f87a224c0a94c089a2e089c99c099ac609d6e6"
+    },
+    {
+      "path": "contracts/naver-smartchannel-fixed-component-runtime.json",
+      "bytes": 70280,
+      "sha256": "9992addec328d73731656261cea3fb039bf39dd755a7d37c9cada552d0ece128"
+    },
+    {
+      "path": "contracts/naver-smartchannel-fixed-components.json",
+      "bytes": 18928,
+      "sha256": "bcbeb51255c9f070b32c224df7b7fc105689d56c1e00af2a071ea28bfda2a8cf"
+    },
+    {
+      "path": "contracts/naver-smartchannel-font-compatibility.json",
+      "bytes": 7143,
+      "sha256": "30cfe9b36ae88faaefddd158780a4505d2822bee8fd892edec9d2b3da26282af"
+    },
+    {
+      "path": "contracts/naver-smartchannel-font-contract.json",
+      "bytes": 8726,
+      "sha256": "3778369c45b020a7596f91fa89a3753525dec72977ea01d488535af005b0ebc4"
+    },
+    {
+      "path": "contracts/naver-smartchannel-font-metric-fixtures.json",
+      "bytes": 3698,
+      "sha256": "2f5867745cee7824541df603b8a982477298f313d1ede53c0461218ab66a6a9c"
+    },
+    {
+      "path": "contracts/naver-smartchannel-input.schema.json",
+      "bytes": 2188,
+      "sha256": "90819c0d6a53010a0eb4d166f1a6d23a583792c791ecd44c4eb56c33d45f0058"
+    },
+    {
+      "path": "contracts/naver-smartchannel-n2-candidates.json",
+      "bytes": 1875,
+      "sha256": "bb4e18e5f7a4451b019611529bebd3cb61bc65e1609b0f18f4a77c024ed37386"
+    },
+    {
+      "path": "contracts/naver-smartchannel-object-placement.json",
+      "bytes": 109226,
+      "sha256": "aabf09c1ab36114015b18fcb20b803a546cd54eef9e7e7666cd74a041b62b008"
+    },
+    {
+      "path": "contracts/naver-smartchannel-psd-metadata.json",
+      "bytes": 8045156,
+      "sha256": "d22127d72df4209dc83b599311e9f33c7b5c7a322f27c9ac19743b72eb698b10"
+    },
+    {
+      "path": "contracts/naver-smartchannel-runtime-font-policy.json",
+      "bytes": 11495,
+      "sha256": "9d6e04887352ba2ad7cc5fa0a097829dc735cf1e4d37727725d91d605052e00b"
+    },
+    {
+      "path": "contracts/naver-smartchannel-template-contract.json",
+      "bytes": 235406,
+      "sha256": "ec699602807abdc0035b9b3ddc00b5f685e8d4636d26ac5f44f944c5b8a05ca0"
+    },
+    {
+      "path": "contracts/naver-smartchannel-typography.json",
+      "bytes": 56552,
+      "sha256": "0e6062caffaa7b5ba89126160ee8f95000e90e2558310f4a3530486e8c7ccfbd"
+    },
+    {
+      "path": "contracts/output.schema.json",
+      "bytes": 2390,
+      "sha256": "924cee5a9171e982a97e9656b2aae2154f5ca2cfec17863fb1497a84e29b1138"
+    },
+    {
+      "path": "contracts/p0-plume-architecture-freeze.json",
+      "bytes": 4195,
+      "sha256": "7e43aede64816b20d64e0ed327a6450f36c098db386933d48c55f0b5393b03ed"
+    },
+    {
+      "path": "contracts/p0-plume-capability-matrix.json",
+      "bytes": 205820,
+      "sha256": "1b5b49acc4fe631e23d8f44fe36bbabc88dd385f5c07b0683b65afec937e3d3e"
+    },
+    {
+      "path": "contracts/placement-capability-hints.json",
+      "bytes": 842,
+      "sha256": "56e650238e4dde701817601efd2062b5c3027160b56fbe5258599671acd16b6c"
+    },
+    {
+      "path": "contracts/placement-provenance-envelope.json",
+      "bytes": 688,
+      "sha256": "70a81955059230763717dc7fa7be30435aee3bcad73babb699e89b2e17e7b40f"
+    },
+    {
+      "path": "contracts/reference-fixture.json",
+      "bytes": 4748,
+      "sha256": "c5615eb00d663a1c9d93d67a2c0d41e2a7fba887c201d1f58fc5df47ac550696"
+    },
+    {
+      "path": "contracts/render-manifest.schema.json",
+      "bytes": 17493,
+      "sha256": "0bc7a404cca4f926ced55904c5fce898b890b14e96e656708d13e7ecc8952a0b"
+    },
+    {
+      "path": "contracts/response-envelope.schema.json",
+      "bytes": 7385,
+      "sha256": "176e0802d5e6ffad6e5feabf70da45f14be0ecc66d240dd3735149c2dc984320"
+    },
+    {
+      "path": "contracts/template-capabilities.json",
+      "bytes": 5363,
+      "sha256": "39fccdb43fc3db1a2ce68244abe40ef89e2d8a1af21470814a6747cd44d571ee"
+    },
+    {
+      "path": "contracts/text-contract.json",
+      "bytes": 1047,
+      "sha256": "92cd7adeb793cc7c0a751f7d92acb13b9dc8805719437ca2fcea7e9690ccfb12"
+    },
+    {
+      "path": "fixtures/golden/object-right__stable__golden.png",
+      "bytes": 11502,
+      "sha256": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1"
+    },
+    {
+      "path": "fixtures/integration/alpha-trim-contain/input.json",
+      "bytes": 868,
+      "sha256": "bcd2e297e0c7f7a677162fc6793564f9c2cb6bd962f9f35bb6d326c14b478ead"
+    },
+    {
+      "path": "fixtures/valid/object-right__product__basic__pass.png",
+      "bytes": 1176,
+      "sha256": "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe"
+    },
+    {
+      "path": "fixtures/valid/thumbnail-box-right__asset__jpeg__pass.jpg",
+      "bytes": 2781,
+      "sha256": "88f3464c7767189b11f063286ecc5ae5962b27054ac98bc4da9cb49b1b3f10a7"
+    },
+    {
+      "path": "packages/renderer-contract/package.json",
+      "bytes": 461,
+      "sha256": "023b9112ccdc6656a4df8e86919fd4b1e38e4a6a21b15e500b0806a4597a2943"
+    },
+    {
+      "path": "packages/renderer-contract/schema/channel-capabilities-v1.schema.json",
+      "bytes": 3053,
+      "sha256": "0d0b4262d6c01b0255e5dfbfbac30cbb9894cad41602c6c32ce19952a2184388"
+    },
+    {
+      "path": "packages/renderer-contract/schema/creative-element-v1.schema.json",
+      "bytes": 519,
+      "sha256": "58c2863dfbd10b2749c46d14107158ce4e9b1a31bfe3257d701b2a80293bb867"
+    },
+    {
+      "path": "packages/renderer-contract/schema/creative-layout-plan-v1.schema.json",
+      "bytes": 1159,
+      "sha256": "059169691206d94fc861d0066cb069dd474cd683f6fdf03f082a84565c1f5c9e"
+    },
+    {
+      "path": "packages/renderer-contract/schema/crop-candidate-v1.schema.json",
+      "bytes": 1770,
+      "sha256": "65fc5aa17eb87f38ebe369aa3b4902b512a06cf2710f6b0f6e70b3015f3ec788"
+    },
+    {
+      "path": "packages/renderer-contract/schema/error-registry-v1.json",
+      "bytes": 899,
+      "sha256": "3c87651b01efed6e0129b13014bf3a32fb2c3fe018fde0fed376cd9f32a4b274"
+    },
+    {
+      "path": "packages/renderer-contract/schema/format-profile-v1.schema.json",
+      "bytes": 3676,
+      "sha256": "00e21887a8b1f3e02a5c1b22392044e84525142ced7507e2e8521ff4372a3b02"
+    },
+    {
+      "path": "packages/renderer-contract/schema/freeform-font-registry-v1.schema.json",
+      "bytes": 1172,
+      "sha256": "3b1215c52dfdc6f35c481124b151a8f2c20a0737fc2b228ea41702bf58723116"
+    },
+    {
+      "path": "packages/renderer-contract/schema/freeform-image-element-v1.schema.json",
+      "bytes": 1428,
+      "sha256": "7b6d52529626179bfe0881d47dcb1d38b72ccc8a789a9fa1c95863ba8728d3f9"
+    },
+    {
+      "path": "packages/renderer-contract/schema/freeform-logo-element-v1.schema.json",
+      "bytes": 1425,
+      "sha256": "cea864686325cabfe2595d78582a03dfc924b85e253200f8f5f31c4777890d92"
+    },
+    {
+      "path": "packages/renderer-contract/schema/freeform-shape-element-v1.schema.json",
+      "bytes": 1419,
+      "sha256": "5ccdd90ebaddd1fa6c9fa763558b8ca4f2b28cfa31123592f175a4fa3751e9df"
+    },
+    {
+      "path": "packages/renderer-contract/schema/freeform-text-element-v1.schema.json",
+      "bytes": 1949,
+      "sha256": "de24009068263f8022c91d212d42fd7e2375b241ec8b281da285ebccc6d991ff"
+    },
+    {
+      "path": "packages/renderer-contract/schema/image-placement-plan-v1.schema.json",
+      "bytes": 2581,
+      "sha256": "4d0de339bc62095b99735914dde14f936a33bcedd0ca03db573c57a89681898a"
+    },
+    {
+      "path": "packages/renderer-contract/schema/image-placement-spec-v1.schema.json",
+      "bytes": 2195,
+      "sha256": "81e664cdc89ce9b5d833239d8a35257505ecb89a4a4c7ba762b8509be5f43318"
+    },
+    {
+      "path": "packages/renderer-contract/schema/multi-artifact-v1.schema.json",
+      "bytes": 1304,
+      "sha256": "0840306d94f73ce972dbf66fcb3201576ce2a6df0524e8602870cab8b900b83f"
+    },
+    {
+      "path": "packages/renderer-contract/schema/placement-capability-hints-v1.schema.json",
+      "bytes": 3221,
+      "sha256": "7cd0ae80b0da17fa2d6b15bd8f36366225d9230408be93f399457ed8966c815a"
+    },
+    {
+      "path": "packages/renderer-contract/schema/placement-provenance-envelope-v1.schema.json",
+      "bytes": 1680,
+      "sha256": "07c7ba31f8fe69de8b975f422365ab5841168101c9df86147202006b71b172cc"
+    },
+    {
+      "path": "packages/renderer-contract/schema/renderer-integration-input-v1.schema.json",
+      "bytes": 9103,
+      "sha256": "48cfaeeb7b627d99e5a2199c0e82ed0cc52cce1fff3a3abb6f3639541cbe415d"
+    },
+    {
+      "path": "packages/renderer-contract/schema/renderer-integration-output-v1.schema.json",
+      "bytes": 4517,
+      "sha256": "5037b7c210f638e2ce62ba9844a2a2add4c8a968ddeda75b3f62d0e32f3b53af"
+    },
+    {
+      "path": "packages/renderer-contract/schema/template-capability-v1.schema.json",
+      "bytes": 2854,
+      "sha256": "f1fb4ac1d3e64fa1cf1289ae7c1a59bead7c480891e48a1395a034c76c43a48f"
+    },
+    {
+      "path": "packages/renderer-contract/src/capability.ts",
+      "bytes": 8442,
+      "sha256": "d9b4f11b41a70b254b8b218ae147c648d6c67b7133806024360b4c4d0796212b"
+    },
+    {
+      "path": "packages/renderer-contract/src/freeform.ts",
+      "bytes": 25294,
+      "sha256": "5e6b22e37c32b9c5c62ccb0b7313fba0c16476abf51a8972fa3d7802e79df736"
+    },
+    {
+      "path": "packages/renderer-contract/src/google-static.ts",
+      "bytes": 9302,
+      "sha256": "4cbb4ca4167ee78261070f50a2cc8af8d14d724fa44941fe883c383ce16bb807"
+    },
+    {
+      "path": "packages/renderer-contract/src/index.ts",
+      "bytes": 68165,
+      "sha256": "c712f76f175d8c685ac9ee5a241a80119edf004337b94808e8241791babee986"
+    },
+    {
+      "path": "packages/renderer-contract/src/multi-artifact.ts",
+      "bytes": 1709,
+      "sha256": "a884cfc93fa9a163c83e2419327830e932a4862f58e7d777a8579068d8498397"
+    },
+    {
+      "path": "packages/renderer-contract/tsconfig.json",
+      "bytes": 202,
+      "sha256": "9c7f15b0554b9b99b0241893b17eb44d9d26ac72c056afbbbc2087489a3e2031"
+    },
+    {
+      "path": "reference/kakao-tool/OBJECT_RIGHT.png",
+      "bytes": 23950,
+      "sha256": "33204a082327bf14fead6dbc50fd2139f46f7f7156d14ac221c3212368927a3b"
+    },
+    {
+      "path": "src/core/assets.ts",
+      "bytes": 3686,
+      "sha256": "6ff113db76c2648ac61d82387c6b796427e63fb0b9eaba294b634e0cd65fc391"
+    },
+    {
+      "path": "src/core/canonical.ts",
+      "bytes": 426,
+      "sha256": "f1e40fc7ae4a665fe107c43ac33542b49118295aea2bf779d27d6c8c1578ea21"
+    },
+    {
+      "path": "src/core/constants.ts",
+      "bytes": 2171,
+      "sha256": "9e7110f5fa7545f9de45ffc4adf6af5690eebe47b68a5700c1dd3bd622eea56a"
+    },
+    {
+      "path": "src/core/contracts.ts",
+      "bytes": 6730,
+      "sha256": "e5659169268df927b5a1094c774b81aeb41faa78dce2179dccd95ffa80e97a80"
+    },
+    {
+      "path": "src/core/errors.ts",
+      "bytes": 2677,
+      "sha256": "418c6c12d455d7095219bf10bd5817e0fec9eff0a85b5f0fc054ab8874988a1f"
+    },
+    {
+      "path": "src/core/freeform-validator.ts",
+      "bytes": 50995,
+      "sha256": "f5c8b9f01429af3325a111cc42f08752032b1e0782f64c791d4f0477bc475141"
+    },
+    {
+      "path": "src/core/freeform.ts",
+      "bytes": 64704,
+      "sha256": "48795a7191e07c237f56c218d35b21590b0a72c35d5e174cabdbb4de266cb316"
+    },
+    {
+      "path": "src/core/google-static-render.ts",
+      "bytes": 11169,
+      "sha256": "3bc705111ff391fb0bfaac6c26904f22da2de918c3ae8bfaa8623cec13f8b436"
+    },
+    {
+      "path": "src/core/google-static.ts",
+      "bytes": 22308,
+      "sha256": "dc76aa652dc780a691a0fea4ad25b44cf08e67611fd07be2d11ddc934031f430"
+    },
+    {
+      "path": "src/core/hash.ts",
+      "bytes": 336,
+      "sha256": "8c7d7a53cf6c7dbcdb250b2ff0c642dc0bf02f87415a872bae5dcf5d0cae0780"
+    },
+    {
+      "path": "src/core/image-input.ts",
+      "bytes": 7584,
+      "sha256": "53223eaa9476579e32bff55c78c9325bb9d504ffc965118b824f268ca19947de"
+    },
+    {
+      "path": "src/core/index.ts",
+      "bytes": 7639,
+      "sha256": "002c1919b9a319438b51eb7ae5e28bb8d3d267112acf4d7e51569cdec2bc7f15"
+    },
+    {
+      "path": "src/core/layout.ts",
+      "bytes": 7940,
+      "sha256": "816e3e86859c14d09a63d19782b5a871f33386f012edfc303a0d44f875385455"
+    },
+    {
+      "path": "src/core/mask-semicircle-right.ts",
+      "bytes": 20252,
+      "sha256": "f59723c975642284050ed4a54d32bf07a17344c61e62557c8d602d881a83c699"
+    },
+    {
+      "path": "src/core/meta-placement-context.ts",
+      "bytes": 2437,
+      "sha256": "be72c2f513a7b652afde391acd8d9cd08a59acf4af9cd04d72ca110839f24977"
+    },
+    {
+      "path": "src/core/meta-static.ts",
+      "bytes": 19379,
+      "sha256": "1ec47bb5b9f9fa2404b5fd7cb48544ce3d88c6f29444096fc976bb267fe90989"
+    },
+    {
+      "path": "src/core/naver-collection.ts",
+      "bytes": 20214,
+      "sha256": "87237485c55315906aa9dfcbb4b39cce20b800ae27580a62c5fdcac80a0da74e"
+    },
+    {
+      "path": "src/core/naver-platform-composed.ts",
+      "bytes": 27115,
+      "sha256": "c5d3cf87b5bd26ee6f6ef9dbf5a1106c86d817c484ccef439e7bb3ff097afb76"
+    },
+    {
+      "path": "src/core/naver-smartchannel-font-preflight.ts",
+      "bytes": 28105,
+      "sha256": "3a08ed6c50323754204d811fdf574e1de8509948a07378a40354a08b05bd7e16"
+    },
+    {
+      "path": "src/core/naver-smartchannel.ts",
+      "bytes": 85621,
+      "sha256": "bb85afcb84a330bd52106233b8f8f55682a4ccbfc4ffa0abe4b3b0587371452f"
+    },
+    {
+      "path": "src/core/normalize.ts",
+      "bytes": 2856,
+      "sha256": "95a062929b187e8053d9d47289ecf63e13148b8ff62e6c01cfaf4b4b86e03147"
+    },
+    {
+      "path": "src/core/path-security.ts",
+      "bytes": 4248,
+      "sha256": "0b9caad6b8a7a66c8f57ece3080fcc15730a0ee2588865f9f0f611f8891f14ba"
+    },
+    {
+      "path": "src/core/product-image.ts",
+      "bytes": 11786,
+      "sha256": "ac9ee9f9a9b77f436814def5892bb4aee50e38939a67747fffb7f8cada1805d2"
+    },
+    {
+      "path": "src/core/publish.ts",
+      "bytes": 6513,
+      "sha256": "56deafe1ed28eb32863f54c2c56fd3a4e4045a1d24819fb54365aa195de38144"
+    },
+    {
+      "path": "src/core/raster.ts",
+      "bytes": 7334,
+      "sha256": "8ae3f49a77a536848896e43d732e523648674b1a72939bb81f4f84608e835453"
+    },
+    {
+      "path": "src/core/renderer.ts",
+      "bytes": 17580,
+      "sha256": "acb3ef757b1ad4d2e3f5979e0929e1ecdce762f8f9887bdcc75aaa2ab353518d"
+    },
+    {
+      "path": "src/core/schema-validation.ts",
+      "bytes": 4363,
+      "sha256": "dc9918de31f063b43708964a81c638b859f3f96299cf89bb211ac1a5c5faefa9"
+    },
+    {
+      "path": "src/core/semantic-validation.ts",
+      "bytes": 3583,
+      "sha256": "00d8ade5ee3eb00c6e365d1f13da59f58a8ae78fe35ab5217ad1610518c55ac5"
+    },
+    {
+      "path": "src/core/text-contract.ts",
+      "bytes": 3786,
+      "sha256": "31fb64c08895790d08faaadb503632a7210a7741e78380d152499784fb5d62f5"
+    },
+    {
+      "path": "src/core/thumbnail-box-right.ts",
+      "bytes": 6410,
+      "sha256": "131766ee6cbd305ff07e3ef3614c6832e7a98e645370ed3f932a39248bab8209"
+    },
+    {
+      "path": "src/core/thumbnail-multi-right.ts",
+      "bytes": 11262,
+      "sha256": "09b288f263bd37879b658fb6f3f0a39c79e7d90780bed212cce5aaf9934b1bb8"
+    },
+    {
+      "path": "src/core/types.ts",
+      "bytes": 11796,
+      "sha256": "217e7cf47cf5566f379c9c879134f3d40bb326c41a1a811c580a65f0674c5484"
+    },
+    {
+      "path": "tsconfig.build.json",
+      "bytes": 219,
+      "sha256": "b89b0abe5a1ec061d3e1c208984419834d94c7a84819bb291631e4dee29f2a2f"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 998,
+      "sha256": "db790ad83411084a94ae5b9a5f31151ba467e2fbf5b2fe159dde3ffd140db763"
+    }
+  ]
+}

@@ -1,0 +1,1895 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/naver-smartchannel-fixed-component-runtime-v1.0.0.json",
+  "registryVersion": "1.0.0",
+  "status": "FROZEN",
+  "sourceContractRefs": [
+    "contracts/naver-smartchannel-fixed-components.json",
+    "contracts/naver-smartchannel-cta-options.json",
+    "contracts/naver-smartchannel-template-contract.json"
+  ],
+  "componentFamilies": [
+    {
+      "id": "LANDING_ICON_COMPACT",
+      "scope": "SMARTCHANNEL_LANDING_ICON",
+      "resourceIds": [
+        "LANDING_ICON_COMPACT"
+      ],
+      "resourceCount": 1,
+      "status": "FROZEN",
+      "packagedRequired": true
+    },
+    {
+      "id": "LANDING_ICON_280",
+      "scope": "SMARTCHANNEL_LANDING_ICON",
+      "resourceIds": [
+        "LANDING_ICON_280"
+      ],
+      "resourceCount": 1,
+      "status": "FROZEN",
+      "packagedRequired": true
+    },
+    {
+      "id": "APP_CTA_160_200",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "resourceIds": [
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_51CDAE375A14",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_61DCE7CB07EA",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_068046B08CF6",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_0A4CA9BC91EE",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_64332B6A361F",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_677E4590D3C9",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_7A24EE7BE35F",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_A5F7CB39B987",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_321D72D728EB",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_E4E94710B70C",
+        "APP_CTA_COMPACT_LABEL_CTA_COMPACT_B2D460D44DAB",
+        "APP_CTA_COMPACT_CHEVRON"
+      ],
+      "resourceCount": 12,
+      "status": "FROZEN",
+      "packagedRequired": true
+    },
+    {
+      "id": "APP_CTA_280",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "resourceIds": [
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_61DCE7CB07EA",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_0A4CA9BC91EE",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_7A24EE7BE35F",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_51CDAE375A14",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_64332B6A361F",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_B2D460D44DAB",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_AD8D4E3393A4",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_E4E94710B70C",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_068046B08CF6",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_A5F7CB39B987",
+        "APP_CTA_280_BUTTON_CTA_280_BUTTON_677E4590D3C9",
+        "APP_CTA_280_CHEVRON"
+      ],
+      "resourceCount": 12,
+      "status": "FROZEN",
+      "packagedRequired": true
+    }
+  ],
+  "resources": [
+    {
+      "id": "LANDING_ICON_COMPACT",
+      "scope": "SMARTCHANNEL_LANDING_ICON",
+      "componentFamily": "LANDING_ICON_COMPACT",
+      "sourceProvenance": "contracts/naver-smartchannel-fixed-components.json#/components/LANDING_ICON_COMPACT",
+      "expectedSha256": "c731128d2bb468c5d7088c9d183d4ebbec24aa748085e6fe41f8d0cbd24a8e58",
+      "sourcePath": "assets/naver-smartchannel/landing-icon-compact.png",
+      "runtimePath": "assets/naver-smartchannel/landing-icon-compact.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_2LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_SUB_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_2LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_SUB_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_LANDING_ICON"
+      ],
+      "expectedRenderBounds": {
+        "160": {
+          "x": 694,
+          "y": 65,
+          "width": 16,
+          "height": 30
+        },
+        "200": {
+          "x": 694,
+          "y": 85,
+          "width": 16,
+          "height": 30
+        }
+      },
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "LANDING_ICON_280",
+      "scope": "SMARTCHANNEL_LANDING_ICON",
+      "componentFamily": "LANDING_ICON_280",
+      "sourceProvenance": "contracts/naver-smartchannel-fixed-components.json#/components/LANDING_ICON_280",
+      "expectedSha256": "b81d74dcadc9d21db0e81169117d52f9fc51973bd2bba0ce18985035efd617ca",
+      "sourcePath": "assets/naver-smartchannel/landing-icon-280.png",
+      "runtimePath": "assets/naver-smartchannel/landing-icon-280.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BOTTOM_DISCLOSURE_STANDARD_LEFT_FOUR_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_SUB_DISCLOSURE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN2_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_FOUR_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_LANDING_ICON",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_LANDING_ICON"
+      ],
+      "expectedRenderBounds": {
+        "default": {
+          "x": 660,
+          "y": 112,
+          "width": 56,
+          "height": 59
+        }
+      },
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_51CDAE375A14",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/동영상 더보기",
+      "expectedSha256": "3d537277e3398651f3b0147f00fc3e5d907c0495ea690fa5df1c0545e768e1f2",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-51cdae375a14.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-51cdae375a14.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        }
+      },
+      "labels": [
+        "동영상 더보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_61DCE7CB07EA",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/가입하기",
+      "expectedSha256": "ed70d97d35ffa622bf306ad74e303b26ba7b1c38a4d2d7aa45a4c516bdb4712f",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-61dce7cb07ea.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-61dce7cb07ea.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        }
+      },
+      "labels": [
+        "가입하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_068046B08CF6",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/지금 구매하기",
+      "expectedSha256": "5343b447625bd45d561a6cdc8e46f26ed589d4f8d64ddaed741c207ca6f791c9",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-068046b08cf6.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-068046b08cf6.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        }
+      },
+      "labels": [
+        "지금 구매하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_0A4CA9BC91EE",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/다운로드",
+      "expectedSha256": "a9fa38bd8fe4a9f015d15760f32b2eab5179374dca470d443d9a737f94f44472",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-0a4ca9bc91ee.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-0a4ca9bc91ee.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 623,
+          "y": 116,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 623,
+          "y": 116,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 623,
+          "y": 116,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 623,
+          "y": 116,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 623,
+          "y": 135,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 623,
+          "y": 135,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 623,
+          "y": 135,
+          "width": 87,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 623,
+          "y": 135,
+          "width": 87,
+          "height": 20
+        }
+      },
+      "labels": [
+        "다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_64332B6A361F",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/문의하기",
+      "expectedSha256": "f4d5a34744543e80b0a94a5ead35f84f796bfad6a0b8bf7b262802a35bee50a5",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-64332b6a361f.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-64332b6a361f.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 116,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 622,
+          "y": 135,
+          "width": 88,
+          "height": 20
+        }
+      },
+      "labels": [
+        "문의하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_677E4590D3C9",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/지금 예약하기",
+      "expectedSha256": "a556b7e440da88e3771aab9e3dcb6e111e099ad160a6b590e962d252f446c7ba",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-677e4590d3c9.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-677e4590d3c9.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        }
+      },
+      "labels": [
+        "지금 예약하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_7A24EE7BE35F",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/더 알아보기",
+      "expectedSha256": "25638927273a8774c4241348a58a4cc6ac2debb71c51f27118e4f0aac027444b",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-7a24ee7be35f.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-7a24ee7be35f.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 601,
+          "y": 116,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 601,
+          "y": 116,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 601,
+          "y": 116,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 601,
+          "y": 116,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 601,
+          "y": 135,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 601,
+          "y": 135,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 601,
+          "y": 135,
+          "width": 109,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 601,
+          "y": 135,
+          "width": 109,
+          "height": 20
+        }
+      },
+      "labels": [
+        "더 알아보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_A5F7CB39B987",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/지금 다운로드",
+      "expectedSha256": "871fd12d336fe0fba6a0f1b66487b01dd7321acbed29e03f4f0e17dc0c1180b5",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-a5f7cb39b987.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-a5f7cb39b987.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 116,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 582,
+          "y": 135,
+          "width": 128,
+          "height": 20
+        }
+      },
+      "labels": [
+        "지금 다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_321D72D728EB",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/앱특가 보기",
+      "expectedSha256": "d795e22c385852b164c4e374e688d7a2f0269fedd3ae5a91ef71e7ac25a465a3",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-321d72d728eb.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-321d72d728eb.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        }
+      },
+      "labels": [
+        "앱특가 보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_E4E94710B70C",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/앱으로 보기",
+      "expectedSha256": "1ab340b4e932b0a0c511ad6b2004b0bc49f36ef41decddb6e8d56dbe58a0bb4c",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-e4e94710b70c.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-e4e94710b70c.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        }
+      },
+      "labels": [
+        "앱으로 보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_LABEL_CTA_COMPACT_B2D460D44DAB",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/labelAssets/앱 다운로드",
+      "expectedSha256": "c4ff7e0e3b2795c5d66c1060554f92277b6b5f3c40aca311eab33cd39ec1d486",
+      "sourcePath": "assets/naver-smartchannel/cta-compact-b2d460d44dab.png",
+      "runtimePath": "assets/naver-smartchannel/cta-compact-b2d460d44dab.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 116,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        },
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 600,
+          "y": 135,
+          "width": 110,
+          "height": 20
+        }
+      },
+      "labels": [
+        "앱 다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_COMPACT_CHEVRON",
+      "scope": "SMARTCHANNEL_APP_CTA_COMPACT",
+      "componentFamily": "APP_CTA_160_200",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/compact160200/chevron",
+      "expectedSha256": "f1f2e02ceb9f9497339c3991bc029e76621a754f322c4f1e393b00ab3c64830f",
+      "sourcePath": "assets/naver-smartchannel/cta-chevron-compact.png",
+      "runtimePath": "assets/naver-smartchannel/cta-chevron-compact.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_160_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "160": {
+          "x": 700,
+          "y": 117,
+          "width": 10,
+          "height": 17
+        },
+        "200": {
+          "x": 700,
+          "y": 136,
+          "width": 10,
+          "height": 17
+        }
+      },
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_61DCE7CB07EA",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_61dce7cb07ea/button",
+      "expectedSha256": "958ee5a1dafa1bd2806b902891b9fb7dab1335ee349c4f88426e46998f4f6a3f",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-61dce7cb07ea.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-61dce7cb07ea.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        }
+      },
+      "labels": [
+        "가입하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_0A4CA9BC91EE",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_0a4ca9bc91ee/button",
+      "expectedSha256": "958ee5a1dafa1bd2806b902891b9fb7dab1335ee349c4f88426e46998f4f6a3f",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-0a4ca9bc91ee.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-0a4ca9bc91ee.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        }
+      },
+      "labels": [
+        "다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_7A24EE7BE35F",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_7a24ee7be35f/button",
+      "expectedSha256": "dc204d1b2ce566a62279b066be0fa523656a0fe8c129fb880ff628577fd09896",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-7a24ee7be35f.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-7a24ee7be35f.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        }
+      },
+      "labels": [
+        "더 알아보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_51CDAE375A14",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_51cdae375a14/button",
+      "expectedSha256": "f42514b14a4b9353901dd9c8cbaab980fd22ed04f7e15a989ce33db823871ac8",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-51cdae375a14.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-51cdae375a14.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        }
+      },
+      "labels": [
+        "동영상 더보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_64332B6A361F",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_64332b6a361f/button",
+      "expectedSha256": "958ee5a1dafa1bd2806b902891b9fb7dab1335ee349c4f88426e46998f4f6a3f",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-64332b6a361f.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-64332b6a361f.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 588,
+          "y": 194,
+          "width": 123,
+          "height": 48
+        }
+      },
+      "labels": [
+        "문의하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_B2D460D44DAB",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_b2d460d44dab/button",
+      "expectedSha256": "f3a84d5060b154e9fc11c12884a48cf6531f3255c49e22af7bd1323bef8d8986",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-b2d460d44dab.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-b2d460d44dab.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 567,
+          "y": 194,
+          "width": 144,
+          "height": 48
+        }
+      },
+      "labels": [
+        "앱 다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_AD8D4E3393A4",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_ad8d4e3393a4/button",
+      "expectedSha256": "4965a4a2cf0c4766d4caaf2b1152e87da8298dfb5742ffcc8d48cd4726566e12",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-ad8d4e3393a4.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-ad8d4e3393a4.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 562,
+          "y": 194,
+          "width": 149,
+          "height": 48
+        }
+      },
+      "labels": [
+        "앱 특가 보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_E4E94710B70C",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_e4e94710b70c/button",
+      "expectedSha256": "89f972564b6c27170afc449ed669be84ca22ca5185d7369bace23d4b2e8381b4",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-e4e94710b70c.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-e4e94710b70c.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 565,
+          "y": 194,
+          "width": 146,
+          "height": 48
+        }
+      },
+      "labels": [
+        "앱으로 보기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_068046B08CF6",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_068046b08cf6/button",
+      "expectedSha256": "f42514b14a4b9353901dd9c8cbaab980fd22ed04f7e15a989ce33db823871ac8",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-068046b08cf6.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-068046b08cf6.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        }
+      },
+      "labels": [
+        "지금 구매하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_A5F7CB39B987",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_a5f7cb39b987/button",
+      "expectedSha256": "f42514b14a4b9353901dd9c8cbaab980fd22ed04f7e15a989ce33db823871ac8",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-a5f7cb39b987.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-a5f7cb39b987.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        }
+      },
+      "labels": [
+        "지금 다운로드"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_BUTTON_CTA_280_BUTTON_677E4590D3C9",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/options280/CTA_280_677e4590d3c9/button",
+      "expectedSha256": "f42514b14a4b9353901dd9c8cbaab980fd22ed04f7e15a989ce33db823871ac8",
+      "sourcePath": "assets/naver-smartchannel/cta-280-button-677e4590d3c9.png",
+      "runtimePath": "assets/naver-smartchannel/cta-280-button-677e4590d3c9.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 549,
+          "y": 194,
+          "width": 162,
+          "height": 48
+        }
+      },
+      "labels": [
+        "지금 예약하기"
+      ],
+      "assetFormat": "RGBA_PNG"
+    },
+    {
+      "id": "APP_CTA_280_CHEVRON",
+      "scope": "SMARTCHANNEL_APP_CTA_280",
+      "componentFamily": "APP_CTA_280",
+      "sourceProvenance": "contracts/naver-smartchannel-cta-options.json#/chevron280",
+      "expectedSha256": "7ab0f065f619d4cbff6bf1ed4d98a306ad6c169a6662b52c3c695a1a49236e3d",
+      "sourcePath": "assets/naver-smartchannel/cta-chevron-280.png",
+      "runtimePath": "assets/naver-smartchannel/cta-chevron-280.png",
+      "packagedRequired": true,
+      "templates": [
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA",
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA"
+      ],
+      "expectedRenderBounds": {
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN2_SUB_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_BASIC_STANDARD_LEFT_ONE_LINE_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_MAIN_TWO_LINES_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        },
+        "NAVER_SMARTCHANNEL_280_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_APP_CTA": {
+          "x": 682,
+          "y": 211,
+          "width": 8,
+          "height": 14
+        }
+      },
+      "assetFormat": "RGBA_PNG"
+    }
+  ],
+  "inventory": {
+    "registered": 26,
+    "sourceAssetsRequired": 26,
+    "runtimeAssetsRequired": 26,
+    "packagedAssetsRequired": 26,
+    "unresolved": 0
+  }
+}

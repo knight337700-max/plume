@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/naver-feed-source-v1.1.0.json",
+  "schemaVersion": "1.1.0",
+  "channel": "NAVER_GFA",
+  "placement": "MOBILE_DA_FEED",
+  "compositionMode": "PLATFORM_COMPOSED",
+  "sourceRevisionRef": "contracts/naver-platform-composed-source-revision.json#/sources/MOBILE_DA_FEED",
+  "finalPresentationOwner": "NAVER_PLATFORM",
+  "finalPixelGeometry": "NOT_APPLICABLE",
+  "profiles": [
+    { "id": "NAVER_FEED_IMAGE_1_1", "artifactCardinality": "SINGLE", "runtime": "CONTRACT_ONLY" },
+    { "id": "NAVER_FEED_IMAGE_16_9", "artifactCardinality": "SINGLE", "runtime": "CONTRACT_ONLY" },
+    { "id": "NAVER_FEED_IMAGE_2_3", "artifactCardinality": "SINGLE", "runtime": "CONTRACT_ONLY" },
+    { "id": "NAVER_FEED_PROFILE_IMAGE", "artifactCardinality": "SINGLE", "runtime": "CONTRACT_ONLY" },
+    { "id": "NAVER_FEED_VIDEO_1_1", "artifactCardinality": "SINGLE", "runtime": "NOT_IMPLEMENTED", "reason": "OUT_OF_STATIC_RENDERER_SCOPE" },
+    { "id": "NAVER_FEED_VIDEO_16_9", "artifactCardinality": "SINGLE", "runtime": "NOT_IMPLEMENTED", "reason": "OUT_OF_STATIC_RENDERER_SCOPE" },
+    { "id": "NAVER_FEED_COLLECTION_ITEM_IMAGE_600X600", "artifactCardinality": "COLLECTION", "runtime": "IMPLEMENTED_SOURCE_ARTIFACT_ONLY" },
+    { "id": "NAVER_FEED_COLLECTION_ITEM_VIDEO", "artifactCardinality": "COLLECTION", "runtime": "NOT_IMPLEMENTED", "reason": "N6_IMAGE_ONLY_SCOPE" },
+    { "id": "NAVER_FEED_COLLECTION_ITEM_STILL", "artifactCardinality": "COLLECTION", "runtime": "NOT_IMPLEMENTED", "reason": "N6_IMAGE_ONLY_SCOPE" }
+  ],
+  "collection": {
+    "profileId": "NAVER_FEED_COLLECTION_SOURCE_V1",
+    "minimumItems": 4,
+    "maximumItems": 10,
+    "ordering": "INPUT_ORDER_PRESERVED",
+    "runtime": "IMPLEMENTED_SOURCE_ARTIFACT_ONLY",
+    "finalUiRuntime": "NOT_IMPLEMENTED",
+    "itemSourceProfileIds": ["NAVER_FEED_COLLECTION_ITEM_IMAGE_600X600"],
+    "itemFields": ["landingUrl", "collectionDescription28"]
+  },
+  "video": { "runtime": "NOT_IMPLEMENTED", "reason": "OUT_OF_STATIC_RENDERER_SCOPE" },
+  "sourceStatus": "SOURCE_CONFIRMED"
+}

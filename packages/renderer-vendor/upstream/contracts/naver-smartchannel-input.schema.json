@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.renderer/contracts/naver-smartchannel-input-1.0.0.schema.json",
+  "title": "NAVER GFA SmartChannel renderer input 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "channel", "placement", "templateId", "content", "assets", "output"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "channel": { "const": "NAVER_GFA" },
+    "placement": { "const": "SMARTCHANNEL" },
+    "layoutMode": { "const": "TEMPLATE_LOCKED" },
+    "compositionMode": { "const": "RENDERER_COMPOSED" },
+    "artifactCardinality": { "const": "SINGLE" },
+    "templateId": { "type": "string", "minLength": 1 },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headline"],
+      "properties": {
+        "headline": { "type": "string", "minLength": 1 },
+        "headlineLine2": { "type": "string", "minLength": 1 },
+        "subcopy": { "type": "string", "minLength": 1 },
+        "subcopyLine4": { "type": "string", "minLength": 1 },
+        "disclosureLine1": { "type": "string", "minLength": 1 },
+        "disclosureLine2": { "type": "string", "minLength": 1 },
+        "ctaOption": { "type": "string", "minLength": 1 }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object"],
+      "properties": {
+        "object": { "$ref": "#/$defs/asset" },
+        "advertiserLogo": { "$ref": "#/$defs/asset" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "baseName"],
+      "properties": {
+        "directory": { "type": "string", "minLength": 1 },
+        "baseName": { "type": "string", "minLength": 1 },
+        "overwrite": { "type": "boolean", "default": false }
+      }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "expectedSha256": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$" }
+      }
+    }
+  }
+}

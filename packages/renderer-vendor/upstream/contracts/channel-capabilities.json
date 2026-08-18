@@ -1,0 +1,49 @@
+{
+  "$schema": "https://kbr.local/schema/channel-capabilities-v1.schema.json",
+  "$id": "https://kbr.local/contracts/channel-capabilities-v1.json",
+  "registryVersion": "1.0.0",
+  "channels": ["KAKAO_MOMENT", "NAVER_GFA", "META"],
+  "compositionModes": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"],
+  "artifactCardinalities": ["SINGLE", "COLLECTION"],
+  "naverGfaPlacements": [
+    "SMARTCHANNEL",
+    "MOBILE_DA",
+    "IMAGE_BANNER_1_1",
+    "MOBILE_NATIVE",
+    "PC_NATIVE",
+    "SHOPPING_NEWS",
+    "COMMUNICATION_AD",
+    "MOBILE_DA_FEED"
+  ],
+  "legacyProfileMappings": [
+    { "formatProfileId": "KBR_FREEFORM_CONTRACT_TEST_1029X258", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_DISPLAY_NATIVE_2_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_DISPLAY_NATIVE_1_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_DISPLAY_NATIVE_9_16", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_DISPLAY_NATIVE_4_5", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_DISPLAY_CATALOG_SLIDE_1_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_VIDEO_NATIVE_THUMBNAIL_16_9", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_VIDEO_NATIVE_THUMBNAIL_9_16", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_VIDEO_NATIVE_SLIDE_1_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_BIZBOARD_EXPANDABLE_IMAGE_2_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_BIZBOARD_EXPANDABLE_MULTI_1_1", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_ADVIEW_FULL_IMAGE", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_ADVIEW_COMPACT_IMAGE", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_ADVIEW_CAROUSEL_IMAGE", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_ADVIEW_SHARE_BUBBLE_IMAGE", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" },
+    { "formatProfileId": "KAKAO_ADVIEW_SCROLL_IMAGE", "channel": "KAKAO_MOMENT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE" }
+  ],
+  "capabilities": [
+    { "channel": "META", "placement": "STATIC_FEED_SQUARE", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED", "formatProfileId": "META_STATIC_FEED_SQUARE" },
+    { "channel": "META", "placement": "STATIC_FEED_PORTRAIT", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED", "formatProfileId": "META_STATIC_FEED_PORTRAIT" },
+    { "channel": "META", "placement": "STATIC_VERTICAL_FULL", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED", "formatProfileId": "META_STATIC_VERTICAL_FULL" },
+    { "channel": "NAVER_GFA", "placement": "SMARTCHANNEL", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "TEMPLATE_LOCKED", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED" },
+    { "channel": "NAVER_GFA", "placement": "MOBILE_DA", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED" },
+    { "channel": "NAVER_GFA", "placement": "IMAGE_BANNER_1_1", "compositionMode": "RENDERER_COMPOSED", "layoutMode": "FREEFORM", "artifactCardinality": "SINGLE", "runtimeStatus": "IMPLEMENTED" },
+    { "channel": "NAVER_GFA", "placement": "MOBILE_NATIVE", "compositionMode": "PLATFORM_COMPOSED", "artifactCardinality": "SINGLE", "runtimeStatus": "DEFERRED" },
+    { "channel": "NAVER_GFA", "placement": "PC_NATIVE", "compositionMode": "PLATFORM_COMPOSED", "artifactCardinality": "SINGLE", "runtimeStatus": "DEFERRED" },
+    { "channel": "NAVER_GFA", "placement": "SHOPPING_NEWS", "compositionMode": "PLATFORM_COMPOSED", "artifactCardinality": "SINGLE", "runtimeStatus": "DEFERRED" },
+    { "channel": "NAVER_GFA", "placement": "COMMUNICATION_AD", "compositionMode": "PLATFORM_COMPOSED", "artifactCardinality": "SINGLE", "runtimeStatus": "DEFERRED" },
+    { "channel": "NAVER_GFA", "placement": "MOBILE_DA_FEED", "compositionModes": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"], "layoutModes": ["TEMPLATE_LOCKED", "FREEFORM"], "artifactCardinalities": ["SINGLE", "COLLECTION"], "runtimeStatus": "DEFERRED" }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/image-placement-spec-v1.schema.json",
+  "title": "FREEFORM ImagePlacementSpec v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy", "source", "fitMode", "anchor", "subjectProtection"],
+  "properties": {
+    "policy": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] },
+    "source": { "enum": ["DETERMINISTIC", "MANUAL", "AGENT", "SAVED_CREATIVE"] },
+    "fitMode": { "enum": ["CONTAIN", "COVER"] },
+    "cropRect": { "$ref": "#/$defs/normalizedRect" },
+    "focalPoint": { "$ref": "#/$defs/normalizedPoint" },
+    "anchor": { "enum": ["CENTER", "CENTER_LEFT", "CENTER_RIGHT", "TOP_CENTER", "TOP_LEFT", "TOP_RIGHT", "BOTTOM_CENTER", "BOTTOM_LEFT", "BOTTOM_RIGHT"] },
+    "subjectProtection": { "enum": ["REQUIRED", "PREFERRED", "NONE"] },
+    "cropCandidateId": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "protectedSubjects": { "type": "array", "items": { "$ref": "#/$defs/protectedSubject" } },
+    "rationale": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "normalizedPoint": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y"],
+      "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 } }
+    },
+    "normalizedRect": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"],
+      "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 }, "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } }
+    },
+    "protectedSubject": {
+      "type": "object", "additionalProperties": false, "required": ["subjectId", "subjectType", "bounds"],
+      "properties": { "subjectId": { "type": "string", "minLength": 1 }, "subjectType": { "enum": ["PRODUCT", "PERSON", "FACE", "LOGO", "TEXT", "OTHER"] }, "bounds": { "$ref": "#/$defs/normalizedRect" } }
+    }
+  }
+}

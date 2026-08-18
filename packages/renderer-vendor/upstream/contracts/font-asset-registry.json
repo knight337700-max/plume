@@ -1,0 +1,47 @@
+{
+  "registryVersion": "1.1.0",
+  "status": "RESOLVED_ASSET",
+  "source": {
+    "repository": "https://github.com/spoqa/spoqa-han-sans.git",
+    "tag": "v2.1.2",
+    "commit": "771117a48d520e811cd9876af2ed07ed6f035a7f",
+    "sourceDirectory": "Original/SpoqaHanSans",
+    "license": "SIL Open Font License 1.1",
+    "licenseFile": "assets/fonts/LICENSE-OFL-1.1.txt",
+    "licenseSha256": "240d8d836e78d6ca9a38876cfd492a3399de9b1c2b48f08d459b9860788eb162"
+  },
+  "requiredAssets": [
+    {
+      "id": "SPOQA_HAN_SANS_BOLD",
+      "status": "RESOLVED_ASSET",
+      "relativePath": "assets/fonts/SpoqaHanSansBold.ttf",
+      "fileName": "SpoqaHanSansBold.ttf",
+      "sha256": "5a6b9b258145e243dfd5f70cc869119c6af708843658e380304bdfe3d4f4eaef",
+      "family": "SpoqaHanSans",
+      "fontVersion": "2.000",
+      "weight": 700,
+      "style": "normal",
+      "usage": [
+        "HEADLINE"
+      ],
+      "licenseStatus": "VERIFIED_OFL_1.1"
+    },
+    {
+      "id": "SPOQA_HAN_SANS_REGULAR",
+      "status": "RESOLVED_ASSET",
+      "relativePath": "assets/fonts/SpoqaHanSansRegular.ttf",
+      "fileName": "SpoqaHanSansRegular.ttf",
+      "sha256": "1f56c8535b6592672ea7f540a67bb5792c34558d72875fc504166a3e2b28b4b1",
+      "family": "SpoqaHanSans",
+      "fontVersion": "2.000",
+      "weight": 400,
+      "style": "normal",
+      "usage": [
+        "SUBCOPY"
+      ],
+      "licenseStatus": "VERIFIED_OFL_1.1"
+    }
+  ],
+  "renderingBlocker": false,
+  "fallbackAllowed": false
+}

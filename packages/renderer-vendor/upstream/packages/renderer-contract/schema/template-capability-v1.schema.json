@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/template-capability-v1.schema.json",
+  "title": "Renderer Template Capability v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "formatProfileId", "implementationStatus", "defaultPolicy", "semanticPlacement", "allowedPolicies", "supportsManualCrop", "supportsAgentPlacement", "allowedInputMimeTypes", "alphaChannelRequired"],
+  "properties": {
+    "schemaVersion": { "const": "1.8.0" },
+    "channelNamespace": { "enum": ["KAKAO_MOMENT", "NAVER_GFA"] },
+    "placement": { "type": "string", "minLength": 1 },
+    "compositionMode": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] },
+    "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"] },
+    "artifactCardinality": { "enum": ["SINGLE", "COLLECTION"] },
+    "formatProfileId": { "type": "string", "minLength": 1 },
+    "implementationStatus": { "enum": ["NOT_IMPLEMENTED", "PARTIAL", "IMPLEMENTED"] },
+    "defaultPolicy": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] },
+    "semanticPlacement": { "enum": ["NOT_REQUIRED", "OPTIONAL", "REQUIRED"] },
+    "allowedPolicies": { "type": "array", "items": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] } },
+    "supportsManualCrop": { "type": "boolean" },
+    "supportsAgentPlacement": { "type": "boolean" },
+    "imageSlotIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "allowedInputMimeTypes": { "type": "array", "items": { "enum": ["image/png", "image/jpeg"] } },
+    "alphaChannelRequired": { "type": "boolean" },
+    "minimumAssets": { "type": "integer", "minimum": 0 },
+    "maximumAssets": { "type": "integer", "minimum": 0 },
+    "requiredPlacementPlans": { "type": "integer", "minimum": 0 },
+    "slotCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slotId", "slotRole", "required", "allowedInputMimeTypes", "allowedPolicies", "alphaChannelRequired", "supportsManualCrop", "supportsAgentPlacement"],
+        "properties": {
+          "slotId": { "type": "string", "minLength": 1 },
+          "slotRole": { "enum": ["IMAGE", "LOGO"] },
+          "required": { "type": "boolean" },
+          "allowedInputMimeTypes": { "type": "array", "items": { "enum": ["image/png", "image/jpeg"] } },
+          "allowedPolicies": { "type": "array", "items": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] } },
+          "alphaChannelRequired": { "type": "boolean" },
+          "colorRestriction": { "const": "NONE" },
+          "supportsManualCrop": { "type": "boolean" },
+          "supportsAgentPlacement": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/placement-capability-hints-v1.schema.json",
+  "title": "Neutral Placement Capability Hints 1.0.0",
+  "description": "Read-only authoring hints. Frozen profile contracts and the Validator remain authoritative.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "platform", "channel", "profileId", "layoutMode", "compositionMode", "artifactCardinality", "defaultPolicy", "allowedPolicies", "semanticPlacement", "manualCrop", "dragAllowed", "zoomAllowed", "controlsLocked", "rendererOwnsPixels", "platformComposedFields", "geometryReference", "sourceContract"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "platform": { "enum": ["KAKAO", "NAVER", "META_STATIC", "GOOGLE"] },
+    "channel": { "enum": ["KAKAO_MOMENT", "NAVER_GFA", "META", "GOOGLE_STATIC"] },
+    "family": { "type": "string", "minLength": 1 },
+    "profileId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["ACTIVE", "FROZEN", "DEFERRED"] },
+    "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM", "PLATFORM_SOURCE"] },
+    "compositionMode": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] },
+    "artifactCardinality": { "enum": ["SINGLE", "COLLECTION"] },
+    "defaultPolicy": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] },
+    "allowedPolicies": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] } },
+    "semanticPlacement": { "enum": ["NOT_REQUIRED", "OPTIONAL", "REQUIRED"] },
+    "manualCrop": { "type": "boolean" },
+    "dragAllowed": { "type": "boolean" },
+    "zoomAllowed": { "type": "boolean" },
+    "controlsLocked": { "type": "boolean" },
+    "rendererOwnsPixels": { "type": "boolean" },
+    "platformComposedFields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "geometryReference": {
+      "type": "object", "additionalProperties": false, "required": ["kind"],
+      "properties": { "kind": { "enum": ["CANVAS_ASPECT", "NORMALIZED_RECT", "SOURCE_CONTRACT", "PLATFORM_SOURCE"] }, "width": { "type": "number", "exclusiveMinimum": 0 }, "height": { "type": "number", "exclusiveMinimum": 0 }, "aspectRatio": { "type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": { "width": { "type": "number", "exclusiveMinimum": 0 }, "height": { "type": "number", "exclusiveMinimum": 0 } } }, "contract": { "type": "string", "minLength": 1 } }
+    },
+    "sourceContract": {
+      "type": "object", "additionalProperties": false, "required": ["path", "version", "sha256", "evidenceClass"],
+      "properties": { "path": { "type": "string", "pattern": "^(?![A-Za-z]:)[^\\\\].*" }, "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "evidenceClass": { "enum": ["OFFICIAL", "PROJECT_PRESET", "INFERRED", "UNRESOLVED"] } }
+    },
+    "activeOrFrozen": { "enum": ["ACTIVE", "FROZEN"] },
+    "sourceAssetSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+  }
+}

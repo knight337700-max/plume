@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - packages/renderer-vendor/upstream/packages/*
 
 allowBuilds:
   '@astryxdesign/cli': true

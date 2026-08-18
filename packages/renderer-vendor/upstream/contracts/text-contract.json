@@ -1,0 +1,31 @@
+{
+  "contractVersion": "1.0.0",
+  "templateContractVersion": "1.9.0",
+  "classification": "PROJECT_AND_INFERRED",
+  "textStartX": 48,
+  "hardRightEdgeExclusive": 633,
+  "maximumOccupiedWidthPx": 585,
+  "warningWidthThresholdPx": 527,
+  "headlineBaselineY": 120,
+  "subcopyBaselineY": 178,
+  "headlineMaxKoreanEquivalentUnits": 12,
+  "subcopyMaxKoreanEquivalentUnits": 15,
+  "fonts": {
+    "headline": { "sizePx": 48, "weight": 700, "color": "#4C4C4C" },
+    "subcopy": { "sizePx": 39, "weight": 400, "color": "#777777" }
+  },
+  "graphemeAlgorithm": {
+    "segmenter": "Intl.Segmenter",
+    "normalization": "Unicode NFC before segmentation",
+    "space": "U+0020 has weight 0 and remains in pixel measurement",
+    "cjkKanaFullwidthEmoji": 1,
+    "asciiAndHalfwidthLatin": 0.5,
+    "unknown": 1
+  },
+  "whitespacePolicy": {
+    "leadingTrailing": "trim during normalization",
+    "singleInternalSpace": "allowed and counted in raster advance only",
+    "consecutiveInternalSpaces": "preserve and emit WARNING",
+    "tabOrLineBreak": "ERROR"
+  }
+}
