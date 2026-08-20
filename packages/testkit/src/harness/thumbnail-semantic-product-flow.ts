@@ -76,6 +76,29 @@ function sameBytes(actual: Uint8Array, expected: Uint8Array, label: string): voi
     throw new Error(`${label}_BYTES_MISMATCH`);
 }
 
+async function getObjectWithRetry(
+  harness: ProcessHarness,
+  objectKey: string,
+  timeoutMs = 5_000,
+): Promise<Uint8Array> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      return await harness.getObject(objectKey);
+    } catch (error) {
+      lastError = error;
+      const statusCode =
+        error && typeof error === "object" && "statusCode" in error
+          ? (error as { readonly statusCode?: unknown }).statusCode
+          : undefined;
+      if (statusCode !== 404) throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("OBJECT_STORAGE_READ_TIMEOUT");
+}
+
 async function jsonRequest(
   harness: ProcessHarness,
   path: string,
@@ -257,7 +280,7 @@ export async function runThumbnailSemanticProductWorkflow(input: {
   if (fileObject.bytes !== bytes.byteLength) throw new Error("FILE_OBJECT_BYTES_MISMATCH");
   if (fileObject.checksumSha256 !== inputChecksumSha256)
     throw new Error("FILE_OBJECT_CHECKSUM_MISMATCH");
-  sameBytes(await harness.getObject(objectKey), bytes, "UPLOADED_OBJECT");
+  sameBytes(await getObjectWithRetry(harness, objectKey), bytes, "UPLOADED_OBJECT");
 
   const assetResponse = await jsonRequest(
     harness,
@@ -477,8 +500,8 @@ export async function runThumbnailSemanticProductWorkflow(input: {
   if (exportResult.status !== "COMPLETED") throw new Error("EXPORT_RESULT_NOT_COMPLETED");
   const renderObjectKey = requiredString(renderResult.objectKey, "RENDER_OBJECT_KEY");
   const exportObjectKey = requiredString(exportResult.objectKey, "EXPORT_OBJECT_KEY");
-  const renderBytes = await harness.getObject(renderObjectKey);
-  const exportBytes = await harness.getObject(exportObjectKey);
+  const renderBytes = await getObjectWithRetry(harness, renderObjectKey);
+  const exportBytes = await getObjectWithRetry(harness, exportObjectKey);
   const renderChecksumSha256 = sha256(renderBytes);
   const exportChecksumSha256 = sha256(exportBytes);
   if (renderChecksumSha256 !== renderResult.checksumSha256)

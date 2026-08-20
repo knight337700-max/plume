@@ -31,7 +31,6 @@ function countingFakeGateway(counter: ProviderCallCounter): AgentProviderGateway
         model: "fake-gpt-5.6-luna",
         latencyMs: 1,
         outputJson: {
-          formatProfileId: "kakao-moment-bizboard-thumbnail-box-right-1029x258",
           semanticPlacement: {
             status: "FOUND",
             primarySubjectBounds: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 },
@@ -245,7 +244,7 @@ describe("PI-2C.1 actual Thumbnail Product Workflow E2E", () => {
           label: "DECLARED_PNG_ACTUAL_JPEG",
           providerCalls: counter,
         }),
-      ).rejects.toThrow("CANONICAL_PRODUCT_ASSET_MIME_MISMATCH");
+      ).rejects.toThrow("MIME_MAGIC_MISMATCH");
       expect(counter.calls).toBe(0);
     } finally {
       await harness.close();
