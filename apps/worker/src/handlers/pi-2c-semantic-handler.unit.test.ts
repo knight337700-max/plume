@@ -306,19 +306,6 @@ async function runFakeFlow(bytes: Uint8Array, mimeType: "image/png" | "image/jpe
     rendered,
     validation,
     exported,
-    workflow: [
-      "upload.session",
-      "upload.put",
-      "upload.complete",
-      "asset.version.persist",
-      "product.link",
-      "brief.confirmed",
-      "generation.request",
-      "creative.generate",
-      "creative.render",
-      "validation.run",
-      "export.render_and_package",
-    ] as const,
   };
 }
 
@@ -341,28 +328,15 @@ function storedZipEntry(zip: Uint8Array, expectedName: string): Uint8Array {
   throw new Error(`ZIP_ENTRY_NOT_FOUND:${expectedName}`);
 }
 
-describe("PI-2C fake-provider Product Workflow E2E", () => {
+describe("PI-2C semantic handler component coverage", () => {
   it.each([
     ["PNG", "thumbnail-box-right__asset__basic__pass.png", "image/png"],
     ["JPEG", "thumbnail-box-right__asset__jpeg__pass.jpg", "image/jpeg"],
   ] as const)(
-    "runs %s upload → generate → render → validation/export without render Agent calls",
+    "composes %s semantic evidence and renders without additional Agent calls",
     async (_label, file, mimeType) => {
       const result = await runFakeFlow(await fixture(file), mimeType);
       expect(result.counter.calls).toBe(1);
-      expect(result.workflow).toEqual([
-        "upload.session",
-        "upload.put",
-        "upload.complete",
-        "asset.version.persist",
-        "product.link",
-        "brief.confirmed",
-        "generation.request",
-        "creative.generate",
-        "creative.render",
-        "validation.run",
-        "export.render_and_package",
-      ]);
       expect(result.generated.creative.document.metadata.semanticPlacement).toEqual(
         expect.objectContaining({
           schemaVersion: "1.0.0",

@@ -17,6 +17,9 @@ const baseSources: ActivationSources = {
   plannerSource: read("packages/infrastructure/src/render/semantic-placement-planner.ts"),
   canonicalProductSource: read("apps/worker/src/handlers/canonical-product.ts"),
   publicSource: read("packages/renderer-vendor/src/public.ts"),
+  actualE2eSource: read("apps/api/e2e/jacomo-thumbnail-semantic-product-flow.spec.ts"),
+  workflowHelperSource: read("packages/testkit/src/harness/thumbnail-semantic-product-flow.ts"),
+  liveRunnerSource: read("tools/pi-2c/run-real-image-semantic-e2e.ts"),
   sourceLock: JSON.parse(read("packages/renderer-vendor/SOURCE_LOCK.json")) as unknown,
 };
 

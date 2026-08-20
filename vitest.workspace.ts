@@ -38,7 +38,11 @@ export default defineWorkspace([
       minWorkers: 1,
       pool: "forks",
       poolOptions: { forks: { singleFork: true } },
-      include: ["apps/api/e2e/jacomo-flow.spec.ts", "apps/api/e2e/jacomo-canonical-product-flow.spec.ts"],
+      include: [
+        "apps/api/e2e/jacomo-flow.spec.ts",
+        "apps/api/e2e/jacomo-canonical-product-flow.spec.ts",
+        "apps/api/e2e/jacomo-thumbnail-semantic-product-flow.spec.ts",
+      ],
       exclude: ["**/node_modules/**", "**/dist/**"],
       passWithNoTests: false,
     },

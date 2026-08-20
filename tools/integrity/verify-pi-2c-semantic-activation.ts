@@ -26,6 +26,9 @@ export interface ActivationSources {
   readonly plannerSource: string;
   readonly canonicalProductSource: string;
   readonly publicSource: string;
+  readonly actualE2eSource: string;
+  readonly workflowHelperSource: string;
+  readonly liveRunnerSource: string;
   readonly sourceLock: unknown;
 }
 
@@ -121,6 +124,43 @@ export function collectActivationFailures(sources: ActivationSources): readonly 
     /renderThumbnailBoxRight/u,
     "frozen thumbnail public wrapper",
   );
+  requireMatch(
+    failures,
+    sources.actualE2eSource,
+    /startProcessHarness/u,
+    "actual API process harness",
+  );
+  requireMatch(
+    failures,
+    sources.actualE2eSource,
+    /runThumbnailSemanticProductWorkflow/u,
+    "actual API workflow helper",
+  );
+  requireMatch(
+    failures,
+    sources.workflowHelperSource,
+    /generation-requests/u,
+    "actual generation request route",
+  );
+  if (
+    /composeCanonicalProductCreative|renderCanonicalProductDocument|runDeterministicValidation|buildExportPackage/iu.test(
+      sources.actualE2eSource,
+    )
+  )
+    failures.push("actual API E2E directly invokes worker helpers");
+  requireMatch(failures, sources.liveRunnerSource, /startProcessHarness/u, "live process harness");
+  requireMatch(
+    failures,
+    sources.liveRunnerSource,
+    /runThumbnailSemanticProductWorkflow/u,
+    "live actual API workflow",
+  );
+  if (
+    /composeCanonicalProductCreative|renderCanonicalProductDocument|runDeterministicValidation/iu.test(
+      sources.liveRunnerSource,
+    )
+  )
+    failures.push("live runner directly invokes worker helpers");
   if (sourceLockCount(sources.sourceLock) !== EXPECTED.sourceLockEntries)
     failures.push("SOURCE_LOCK entry count");
   return Object.freeze(failures);
@@ -145,6 +185,9 @@ function readRepositorySources(root: string): ActivationSources {
     plannerSource: read("packages/infrastructure/src/render/semantic-placement-planner.ts"),
     canonicalProductSource: read("apps/worker/src/handlers/canonical-product.ts"),
     publicSource: read("packages/renderer-vendor/src/public.ts"),
+    actualE2eSource: read("apps/api/e2e/jacomo-thumbnail-semantic-product-flow.spec.ts"),
+    workflowHelperSource: read("packages/testkit/src/harness/thumbnail-semantic-product-flow.ts"),
+    liveRunnerSource: read("tools/pi-2c/run-real-image-semantic-e2e.ts"),
     sourceLock: JSON.parse(read("packages/renderer-vendor/SOURCE_LOCK.json")) as unknown,
   };
 }
