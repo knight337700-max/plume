@@ -38,6 +38,20 @@ import {
   PostgresLiveSmokeFailureEvidenceStore,
   type LiveSmokeFailureEvidenceStore,
 } from "../../../packages/infrastructure/src/async/live-smoke-failure-evidence-store.js";
+import {
+  createInMemoryCampaignRepositories,
+  type CampaignRepositories,
+} from "../../../packages/core/src/modules/campaign/repositories.js";
+import {
+  createInMemoryAssetRepositories,
+  type AssetRepositories,
+} from "../../../packages/core/src/modules/asset/repositories.js";
+import {
+  createInMemoryCreativeRepositories,
+  type CreativeRepositories,
+} from "../../../packages/core/src/modules/creative/repositories.js";
+import { PostgresUploadSessionRepository } from "../../../packages/infrastructure/src/db/upload-session-repository.js";
+import type { FileObjectRecord } from "../../../packages/core/src/modules/asset/upload-session.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -60,6 +74,12 @@ export interface WorkerRuntimeCompositionOptions {
   readonly liveSmokeLifecycleStore?: LiveSmokeLifecycleStore;
   readonly liveSmokeValidationEvidenceStore?: LiveSmokeValidationEvidenceStore;
   readonly liveSmokeFailureEvidenceStore?: LiveSmokeFailureEvidenceStore;
+  readonly campaignRepositories?: CampaignRepositories;
+  readonly assetRepositories?: AssetRepositories;
+  readonly creativeRepositories?: CreativeRepositories;
+  readonly fileObjectReader?: {
+    getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
+  };
 }
 
 function envValue(name: string, fallback: string): string {
@@ -102,6 +122,12 @@ export function createWorkerRuntimeComposition(
     options.liveSmokeValidationEvidenceStore ?? new PostgresLiveSmokeValidationEvidenceStore(sql);
   const liveSmokeFailureEvidenceStore =
     options.liveSmokeFailureEvidenceStore ?? new PostgresLiveSmokeFailureEvidenceStore(sql);
+  const campaignRepositories =
+    options.campaignRepositories ?? createInMemoryCampaignRepositories();
+  const assetRepositories = options.assetRepositories ?? createInMemoryAssetRepositories();
+  const creativeRepositories =
+    options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const fileObjectReader = options.fileObjectReader ?? new PostgresUploadSessionRepository(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
@@ -121,6 +147,10 @@ export function createWorkerRuntimeComposition(
     liveSmokeLifecycleStore,
     liveSmokeValidationEvidenceStore,
     liveSmokeFailureEvidenceStore,
+    campaignRepositories,
+    assetRepositories,
+    creativeRepositories,
+    fileObjectReader,
     providerMode: aiRuntime.provider.mode,
     ...(pricingPolicy ? { pricingPolicy } : {}),
   });

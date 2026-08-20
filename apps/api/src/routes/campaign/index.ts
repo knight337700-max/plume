@@ -16,10 +16,11 @@ import { mediaSelectionRoutes } from "./media-selection.js";
 import { createGenerationUseCases, type GenerationUseCases } from "../../../../../packages/core/src/modules/campaign/generation-use-cases.js";
 import { generationRoutes } from "./generation.js";
 import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
+import type { CampaignRepositories } from "../../../../../packages/core/src/modules/campaign/repositories.js";
 
-interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases; readonly generation?: GenerationUseCases; readonly asyncCommands?: AsyncCommandPublisher }
+interface Options { readonly campaigns?: CampaignUseCases; readonly sources?: CampaignSourceUseCases; readonly briefs?: BriefUseCases; readonly matching?: ProductMatchingUseCases; readonly pool?: CampaignAssetPoolUseCases; readonly selection?: MediaSelectionUseCases; readonly generation?: GenerationUseCases; readonly repositories?: CampaignRepositories; readonly asyncCommands?: AsyncCommandPublisher }
 export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
-  const repositories = createInMemoryCampaignRepositories();
+  const repositories = options.repositories ?? createInMemoryCampaignRepositories();
   const campaigns = options.campaigns ?? createCampaignUseCases(repositories);
   const sources = options.sources ?? createCampaignSourceUseCases({ repositories, files: { async getFile(_workspaceId, id) { return { id, workspaceId: _workspaceId, status: "COMPLETED" as const }; } } });
   const briefs = options.briefs ?? createBriefUseCases(repositories);

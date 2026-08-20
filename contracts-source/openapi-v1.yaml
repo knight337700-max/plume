@@ -3202,6 +3202,69 @@ paths:
         '204':
           description: Success
   /api/v1/workspaces/{workspaceId}/assets/{assetId}/versions:
+    post:
+      operationId: createAssetVersion
+      summary: 업로드 파일을 에셋 버전으로 등록
+      tags:
+      - Asset
+      x-roles:
+      - OWNER
+      - ADMIN
+      - EDITOR
+      x-module: ASSET
+      x-execution: SYNC
+      x-entities:
+      - asset_version
+      - file_object
+      x-screen-ids:
+      - ASSET-01
+      - PROD-02
+      parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        description: Workspace UUID
+        schema:
+          type: string
+          format: uuid
+      - name: assetId
+        in: path
+        required: true
+        description: Design Asset UUID
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetVersionCreate'
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetVersion'
     get:
       operationId: listAssetVersions
       summary: 에셋 버전 목록
@@ -9786,6 +9849,27 @@ components:
           format: date-time
       additionalProperties: false
       x-domain-entity: asset_version
+    AssetVersionCreate:
+      type: object
+      required:
+      - fileObjectId
+      - sourceType
+      properties:
+        fileObjectId:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+        analysisJson:
+          type: object
+          additionalProperties: true
+        createdBy:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      x-source-schema: AssetVersion
     Campaign:
       type: object
       required:
@@ -12874,6 +12958,9 @@ components:
       properties:
         creativeSetName:
           type: string
+        briefVersionId:
+          type: string
+          format: uuid
         generationMode:
           type: string
           enum:
@@ -12881,6 +12968,8 @@ components:
           - PRIMARY_PRODUCT
           - SELECTED_PRODUCTS
           - MULTI_PRODUCT_COMPOSITE
+          - MOCK_AI
+          - CANONICAL_RENDERER
         productIds:
           type: array
           items:

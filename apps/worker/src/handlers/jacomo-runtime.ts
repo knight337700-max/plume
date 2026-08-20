@@ -1,8 +1,19 @@
 import type { Job } from "bullmq";
+import { createHash } from "node:crypto";
 import { buildExportPackage } from "../../../../packages/infrastructure/src/export/build-package.js";
 import { renderCreativeDocument } from "../../../../packages/infrastructure/src/render/renderer-adapter.js";
 import { runDeterministicValidation } from "../../../../packages/core/src/modules/validation/deterministic-validator.js";
 import { composeJacomoCreative } from "../../../../packages/core/src/modules/campaign/jacomo-workflow.js";
+import {
+  composeCanonicalProductCreative,
+  renderCanonicalProductDocument,
+  pngIsRgba,
+  type CanonicalProductDependencies,
+} from "./canonical-product.js";
+import type { CampaignRepositories } from "../../../../packages/core/src/modules/campaign/repositories.js";
+import type { AssetRepositories } from "../../../../packages/core/src/modules/asset/repositories.js";
+import type { CreativeRepositories } from "../../../../packages/core/src/modules/creative/repositories.js";
+import type { FileObjectRecord } from "../../../../packages/core/src/modules/asset/upload-session.js";
 import {
   validateCommandEnvelope,
   type CreativeGeneratePayload,
@@ -48,6 +59,12 @@ interface RuntimeDependencies {
   readonly liveSmokeFailureEvidenceStore: LiveSmokeFailureEvidenceStore;
   readonly providerMode: LiveSmokeProviderMode;
   readonly pricingPolicy?: LiveSmokePricingPolicy;
+  readonly campaignRepositories: CampaignRepositories;
+  readonly assetRepositories: AssetRepositories;
+  readonly creativeRepositories: CreativeRepositories;
+  readonly fileObjectReader: {
+    getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
+  };
 }
 
 export function assertJobWorkspaceScope(envelope: {
@@ -110,6 +127,13 @@ export function createJacomoRuntimeHandlers(
 ): Readonly<Record<string, RuntimeJobHandler>> {
   const inbox = new DrizzleInboxRepository(dependencies.sql);
   const guard = createIdempotencyGuard;
+  const canonicalDependencies = {
+    campaignRepositories: dependencies.campaignRepositories,
+    assetRepositories: dependencies.assetRepositories,
+    creativeRepositories: dependencies.creativeRepositories,
+    fileObjectReader: dependencies.fileObjectReader,
+    storage: dependencies.storage,
+  } satisfies CanonicalProductDependencies;
 
   const withCommonContract =
     (
@@ -230,15 +254,35 @@ export function createJacomoRuntimeHandlers(
   handlers["creative.generate"] = withCommonContract("creative.generate", async (envelope) => {
     const payload = envelope.payload as CreativeGeneratePayload;
     const formatProfileId = payload.formatProfileIds[0]!;
-    const creatives = payload.productIds.map((productId, index) =>
-      composeJacomoCreative({
-        workspaceId: envelope.workspaceId,
-        campaignId: payload.campaignId,
-        productId,
-        formatProfileId,
-        sequence: index + 1,
-      }),
-    );
+    const canonical = payload.generationMode === "CANONICAL_RENDERER";
+    if (canonical && !payload.briefVersionId)
+      throw Object.assign(new Error("Canonical mode requires an exact briefVersionId"), {
+        code: "CANONICAL_BRIEF_REQUIRED",
+        statusCode: 422,
+      });
+    const creatives = canonical
+      ? await Promise.all(
+          payload.productIds.map((productId, index) =>
+            composeCanonicalProductCreative(canonicalDependencies, {
+              workspaceId: envelope.workspaceId,
+              campaignId: payload.campaignId,
+              productId,
+              briefVersionId: payload.briefVersionId!,
+              formatProfileId,
+              sequence: index + 1,
+              jobId: envelope.jobId,
+            }).then(({ creative }) => creative),
+          ),
+        )
+      : payload.productIds.map((productId, index) =>
+          composeJacomoCreative({
+            workspaceId: envelope.workspaceId,
+            campaignId: payload.campaignId,
+            productId,
+            formatProfileId,
+            sequence: index + 1,
+          }),
+        );
     for (const creative of creatives) {
       await dependencies.publisher.enqueue({
         workspaceId: envelope.workspaceId,
@@ -261,6 +305,8 @@ export function createJacomoRuntimeHandlers(
       command: envelope.command,
       schemaVersion: envelope.schemaVersion,
       campaignId: payload.campaignId,
+      ...(payload.briefVersionId ? { briefVersionId: payload.briefVersionId } : {}),
+      generationMode: payload.generationMode ?? "MOCK_AI",
       expectedCreatives: creatives.length,
     });
     return {
@@ -271,17 +317,49 @@ export function createJacomoRuntimeHandlers(
 
   handlers["creative.render"] = withCommonContract("creative.render", async (envelope) => {
     const payload = envelope.payload as CreativeRenderPayload;
-    const rendered = renderCreativeDocument({
-      requestId: envelope.messageId,
-      workspaceId: envelope.workspaceId,
-      creativeVersionId: payload.creativeVersionId,
-      purpose: payload.purpose,
-      creativeDocument: payload.creativeDocument as never,
-      outputProfile: renderOutputProfile(payload),
-    });
+    const document = payload.creativeDocument as Readonly<Record<string, unknown>>;
+    const isCanonical =
+      typeof document.metadata === "object" &&
+      document.metadata !== null &&
+      !Array.isArray(document.metadata) &&
+      (document.metadata as { readonly renderMode?: unknown }).renderMode ===
+        "CANONICAL_RENDERER";
+    const canonicalResult = isCanonical
+      ? await renderCanonicalProductDocument(
+          canonicalDependencies,
+          envelope.workspaceId,
+          document,
+          envelope.messageId,
+        )
+      : null;
+    const rendered = canonicalResult
+      ? canonicalResult.result
+      : renderCreativeDocument({
+          requestId: envelope.messageId,
+          workspaceId: envelope.workspaceId,
+          creativeVersionId: payload.creativeVersionId,
+          purpose: payload.purpose,
+          creativeDocument: payload.creativeDocument as never,
+          outputProfile: renderOutputProfile(payload),
+        });
     if (rendered.status !== "COMPLETED" || !rendered.outputBytes || !rendered.checksumSha256) {
       throw new Error(String(rendered.error?.code ?? "RENDER_FAILED"));
     }
+    const rendererMetadata = (rendered.renderMetadata ?? {}) as {
+      readonly rendererRepository?: string;
+      readonly rendererCommit?: string;
+      readonly rendererIntegrationContract?: string;
+      readonly rendererRuntimeVersion?: string;
+      readonly legacyFallbackUsed?: boolean;
+      readonly rendererIntegrationOutput?: {
+        readonly validation?: { readonly errors?: readonly unknown[]; readonly warnings?: readonly unknown[]; readonly info?: readonly unknown[] };
+        readonly appliedImagePlacements?: readonly unknown[];
+        readonly requestFingerprint?: string;
+        readonly pixelFingerprint?: string;
+        readonly renderFingerprint?: string;
+      };
+    };
+    const rendererOutput = rendererMetadata.rendererIntegrationOutput;
     const objectKey = `renders/${envelope.workspaceId}/${payload.creativeVersionId}/${rendered.checksumSha256}.png`;
     const stored = await dependencies.storage.put({
       body: rendered.outputBytes,
@@ -291,8 +369,21 @@ export function createJacomoRuntimeHandlers(
         workspaceId: envelope.workspaceId,
         creativeVersionId: payload.creativeVersionId,
         checksumSha256: rendered.checksumSha256,
+        renderMode: isCanonical ? "CANONICAL_RENDERER" : "MOCK_AI",
+        ...(rendererMetadata.rendererCommit ? { rendererCommit: rendererMetadata.rendererCommit } : {}),
+        ...(rendererMetadata.rendererIntegrationContract
+          ? { integrationContract: rendererMetadata.rendererIntegrationContract }
+          : {}),
+        ...(rendererOutput?.requestFingerprint ? { requestFingerprint: rendererOutput.requestFingerprint } : {}),
+        ...(rendererOutput?.pixelFingerprint ? { pixelFingerprint: rendererOutput.pixelFingerprint } : {}),
+        ...(rendererOutput?.renderFingerprint ? { renderFingerprint: rendererOutput.renderFingerprint } : {}),
       },
     });
+    if (stored.checksumSha256 !== rendered.checksumSha256)
+      throw Object.assign(new Error("Renderer artifact checksum differs from stored object"), {
+        code: "STORAGE_CHECKSUM_MISMATCH",
+        statusCode: 500,
+      });
     return {
       status: "COMPLETED",
       creativeVersionId: payload.creativeVersionId,
@@ -300,6 +391,30 @@ export function createJacomoRuntimeHandlers(
       checksumSha256: stored.checksumSha256,
       bytes: stored.bytes,
       purpose: payload.purpose,
+      renderMode: isCanonical ? "CANONICAL_RENDERER" : "MOCK_AI",
+      legacyFallbackUsed: rendererMetadata.legacyFallbackUsed ?? !isCanonical,
+      renderer: {
+        repository: rendererMetadata.rendererRepository,
+        commit: rendererMetadata.rendererCommit,
+        integrationContract: rendererMetadata.rendererIntegrationContract,
+        runtimeVersion: rendererMetadata.rendererRuntimeVersion,
+        validation: rendererOutput?.validation ?? { errors: [], warnings: [], info: [] },
+        appliedImagePlacements: rendererOutput?.appliedImagePlacements ?? [],
+        requestFingerprint: rendererOutput?.requestFingerprint,
+        pixelFingerprint: rendererOutput?.pixelFingerprint,
+        renderFingerprint: rendererOutput?.renderFingerprint,
+        ...(canonicalResult
+          ? {
+              canonicalRequest: canonicalResult.request,
+              assetVersionId: canonicalResult.asset.assetVersionId,
+              fileObjectId: canonicalResult.asset.fileObjectId,
+            }
+          : {}),
+      },
+      width: rendered.width,
+      height: rendered.height,
+      mimeType: "image/png",
+      rgba: pngIsRgba(rendered.outputBytes),
     };
   });
 
@@ -307,6 +422,20 @@ export function createJacomoRuntimeHandlers(
     const payload = envelope.payload as ValidationRunPayload & {
       readonly renderObjectKey?: string;
       readonly renderChecksumSha256?: string;
+      readonly renderer?: {
+        readonly validation?: {
+          readonly errors?: readonly unknown[];
+          readonly warnings?: readonly unknown[];
+          readonly info?: readonly unknown[];
+        };
+        readonly appliedImagePlacements?: readonly unknown[];
+        readonly requestFingerprint?: string;
+        readonly pixelFingerprint?: string;
+        readonly renderFingerprint?: string;
+        readonly canonicalRequest?: Readonly<Record<string, unknown>>;
+        readonly commit?: string;
+        readonly integrationContract?: string;
+      };
     };
     const result = runDeterministicValidation({
       creativeDocument: payload.creativeDocument as never,
@@ -314,16 +443,22 @@ export function createJacomoRuntimeHandlers(
     });
     const errorCount = result.findings.filter((finding) => finding.severity === "ERROR").length;
     const warningCount = result.findings.filter((finding) => finding.severity === "WARNING").length;
+    const rendererErrors = payload.renderer?.validation?.errors ?? [];
+    const rendererWarnings = payload.renderer?.validation?.warnings ?? [];
+    const combinedErrorCount = errorCount + rendererErrors.length;
+    const combinedWarningCount = warningCount + rendererWarnings.length;
     return {
-      status: errorCount > 0 ? "ERROR" : warningCount > 0 ? "WARNING" : "PASS",
+      status: combinedErrorCount > 0 ? "ERROR" : combinedWarningCount > 0 ? "WARNING" : "PASS",
       creativeVersionId: payload.creativeVersionId,
       renderObjectKey: payload.renderObjectKey,
       renderChecksumSha256: payload.renderChecksumSha256,
       validationReport: {
-        status: errorCount > 0 ? "ERROR" : warningCount > 0 ? "WARNING" : "PASS",
-        errorCount,
-        warningCount,
+        status: combinedErrorCount > 0 ? "ERROR" : combinedWarningCount > 0 ? "WARNING" : "PASS",
+        errorCount: combinedErrorCount,
+        warningCount: combinedWarningCount,
         findings: result.findings,
+        rendererValidation: payload.renderer?.validation ?? { errors: [], warnings: [], info: [] },
+        renderer: payload.renderer ?? null,
       },
     };
   });
@@ -340,6 +475,19 @@ export function createJacomoRuntimeHandlers(
           mimeType: "image/png",
         })),
       );
+      const embeddedPngChecksums = items.map((item) =>
+        createHash("sha256").update(item.bytes).digest("hex"),
+      );
+      if (
+        payload.renderChecksumsSha256 &&
+        payload.renderChecksumsSha256.some(
+          (expected, index) => expected.toLowerCase() !== embeddedPngChecksums[index]?.toLowerCase(),
+        )
+      )
+        throw Object.assign(new Error("Render checksum differs from export input"), {
+          code: "EXPORT_RENDER_CHECKSUM_MISMATCH",
+          statusCode: 422,
+        });
       const built = buildExportPackage({
         exportJobId: payload.exportJobId,
         workspaceId: envelope.workspaceId,
@@ -370,6 +518,7 @@ export function createJacomoRuntimeHandlers(
         bytes: stored.bytes,
         manifest: built.manifest,
         validationReportCount: 1,
+        embeddedPngChecksums,
       };
     },
   );
@@ -392,11 +541,16 @@ export function createJacomoRuntimeHandlers(
       const validationItems = items.filter((item) => item.command === "validation.run");
       if (validationItems.length === 0 || !validationItems.every(isCompleted)) return;
       if (items.some((item) => item.command === "export.render_and_package")) return;
+      const blockedValidation = validationItems.some((item) => {
+        const result = item.result as { readonly status?: string; readonly validationReport?: { readonly status?: string } } | undefined;
+        return result?.status === "ERROR" || result?.validationReport?.status === "ERROR";
+      });
+      if (blockedValidation) throw new Error("VALIDATION_BLOCKED_EXPORT");
       const renderItems = items.filter(
         (item) => item.command === "creative.render" && isCompleted(item),
       );
       const renderOutputs = renderItems.map(
-        (item) => item.result as { creativeVersionId?: string; objectKey?: string },
+        (item) => item.result as { creativeVersionId?: string; objectKey?: string; checksumSha256?: string },
       );
       const renderObjectKeys = renderOutputs.flatMap((item) =>
         item.objectKey ? [item.objectKey] : [],
@@ -404,8 +558,13 @@ export function createJacomoRuntimeHandlers(
       const creativeVersionIds = renderOutputs.flatMap((item) =>
         item.creativeVersionId ? [item.creativeVersionId] : [],
       );
+      const renderChecksumsSha256 = renderOutputs.flatMap((item) =>
+        item.checksumSha256 ? [item.checksumSha256] : [],
+      );
       if (renderObjectKeys.length === 0 || renderObjectKeys.length !== creativeVersionIds.length)
         throw new Error("EXPORT_RENDER_REFERENCES_INCOMPLETE");
+      if (renderChecksumsSha256.length !== renderObjectKeys.length)
+        throw new Error("EXPORT_RENDER_CHECKSUM_REFERENCES_INCOMPLETE");
       await dependencies.publisher.enqueue({
         workspaceId: envelope.workspaceId,
         command: "export.render_and_package",
@@ -417,6 +576,7 @@ export function createJacomoRuntimeHandlers(
           exportJobId: envelope.jobId,
           creativeVersionIds,
           renderObjectKeys,
+          renderChecksumsSha256,
           packageName: "JACOMO-STAGING",
         },
       });
@@ -431,6 +591,7 @@ export function createJacomoRuntimeHandlers(
       creativeVersionId?: string;
       objectKey?: string;
       checksumSha256?: string;
+      renderer?: unknown;
     };
     if (!value.objectKey || !value.creativeVersionId)
       throw new Error("RENDER_RESULT_REFERENCE_REQUIRED");
@@ -446,6 +607,7 @@ export function createJacomoRuntimeHandlers(
         creativeDocument: (envelope.payload as CreativeRenderPayload).creativeDocument,
         renderObjectKey: value.objectKey,
         renderChecksumSha256: value.checksumSha256,
+        ...(value.renderer ? { renderer: value.renderer } : {}),
         ruleSnapshot: { sourceVersion: "jacomo-staging", rules: [] },
       },
     });

@@ -11,6 +11,8 @@ export interface LayoutPlanElement {
   readonly width: number;
   readonly height: number;
   readonly zIndex: number;
+  readonly locked?: boolean;
+  readonly visible?: boolean;
   readonly style?: Readonly<Record<string, unknown>>;
   readonly constraints?: Readonly<Record<string, unknown>>;
 }
@@ -33,6 +35,7 @@ export interface ComposeDocumentInput {
   readonly formatProfile: Readonly<Record<string, unknown>>;
   readonly template?: Readonly<Record<string, unknown>>;
   readonly safeZones?: readonly Readonly<Record<string, unknown>>[];
+  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 function numberField(source: Readonly<Record<string, unknown>>, keys: readonly string[]): number {
@@ -70,8 +73,8 @@ export function composeCreativeDocument(input: ComposeDocumentInput): CreativeDo
     width: element.width,
     height: element.height,
     zIndex: element.zIndex,
-    locked: false,
-    visible: true,
+    locked: element.locked ?? false,
+    visible: element.visible ?? true,
     ...(element.assetVersionId === undefined ? {} : { assetVersionId: element.assetVersionId }),
     ...(element.textValue === undefined ? {} : { text: element.textValue }),
     ...(input.plan.copyAssets[element.slotCode]
@@ -106,6 +109,7 @@ export function composeCreativeDocument(input: ComposeDocumentInput): CreativeDo
       campaignId: input.campaignId,
       creativeId: input.creativeId,
       productId: input.productId,
+      ...(input.metadata ?? {}),
       ...(input.briefVersionId ? { briefVersionId: input.briefVersionId } : {}),
     },
   });

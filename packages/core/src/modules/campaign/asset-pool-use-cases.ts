@@ -10,7 +10,7 @@ export function createCampaignAssetPoolUseCases(repositories: CampaignRepositori
     async get(workspaceId, campaignId, productId) { return { recommendations: await repositories.listAssetRecommendations(workspaceId, campaignId, productId), selections: await repositories.listAssetPoolSelections(workspaceId, campaignId, productId) }; },
     async select(input) {
       if (input.status === "SELECTED" && !["VALID", "UNKNOWN"].includes(input.licenseStatus)) { const error = new Error("License-invalid assets cannot be preferred"); Object.assign(error, { code: "ASSET_LICENSE_INVALID", statusCode: 409 }); throw error; }
-      return repositories.upsertAssetPoolSelection({ workspaceId: input.workspaceId, campaignId: input.campaignId, productId: input.productId, assetVersionId: input.assetVersionId, status: input.status, ...(input.reason ? { reason: input.reason } : {}) });
+      return repositories.upsertAssetPoolSelection({ workspaceId: input.workspaceId, campaignId: input.campaignId, productId: input.productId, assetVersionId: input.assetVersionId, status: input.status, licenseStatus: input.licenseStatus, ...(input.reason ? { reason: input.reason } : {}) });
     },
   };
 }

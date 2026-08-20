@@ -33,10 +33,12 @@ export const JACOMO_OPTIONAL_COMMANDS = Object.freeze(
 
 export interface CreativeGeneratePayload {
   readonly campaignId: string;
+  /** Exact confirmed brief version selected by the Product Workflow. */
+  readonly briefVersionId?: string;
   readonly productIds: readonly string[];
   readonly formatProfileIds: readonly string[];
   readonly variantCountPerProduct: number;
-  readonly generationMode?: "MOCK_AI";
+  readonly generationMode?: "MOCK_AI" | "CANONICAL_RENDERER";
 }
 
 export interface AiLiveSmokePayload {
@@ -145,6 +147,7 @@ export interface ExportPackagePayload {
   readonly creativeVersionIds: readonly string[];
   readonly renderObjectKeys: readonly string[];
   readonly packageName: string;
+  readonly renderChecksumsSha256?: readonly string[];
 }
 
 export type AsyncCommandPayload =
@@ -207,12 +210,15 @@ function validateCreativeGenerate(payload: unknown): payload is CreativeGenerate
   if (!isRecord(payload)) return false;
   return (
     isString(payload.campaignId) &&
+    (payload.briefVersionId === undefined || isString(payload.briefVersionId)) &&
     isStringArray(payload.productIds) &&
     payload.productIds.length > 0 &&
     isStringArray(payload.formatProfileIds) &&
     payload.formatProfileIds.length > 0 &&
     isPositiveInteger(payload.variantCountPerProduct) &&
-    (payload.generationMode === undefined || payload.generationMode === "MOCK_AI")
+    (payload.generationMode === undefined ||
+      payload.generationMode === "MOCK_AI" ||
+      payload.generationMode === "CANONICAL_RENDERER")
   );
 }
 
@@ -323,7 +329,10 @@ function validateExport(payload: unknown): payload is ExportPackagePayload {
     isString(payload.exportJobId) &&
     isStringArray(payload.creativeVersionIds) &&
     isStringArray(payload.renderObjectKeys) &&
-    isString(payload.packageName)
+    isString(payload.packageName) &&
+    (payload.renderChecksumsSha256 === undefined ||
+      (isStringArray(payload.renderChecksumsSha256) &&
+        payload.renderChecksumsSha256.length === payload.renderObjectKeys.length))
   );
 }
 
