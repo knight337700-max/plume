@@ -42,19 +42,17 @@ describe("PI-1C Kakao canonical freeze verifier", () => {
 
   it("fails when the renderer SHA drifts", () => {
     const manifest = cloneManifest();
-    (manifest.renderer as Record<string, unknown>).canonicalSha = "0".repeat(64);
+    (manifest.renderer as Record<string, unknown>).commit = "0".repeat(40);
     const failures = collectFreezeFailures(manifest, sources);
-    expect(failures.some((failure) => failure.includes("renderer.canonicalSha"))).toBe(true);
+    expect(failures.some((failure) => failure.includes("renderer.commit"))).toBe(true);
   });
 
   it("fails when the renderer contract or format binding drifts", () => {
     const manifest = cloneManifest();
-    (manifest.renderer as Record<string, unknown>).integrationContractVersion = "0.0.0";
+    (manifest.renderer as Record<string, unknown>).integrationContract = "0.0.0";
     (manifest.formatBinding as Record<string, unknown>).rendererTemplateId = "UNBOUND_TEMPLATE";
     const failures = collectFreezeFailures(manifest, sources);
-    expect(
-      failures.some((failure) => failure.includes("renderer.integrationContractVersion")),
-    ).toBe(true);
+    expect(failures.some((failure) => failure.includes("renderer.integrationContract"))).toBe(true);
     expect(failures.some((failure) => failure.includes("formatBinding.rendererTemplateId"))).toBe(
       true,
     );

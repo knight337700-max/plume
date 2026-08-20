@@ -1,18 +1,18 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": "1.0.0",
   "gate": "PI_1C_KAKAO_CANONICAL_INTEGRATION_FREEZE",
   "status": "FROZEN",
   "sourceBaseline": {
     "repository": "knight337700-max/plume",
     "parentBranch": "codex/pi-1b-real-kakao-product-e2e",
-    "parentCommit": "cf886bb8c0eb9cf83d0c207f9ee2376f323bdbe7",
+    "commit": "cf886bb8c0eb9cf83d0c207f9ee2376f323bdbe7",
     "childBranch": "codex/pi-1c-kakao-canonical-integration-freeze",
     "parentPullRequest": 23
   },
   "renderer": {
     "repository": "knight337700-max/plume-renderer",
-    "canonicalSha": "7baa272dd852ed21a09cf369c928571b3f75fd31",
-    "integrationContractVersion": "1.8.0",
+    "commit": "7baa272dd852ed21a09cf369c928571b3f75fd31",
+    "integrationContract": "1.8.0",
     "sourceLock": "packages/renderer-vendor/SOURCE_LOCK.json"
   },
   "formatBinding": {
@@ -30,16 +30,22 @@
     "subjectProtection": "NONE"
   },
   "productFlow": {
-    "canonicalMode": "CANONICAL_RENDERER",
-    "uploadRequired": true,
-    "confirmedBriefRequired": true,
+    "generationMode": "CANONICAL_RENDERER",
+    "uploadPipelineRequired": true,
+    "confirmedBriefCopyRequired": true,
     "selectedAssetRequired": true,
-    "licenseStatus": "VALID",
-    "mimeType": "image/png",
-    "alphaRequired": true,
-    "legacyFallbackUsed": false,
-    "agentProviderCalls": 0,
+    "selectedAssetLicense": "VALID",
+    "inputMimeType": "image/png",
+    "alphaChannelRequired": true,
+    "legacyFallbackAllowed": false,
+    "agentCalls": 0,
     "openAiCalls": 0
+  },
+  "output": {
+    "mimeType": "image/png",
+    "width": 1029,
+    "height": 258,
+    "colorType": "RGBA"
   },
   "acceptedArtifact": {
     "reviewPackFileName": "PI-1B-Kakao-Review-Pack.zip",
@@ -90,11 +96,12 @@
     "status": "PASS",
     "gate": "PI_1B_REAL_KAKAO_PRODUCT_E2E",
     "acceptedArtifactChecksum": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1",
-    "acceptedWarningCode": "KBR-LAYOUT-009",
+    "acceptedWarningCodes": ["KBR-LAYOUT-009"],
     "reviewDate": "2026-08-20",
     "reviewBasis": "USER_PROVIDED_REVIEW_PACK"
   },
   "invariants": {
+    "exportEmbeddedPngMatchesRender": true,
     "rendererRepositoryUnchanged": true,
     "rendererVendorSourceUnchanged": true,
     "rendererGoldenUnchanged": true,

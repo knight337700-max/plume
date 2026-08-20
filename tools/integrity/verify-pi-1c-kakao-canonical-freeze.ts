@@ -105,18 +105,18 @@ function requireHash(
 export function collectFreezeFailures(manifest: unknown, sources: FreezeSources): string[] {
   const failures: string[] = [];
 
-  requireValue(manifest, failures, "schemaVersion", 1);
+  requireValue(manifest, failures, "schemaVersion", "1.0.0");
   requireValue(manifest, failures, "gate", PI_1C_GATE);
   requireValue(manifest, failures, "status", "FROZEN");
 
   requireValue(manifest, failures, "sourceBaseline.repository", EXPECTED.sourceRepository);
   requireValue(manifest, failures, "sourceBaseline.parentBranch", EXPECTED.parentBranch);
-  requireValue(manifest, failures, "sourceBaseline.parentCommit", EXPECTED.parentCommit);
+  requireValue(manifest, failures, "sourceBaseline.commit", EXPECTED.parentCommit);
   requireValue(manifest, failures, "sourceBaseline.parentPullRequest", 23);
 
   requireValue(manifest, failures, "renderer.repository", EXPECTED.rendererRepository);
-  requireValue(manifest, failures, "renderer.canonicalSha", EXPECTED.rendererSha);
-  requireValue(manifest, failures, "renderer.integrationContractVersion", EXPECTED.contractVersion);
+  requireValue(manifest, failures, "renderer.commit", EXPECTED.rendererSha);
+  requireValue(manifest, failures, "renderer.integrationContract", EXPECTED.contractVersion);
 
   const sourceLock = asRecord(sources.sourceLock);
   if (!sourceLock) {
@@ -128,6 +128,13 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
       failures.push("SOURCE_LOCK.json: renderer commit drift");
     if (sourceLock.integrationContractVersion !== EXPECTED.contractVersion)
       failures.push("SOURCE_LOCK.json: integration contract drift");
+    requireValue(manifest, failures, "renderer.commit", sourceLock.commit);
+    requireValue(
+      manifest,
+      failures,
+      "renderer.integrationContract",
+      sourceLock.integrationContractVersion,
+    );
   }
 
   requireValue(
@@ -193,16 +200,20 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
     EXPECTED.subjectProtection,
   );
 
-  requireValue(manifest, failures, "productFlow.canonicalMode", "CANONICAL_RENDERER");
-  requireValue(manifest, failures, "productFlow.uploadRequired", true);
-  requireValue(manifest, failures, "productFlow.confirmedBriefRequired", true);
+  requireValue(manifest, failures, "productFlow.generationMode", "CANONICAL_RENDERER");
+  requireValue(manifest, failures, "productFlow.uploadPipelineRequired", true);
+  requireValue(manifest, failures, "productFlow.confirmedBriefCopyRequired", true);
   requireValue(manifest, failures, "productFlow.selectedAssetRequired", true);
-  requireValue(manifest, failures, "productFlow.licenseStatus", "VALID");
-  requireValue(manifest, failures, "productFlow.mimeType", "image/png");
-  requireValue(manifest, failures, "productFlow.alphaRequired", true);
-  requireValue(manifest, failures, "productFlow.legacyFallbackUsed", false);
-  requireValue(manifest, failures, "productFlow.agentProviderCalls", 0);
+  requireValue(manifest, failures, "productFlow.selectedAssetLicense", "VALID");
+  requireValue(manifest, failures, "productFlow.inputMimeType", "image/png");
+  requireValue(manifest, failures, "productFlow.alphaChannelRequired", true);
+  requireValue(manifest, failures, "productFlow.legacyFallbackAllowed", false);
+  requireValue(manifest, failures, "productFlow.agentCalls", 0);
   requireValue(manifest, failures, "productFlow.openAiCalls", 0);
+  requireValue(manifest, failures, "output.mimeType", "image/png");
+  requireValue(manifest, failures, "output.width", 1029);
+  requireValue(manifest, failures, "output.height", 258);
+  requireValue(manifest, failures, "output.colorType", "RGBA");
 
   requireSource(
     failures,
@@ -239,6 +250,12 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
     sources.runtimeSource,
     /legacyFallbackUsed:\s*rendererMetadata\.legacyFallbackUsed\s*\?\?\s*!isCanonical/u,
     "canonical fallback evidence",
+  );
+  requireSource(
+    failures,
+    sources.bindingSource,
+    /CANONICAL_RENDERER_FORMAT_BINDING_NOT_FOUND/u,
+    "unknown or unbound format fail-closed error",
   );
 
   requireHash(
@@ -344,9 +361,20 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
     "visualAcceptance.acceptedArtifactChecksum",
     EXPECTED.renderSha256,
   );
-  requireValue(manifest, failures, "visualAcceptance.acceptedWarningCode", EXPECTED.warningCode);
+  requireValue(manifest, failures, "visualAcceptance.acceptedWarningCodes", [EXPECTED.warningCode]);
   requireValue(manifest, failures, "visualAcceptance.reviewDate", EXPECTED.reviewDate);
   requireValue(manifest, failures, "visualAcceptance.reviewBasis", "USER_PROVIDED_REVIEW_PACK");
+
+  requireValue(manifest, failures, "invariants.rendererRepositoryUnchanged", true);
+  requireValue(manifest, failures, "invariants.rendererVendorSourceUnchanged", true);
+  requireValue(manifest, failures, "invariants.rendererGoldenUnchanged", true);
+  requireValue(manifest, failures, "invariants.pixelOutputUnchanged", true);
+  requireValue(manifest, failures, "invariants.exportEmbeddedPngMatchesRender", true);
+  requireValue(manifest, failures, "invariants.legacyMockAiPathRetained", true);
+  requireValue(manifest, failures, "invariants.runtimeNetworkDependency", false);
+  requireValue(manifest, failures, "invariants.rendererToPlumeDependency", false);
+  requireValue(manifest, failures, "invariants.agentToRendererDependency", false);
+  requireValue(manifest, failures, "invariants.openAiDependency", false);
 
   requireSource(
     failures,

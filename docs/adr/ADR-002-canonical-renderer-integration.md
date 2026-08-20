@@ -4,6 +4,13 @@
 - Date: 2026-08-20
 - Scope: PI-1C Kakao Bizboard Object Right canonical product rendering
 
+## Context
+
+PI-1B established a passing real Kakao Product E2E, but the accepted baseline
+and its visual evidence still needed a committed, machine-verifiable freeze.
+This decision closes that release-governance gap without changing the runtime
+render path.
+
 ## Decision
 
 Freeze the Kakao canonical integration at the Plume-to-Frozen-Renderer boundary.
