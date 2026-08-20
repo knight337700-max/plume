@@ -6,8 +6,10 @@ import {
   getRendererRuntimeRoot,
   OBJECT_RIGHT_IMAGE_SLOT_ID,
   readRenderedManifest,
+  type AppliedImagePlacement,
   type AssetResolverResult,
   type KakaoBizboardInputV1,
+  type LayoutMeasurements,
   type LegacyObjectRightInput,
   type LegacyRenderResult,
   type RendererValidationIssue,
@@ -17,6 +19,7 @@ import {
 export interface ObjectRightFileBridgeOptions {
   readonly rendererRuntimeRoot?: string;
   readonly onEphemeralWorkspaceCreated?: (workspacePath: string) => void;
+  readonly onAuthoritativeMeasurements?: (measurements: LayoutMeasurements) => void;
 }
 
 export class FrozenRendererCoreError extends Error {
@@ -58,6 +61,24 @@ function mapValidationIssue(issue: ValidationIssue): RendererValidationIssue {
     ...(issue.elementId === undefined ? {} : { elementId: issue.elementId }),
     ...(issue.actual === undefined ? {} : { actual: issue.actual }),
     ...(issue.expected === undefined ? {} : { expected: issue.expected }),
+  };
+}
+
+function appliedObjectRightPlacement(
+  measurements: LayoutMeasurements,
+  assetId: string,
+): AppliedImagePlacement {
+  return {
+    imageSlotId: OBJECT_RIGHT_IMAGE_SLOT_ID,
+    assetId,
+    policy: "ALPHA_TRIM_CONTAIN",
+    source: "DETERMINISTIC",
+    resolvedSourceCropPixels: measurements.alphaTrimBox,
+    destinationRect: measurements.productPlacedBox,
+    appliedScale: measurements.objectScale,
+    appliedAnchor: "CENTER",
+    alphaTrimApplied: true,
+    changedFromRequestedPlan: false,
   };
 }
 
@@ -110,13 +131,24 @@ export function createObjectRightFileBridge(
         inputRoot,
         outputRoot,
       });
+      const preview = await renderer.previewInternal(coreInput);
+      if (preview.validationStatus === "ERROR" || !preview.measurements) {
+        throw new FrozenRendererCoreError(
+          preview.errors.length > 0
+            ? preview.errors.map(({ code }) => code)
+            : ["FROZEN_RENDERER_GEOMETRY_UNAVAILABLE"],
+        );
+      }
       const response = await renderer.render(coreInput);
       if (response.status !== "PASS" || !response.pngPath)
         throw new FrozenRendererCoreError(response.errors.map(({ code }) => code));
+      if (!response.pngDigest || response.pngDigest !== preview.previewPngDigest)
+        throw new FrozenRendererCoreError(["FROZEN_RENDERER_PREVIEW_DIGEST_MISMATCH"]);
       const [bytes, manifest] = await Promise.all([
         readFile(response.pngPath),
         readRenderedManifest(response),
       ]);
+      options.onAuthoritativeMeasurements?.(preview.measurements);
       const validation = manifest?.validatorResult.issues.map(mapValidationIssue) ?? [];
       const assetId = path.posix.basename(
         input.product.relativePath,
@@ -127,17 +159,7 @@ export function createObjectRightFileBridge(
         width: 1029,
         height: 258,
         mimeType: "image/png",
-        appliedImagePlacement: {
-          imageSlotId: OBJECT_RIGHT_IMAGE_SLOT_ID,
-          assetId,
-          policy: "ALPHA_TRIM_CONTAIN",
-          source: "DETERMINISTIC",
-          destinationRect: { x: 666, y: 0, width: 315, height: 258 },
-          appliedScale: 1,
-          appliedAnchor: "CENTER",
-          alphaTrimApplied: true,
-          changedFromRequestedPlan: false,
-        },
+        appliedImagePlacement: appliedObjectRightPlacement(preview.measurements, assetId),
         validation,
       };
     } finally {

@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   getRendererRuntimeRoot,
   INTEGRATION_SCHEMA_VERSION,
   OBJECT_RIGHT_FORMAT_PROFILE_ID,
   OBJECT_RIGHT_IMAGE_SLOT_ID,
   OBJECT_RIGHT_TEMPLATE_ID,
+  type AppliedImagePlacement,
+  type LayoutMeasurements,
   type LegacyObjectRightInput,
 } from "@plume/renderer-vendor";
 import { describe, expect, it, vi } from "vitest";
@@ -31,6 +34,10 @@ const FILE_OBJECT_ID = "file-object-product-basic";
 const OBJECT_KEY = `workspaces/${WORKSPACE_ID}/files/product-basic.png`;
 const EXPECTED_WINDOWS_CHECKSUM =
   "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1";
+const EXPECTED_WINDOWS_REQUEST_FINGERPRINT =
+  "5fb59fcf056c56491018f78d6b96ed82fb8409608b432fbde9c08dde211946cb";
+const EXPECTED_WINDOWS_PIXEL_FINGERPRINT =
+  "f6690a069d861caeb90770d3f8e9304c7bba749177eda83c4222668e6f066836";
 
 class MemoryRendererStorage implements RendererAssetByteStore {
   public readonly calls: string[] = [];
@@ -62,6 +69,7 @@ interface HarnessOptions {
   readonly bindingWorkspaceId?: string;
   readonly declaredWidth?: number;
   readonly declaredHeight?: number;
+  readonly onAuthoritativeMeasurements?: (measurements: LayoutMeasurements) => void;
 }
 
 function createHarness(options: HarnessOptions) {
@@ -83,6 +91,7 @@ function createHarness(options: HarnessOptions) {
     workspaceId: WORKSPACE_ID,
     assetResolver: resolver,
     onEphemeralWorkspaceCreated: (workspacePath) => ephemeralWorkspaces.push(workspacePath),
+    onAuthoritativeMeasurements: options.onAuthoritativeMeasurements,
   });
   return {
     adapter,
@@ -113,6 +122,21 @@ function integrationErrorCodes(
   return (
     result.renderMetadata.rendererIntegrationOutput?.validation.errors.map(({ code }) => code) ?? []
   );
+}
+
+function expectPlacementMatchesMeasurements(
+  placement: AppliedImagePlacement,
+  measurements: LayoutMeasurements,
+): void {
+  expect(placement.destinationRect).toEqual({
+    x: measurements.productPlacedBox.x,
+    y: measurements.productPlacedBox.y,
+    width: measurements.productPlacedBox.width,
+    height: measurements.productPlacedBox.height,
+  });
+  expect(placement.appliedScale).toBe(measurements.objectScale);
+  expect(placement.alphaTrimApplied).toBe(true);
+  expect(placement.resolvedSourceCropPixels).toEqual(measurements.alphaTrimBox);
 }
 
 describe("canonical Object Right binding and input", () => {
@@ -189,10 +213,12 @@ describe("Plume canonical Renderer adapter", () => {
     expect(sha256(actualAsset)).toBe(
       "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe",
     );
+    const authoritativeMeasurements: LayoutMeasurements[] = [];
     const harness = createHarness({
       bytes: actualAsset,
       declaredWidth: 260,
       declaredHeight: 160,
+      onAuthoritativeMeasurements: (measurements) => authoritativeMeasurements.push(measurements),
     });
     const legacySpy = vi.spyOn(legacyRenderer, "renderCreativeDocument");
     const first = await harness.adapter.render(harness.request);
@@ -233,15 +259,82 @@ describe("Plume canonical Renderer adapter", () => {
     expect(firstOutput?.pixelFingerprint).toBe(secondOutput?.pixelFingerprint);
     expect(firstOutput?.renderFingerprint).toBe(secondOutput?.renderFingerprint);
     expect(firstOutput?.validation.info.map(({ code }) => code)).toContain("KBR-OUTPUT-010");
+    expect(authoritativeMeasurements).toHaveLength(2);
+    const firstPlacement = firstOutput?.appliedImagePlacements[0];
+    const secondPlacement = secondOutput?.appliedImagePlacements[0];
+    expect(firstPlacement).toBeDefined();
+    expect(secondPlacement).toBeDefined();
+    if (
+      !firstPlacement ||
+      !secondPlacement ||
+      !authoritativeMeasurements[0] ||
+      !authoritativeMeasurements[1]
+    )
+      return;
+    expectPlacementMatchesMeasurements(firstPlacement, authoritativeMeasurements[0]);
+    expectPlacementMatchesMeasurements(secondPlacement, authoritativeMeasurements[1]);
 
     if (process.platform === "win32" && process.arch === "x64") {
       expect(first.outputBytes).toEqual(new Uint8Array(expectedOutput));
       expect(first.checksumSha256).toBe(EXPECTED_WINDOWS_CHECKSUM);
+      expect(firstOutput?.requestFingerprint).toBe(EXPECTED_WINDOWS_REQUEST_FINGERPRINT);
+      expect(firstOutput?.pixelFingerprint).toBe(EXPECTED_WINDOWS_PIXEL_FINGERPRINT);
+      expect(firstOutput?.renderFingerprint).toBe(EXPECTED_WINDOWS_PIXEL_FINGERPRINT);
     }
     expect(new Set(harness.ephemeralWorkspaces).size).toBe(2);
     for (const workspacePath of harness.ephemeralWorkspaces)
       await expect(access(workspacePath)).rejects.toMatchObject({ code: "ENOENT" });
     legacySpy.mockRestore();
+  });
+
+  it("uses varying authoritative geometry for a second aspect-ratio asset", async () => {
+    const [assetA, assetB] = await Promise.all([
+      readFile(fixturePath("fixtures", "valid", "object-right__product__basic__pass.png")),
+      readFile(
+        path.join(
+          path.dirname(fileURLToPath(import.meta.url)),
+          "__fixtures__",
+          "object-right-product-tall.png",
+        ),
+      ),
+    ]);
+    const authoritativeA: LayoutMeasurements[] = [];
+    const authoritativeB: LayoutMeasurements[] = [];
+    const harnessA = createHarness({
+      bytes: assetA,
+      declaredWidth: 260,
+      declaredHeight: 160,
+      onAuthoritativeMeasurements: (measurements) => authoritativeA.push(measurements),
+    });
+    const harnessB = createHarness({
+      bytes: assetB,
+      onAuthoritativeMeasurements: (measurements) => authoritativeB.push(measurements),
+    });
+    const [resultA, resultB] = await Promise.all([
+      harnessA.adapter.render(harnessA.request),
+      harnessB.adapter.render(harnessB.request),
+    ]);
+    expect(resultA.status).toBe("COMPLETED");
+    expect(resultB.status).toBe("COMPLETED");
+    expect(authoritativeA).toHaveLength(1);
+    expect(authoritativeB).toHaveLength(1);
+    if (
+      resultA.status !== "COMPLETED" ||
+      resultB.status !== "COMPLETED" ||
+      !authoritativeA[0] ||
+      !authoritativeB[0]
+    )
+      return;
+    const placementA = resultA.renderMetadata.rendererIntegrationOutput?.appliedImagePlacements[0];
+    const placementB = resultB.renderMetadata.rendererIntegrationOutput?.appliedImagePlacements[0];
+    expect(placementA).toBeDefined();
+    expect(placementB).toBeDefined();
+    if (!placementA || !placementB) return;
+    expectPlacementMatchesMeasurements(placementA, authoritativeA[0]);
+    expectPlacementMatchesMeasurements(placementB, authoritativeB[0]);
+    expect(placementA.destinationRect).not.toEqual(placementB.destinationRect);
+    expect(placementA.appliedScale).not.toBe(placementB.appliedScale);
+    expect(placementA.resolvedSourceCropPixels).not.toEqual(placementB.resolvedSourceCropPixels);
   });
 
   it("fails closed for checksum mismatch without invoking the frozen Core", async () => {

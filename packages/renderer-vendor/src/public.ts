@@ -28,6 +28,8 @@ export {
 // eslint-disable-next-line no-restricted-imports -- Pinned upstream types are exposed only through this public boundary.
 export type {
   KakaoBizboardInputV1,
+  InternalPreviewResult,
+  LayoutMeasurements,
   RenderManifest,
   RenderResponse,
   ValidationIssue,
