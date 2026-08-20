@@ -45,8 +45,52 @@ function countingFakeGateway(counter: ProviderCallCounter): AgentProviderGateway
   };
 }
 
-async function validImage(filename: string): Promise<Uint8Array> {
-  return new Uint8Array(await readFile(path.join(fixtureRoot, filename)));
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const typeBytes = new TextEncoder().encode(type);
+  const crcInput = new Uint8Array(typeBytes.byteLength + data.byteLength);
+  crcInput.set(typeBytes);
+  crcInput.set(data, typeBytes.byteLength);
+  const chunk = new Uint8Array(12 + data.byteLength);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.byteLength, false);
+  chunk.set(typeBytes, 4);
+  chunk.set(data, 8);
+  view.setUint32(8 + data.byteLength, crc32(crcInput), false);
+  return chunk;
+}
+
+function uniquePngBytes(bytes: Uint8Array): Uint8Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 8;
+  while (offset + 12 <= bytes.byteLength) {
+    const length = view.getUint32(offset, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === "IEND") {
+      const marker = new TextEncoder().encode("PI-2C.1\0API-PNG");
+      const chunk = pngChunk("tEXt", marker);
+      const result = new Uint8Array(bytes.byteLength + chunk.byteLength);
+      result.set(bytes.subarray(0, offset));
+      result.set(chunk, offset);
+      result.set(bytes.subarray(offset), offset + chunk.byteLength);
+      return result;
+    }
+    offset += 12 + length;
+  }
+  throw new Error("PNG_IEND_NOT_FOUND");
+}
+
+async function validImage(filename: string, uniquePng = false): Promise<Uint8Array> {
+  const bytes = new Uint8Array(await readFile(path.join(fixtureRoot, filename)));
+  return uniquePng ? uniquePngBytes(bytes) : bytes;
 }
 
 async function createHarness(
@@ -100,7 +144,7 @@ describe("PI-2C.1 actual Thumbnail Product Workflow E2E", () => {
         const result = await runThumbnailSemanticProductWorkflow({
           harness,
           fixture,
-          bytes: await validImage(filename),
+          bytes: await validImage(filename, _label === "PNG"),
           mimeType,
           formatProfileId: PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
           label: _label,

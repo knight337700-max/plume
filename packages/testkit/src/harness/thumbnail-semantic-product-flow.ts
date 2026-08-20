@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { inflateRawSync } from "node:zlib";
 import type { JacomoFixture } from "../factories/jacomo-factory.js";
 import type { ProcessHarness } from "./process-harness.js";
 
@@ -143,7 +144,7 @@ async function waitForCompletedJob(
   throw new Error(`JOB_TIMEOUT:${lastStatus}`);
 }
 
-function storedZipEntry(zip: Uint8Array, expectedName: string): Uint8Array {
+function storedZipPngEntry(zip: Uint8Array): Uint8Array {
   const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
   let offset = 0;
   while (offset + 30 <= zip.byteLength) {
@@ -155,11 +156,15 @@ function storedZipEntry(zip: Uint8Array, expectedName: string): Uint8Array {
     const nameStart = offset + 30;
     const name = new TextDecoder().decode(zip.subarray(nameStart, nameStart + nameLength));
     const dataStart = nameStart + nameLength + extraLength;
-    if (method === 0 && name === expectedName)
-      return zip.slice(dataStart, dataStart + compressedSize);
+    if (name.toLowerCase().endsWith(".png")) {
+      const compressed = zip.subarray(dataStart, dataStart + compressedSize);
+      if (method === 0) return compressed.slice();
+      if (method === 8) return new Uint8Array(inflateRawSync(compressed));
+      throw new Error(`EXPORT_COMPRESSION_UNSUPPORTED:${method}`);
+    }
     offset = dataStart + compressedSize;
   }
-  throw new Error(`EXPORT_ENTRY_NOT_FOUND:${expectedName}`);
+  throw new Error("EXPORT_PNG_ENTRY_NOT_FOUND");
 }
 
 function safeJobItem(item: JobItem): Readonly<Record<string, unknown>> {
@@ -506,7 +511,7 @@ export async function runThumbnailSemanticProductWorkflow(input: {
   const exportChecksumSha256 = sha256(exportBytes);
   if (renderChecksumSha256 !== renderResult.checksumSha256)
     throw new Error("RENDER_OBJECT_CHECKSUM_MISMATCH");
-  const embeddedRenderBytes = storedZipEntry(exportBytes, "render.png");
+  const embeddedRenderBytes = storedZipPngEntry(exportBytes);
   const exportEmbeddedPngChecksumSha256 = sha256(embeddedRenderBytes);
   if (exportEmbeddedPngChecksumSha256 !== renderChecksumSha256)
     throw new Error("EXPORT_RENDER_IDENTITY_MISMATCH");
