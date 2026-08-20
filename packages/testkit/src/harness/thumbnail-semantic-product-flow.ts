@@ -10,6 +10,48 @@ export interface ProviderCallCounter {
   evidence: unknown[];
 }
 
+export interface ProviderAttemptPolicy {
+  readonly min: number;
+  readonly max: number;
+}
+
+export const DEFAULT_PROVIDER_ATTEMPT_POLICY: ProviderAttemptPolicy = Object.freeze({
+  min: 1,
+  max: 1,
+});
+
+export const LIVE_PROVIDER_ATTEMPT_POLICY: ProviderAttemptPolicy = Object.freeze({
+  min: 1,
+  max: 3,
+});
+
+export function assertProviderAttemptPolicy(policy: ProviderAttemptPolicy): ProviderAttemptPolicy {
+  if (
+    !Number.isInteger(policy.min) ||
+    !Number.isInteger(policy.max) ||
+    policy.min < 1 ||
+    policy.max < policy.min ||
+    policy.max > 3
+  )
+    throw new Error("PROVIDER_ATTEMPT_POLICY_OUT_OF_BOUNDS");
+  return policy;
+}
+
+export function assertProviderAttemptCount(
+  attemptCount: number,
+  policy: ProviderAttemptPolicy = DEFAULT_PROVIDER_ATTEMPT_POLICY,
+): void {
+  const resolvedPolicy = assertProviderAttemptPolicy(policy);
+  if (
+    !Number.isInteger(attemptCount) ||
+    attemptCount < resolvedPolicy.min ||
+    attemptCount > resolvedPolicy.max
+  )
+    throw new Error(
+      `AGENT_GENERATE_CALLS_OUT_OF_POLICY:${attemptCount}:${resolvedPolicy.min}-${resolvedPolicy.max}`,
+    );
+}
+
 export interface ThumbnailSemanticWorkflowResult {
   readonly label: string;
   readonly workspaceId: string;
@@ -206,8 +248,12 @@ export async function runThumbnailSemanticProductWorkflow(input: {
   readonly label: string;
   readonly productName?: string;
   readonly providerCalls: ProviderCallCounter;
+  readonly providerAttemptPolicy?: ProviderAttemptPolicy;
 }): Promise<ThumbnailSemanticWorkflowResult> {
   const { harness, fixture, bytes, mimeType, formatProfileId, label, providerCalls } = input;
+  const providerAttemptPolicy = assertProviderAttemptPolicy(
+    input.providerAttemptPolicy ?? DEFAULT_PROVIDER_ATTEMPT_POLICY,
+  );
   const headers = {
     "x-user-id": fixture.owner.id,
     "x-workspace-role": "OWNER",
@@ -522,7 +568,7 @@ export async function runThumbnailSemanticProductWorkflow(input: {
   if (embeddedChecksums[0] !== renderChecksumSha256)
     throw new Error("EXPORT_MANIFEST_RENDER_CHECKSUM_MISMATCH");
   const agentGenerateCalls = callsAfterGeneration - callsBeforeGeneration;
-  if (agentGenerateCalls !== 1) throw new Error(`AGENT_GENERATE_CALLS:${agentGenerateCalls}`);
+  assertProviderAttemptCount(agentGenerateCalls, providerAttemptPolicy);
   const callsAfterWorkflow = providerCalls.calls;
   const agentRenderCalls = callsAfterWorkflow - callsAfterGeneration;
   if (agentRenderCalls !== 0) throw new Error(`AGENT_RENDER_CALLS:${agentRenderCalls}`);

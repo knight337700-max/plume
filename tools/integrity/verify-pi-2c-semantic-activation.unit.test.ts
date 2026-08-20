@@ -82,6 +82,13 @@ describe("PI-2C semantic activation verifier", () => {
     );
   });
 
+  it("rejects a fixed six-attempt live guard", () => {
+    const liveRunnerSource = `${baseSources.liveRunnerSource}\nif (providerCalls.calls !== SAMPLES.length) throw new Error();`;
+    expect(collectActivationFailures({ ...baseSources, liveRunnerSource })).toContain(
+      "live fixed six-attempt guard",
+    );
+  });
+
   it("rejects SOURCE_LOCK count drift", () => {
     const lock = baseSources.sourceLock as { files: unknown[] };
     expect(

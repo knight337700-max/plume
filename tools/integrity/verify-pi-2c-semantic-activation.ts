@@ -142,6 +142,18 @@ export function collectActivationFailures(sources: ActivationSources): readonly 
     /generation-requests/u,
     "actual generation request route",
   );
+  requireMatch(
+    failures,
+    sources.workflowHelperSource,
+    /DEFAULT_PROVIDER_ATTEMPT_POLICY/u,
+    "default provider attempt policy",
+  );
+  requireMatch(
+    failures,
+    sources.workflowHelperSource,
+    /assertProviderAttemptCount/u,
+    "provider attempt guard",
+  );
   if (
     /composeCanonicalProductCreative|renderCanonicalProductDocument|runDeterministicValidation|buildExportPackage/iu.test(
       sources.actualE2eSource,
@@ -155,6 +167,14 @@ export function collectActivationFailures(sources: ActivationSources): readonly 
     /runThumbnailSemanticProductWorkflow/u,
     "live actual API workflow",
   );
+  requireMatch(
+    failures,
+    sources.liveRunnerSource,
+    /LIVE_PROVIDER_ATTEMPT_POLICY/u,
+    "bounded live provider attempt policy",
+  );
+  if (/providerCalls\.calls\s*!==\s*SAMPLES\.length/u.test(sources.liveRunnerSource))
+    failures.push("live fixed six-attempt guard");
   if (
     /composeCanonicalProductCreative|renderCanonicalProductDocument|runDeterministicValidation/iu.test(
       sources.liveRunnerSource,

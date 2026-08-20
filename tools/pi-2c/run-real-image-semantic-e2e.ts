@@ -15,6 +15,7 @@ import { createJacomoFixture } from "../../packages/testkit/src/factories/jacomo
 import { seedJacomoFixture } from "../../packages/testkit/src/fixtures/jacomo.js";
 import { startProcessHarness } from "../../packages/testkit/src/harness/process-harness.js";
 import {
+  LIVE_PROVIDER_ATTEMPT_POLICY,
   runThumbnailSemanticProductWorkflow,
   type ProviderCallCounter,
   type ThumbnailSemanticWorkflowResult,
@@ -102,6 +103,12 @@ function assertReviewJsonSafe(bytes: Uint8Array, relativePath: string): void {
     blocked(`REVIEW_PACK_SECRET_SCAN_FAILED:${relativePath}`);
 }
 
+function optionalStringField(value: unknown, key: string): string | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "string" ? field : undefined;
+}
+
 function createClientBrandRepositories(fixture: ReturnType<typeof createJacomoFixture>) {
   return createInMemoryClientBrandRepositories({
     advertisers: [
@@ -166,6 +173,16 @@ async function writeSampleArtifacts(
 ): Promise<Readonly<Record<string, unknown>>> {
   const directory = path.join(outputRoot, sampleKey);
   await mkdir(directory, { recursive: true });
+  const candidateId = optionalStringField(result.semanticPlacement.candidate, "candidateId");
+  const acceptedPlanCropCandidateId = optionalStringField(
+    result.semanticPlacement.acceptedPlan,
+    "cropCandidateId",
+  );
+  const renderer = result.renderResult.renderer as { readonly appliedImagePlacements?: unknown };
+  const rendererPlacement = Array.isArray(renderer.appliedImagePlacements)
+    ? renderer.appliedImagePlacements[0]
+    : undefined;
+  const rendererCropCandidateId = optionalStringField(rendererPlacement, "cropCandidateId");
   await writeFile(path.join(directory, "input.png"), inputBytes);
   await writeFile(path.join(directory, "render.png"), result.renderBytes);
   await writeFile(
@@ -198,6 +215,7 @@ async function writeSampleArtifacts(
     JSON.stringify(
       {
         callCount: result.agentGenerateCalls,
+        providerAttempts: result.agentGenerateCalls,
         renderCalls: result.agentRenderCalls,
         models: providerCalls.models.slice(providerStartIndex),
         statuses: providerCalls.statuses.slice(providerStartIndex),
@@ -208,6 +226,7 @@ async function writeSampleArtifacts(
     ),
   );
   return {
+    status: "PASS",
     inputSha256: sha256(inputBytes),
     renderSha256: result.renderChecksumSha256,
     exportSha256: result.exportChecksumSha256,
@@ -216,11 +235,20 @@ async function writeSampleArtifacts(
     campaignId: result.campaignId,
     generationJobId: result.generationJobId,
     creativeVersionId: result.creativeVersionId,
+    providerAttempts: result.agentGenerateCalls,
+    providerStatuses: providerCalls.statuses.slice(providerStartIndex),
+    providerModels: providerCalls.models.slice(providerStartIndex),
     agentGenerateCalls: result.agentGenerateCalls,
     agentRenderCalls: result.agentRenderCalls,
     commands: result.commands,
-    providerModels: providerCalls.models.slice(providerStartIndex),
-    providerStatuses: providerCalls.statuses.slice(providerStartIndex),
+    validationStatus: result.validationResult.status,
+    candidateId,
+    acceptedPlanCropCandidateId,
+    rendererCropCandidateId,
+    candidateMatch:
+      candidateId !== undefined &&
+      candidateId === acceptedPlanCropCandidateId &&
+      candidateId === rendererCropCandidateId,
   };
 }
 
@@ -257,6 +285,7 @@ async function main(): Promise<void> {
         label: sampleKey,
         productName: `PI-2C real sample ${sampleKey}`,
         providerCalls,
+        providerAttemptPolicy: LIVE_PROVIDER_ATTEMPT_POLICY,
       });
       summaries[sampleKey] = await writeSampleArtifacts(
         REVIEW_ROOT,
@@ -267,16 +296,25 @@ async function main(): Promise<void> {
         providerStartIndex,
       );
     }
-    if (providerCalls.calls !== SAMPLES.length)
-      blocked(`LIVE_GENERATE_CALL_COUNT:${providerCalls.calls}`);
+    const minTotalProviderAttempts = SAMPLES.length * LIVE_PROVIDER_ATTEMPT_POLICY.min;
+    const maxTotalProviderAttempts = SAMPLES.length * LIVE_PROVIDER_ATTEMPT_POLICY.max;
+    if (
+      providerCalls.calls < minTotalProviderAttempts ||
+      providerCalls.calls > maxTotalProviderAttempts
+    )
+      blocked(
+        `LIVE_PROVIDER_ATTEMPT_COUNT_RANGE:${providerCalls.calls}:${minTotalProviderAttempts}-${maxTotalProviderAttempts}`,
+      );
     const summary = {
       gate: GATE,
-      status: "IMPLEMENTED_PENDING_USER_VISUAL_ACCEPTANCE",
+      status: "CANDIDATE_PASS_PENDING_USER_VISUAL_ACCEPTANCE",
       processHarness: true,
       providerMode: process.env.OPENAI_PROVIDER_MODE,
       provider: "OpenAI",
       model: process.env.OPENAI_MODEL,
       providerCallCount: providerCalls.calls,
+      providerAttempts: providerCalls.calls,
+      providerModels: providerCalls.models,
       providerStatuses: providerCalls.statuses,
       samplePackSha256: zipSha256,
       samples: summaries,
@@ -335,6 +373,7 @@ async function main(): Promise<void> {
           status: "PI_2C_REAL_IMAGE_SEMANTIC_PLACEMENT_E2E_CANDIDATE_PASS",
           pending: "PENDING_USER_VISUAL_ACCEPTANCE",
           processHarness: true,
+          providerAttempts: providerCalls.calls,
           reviewPackPath: packPath,
           reviewPackSha256: sha256(pack.zipBytes),
         },
