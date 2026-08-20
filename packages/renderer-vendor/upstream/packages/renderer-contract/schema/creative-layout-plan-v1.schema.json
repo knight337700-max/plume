@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/creative-layout-plan-v1.schema.json",
+  "title": "FREEFORM CreativeLayoutPlan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "formatProfileId", "source", "background", "elements"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "formatProfileId": { "type": "string", "minLength": 1 },
+    "source": { "enum": ["MANUAL", "AGENT", "SAVED_CREATIVE"] },
+    "background": { "oneOf": [{ "$ref": "#/$defs/transparentBackground" }, { "$ref": "#/$defs/solidBackground" }] },
+    "elements": { "type": "array", "items": { "$ref": "https://kbr.local/schema/creative-element-v1.schema.json" } }
+  },
+  "$defs": {
+    "transparentBackground": { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "TRANSPARENT" } } },
+    "solidBackground": { "type": "object", "additionalProperties": false, "required": ["type", "color"], "properties": { "type": { "const": "SOLID" }, "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" } } }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/integration-error-registry-v1.schema.json",
+  "title": "Integration Contract Error Registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["registryVersion", "codes"],
+  "properties": {
+    "registryVersion": { "const": "1.6.0" },
+    "codes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "messageKey", "condition"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^KBR-[A-Z0-9-]+$" },
+          "severity": { "enum": ["INFO", "WARNING", "ERROR"] },
+          "messageKey": { "type": "string", "minLength": 1 },
+          "condition": { "type": "string", "minLength": 1 },
+          "behavior": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/multi-artifact-v1.schema.json",
+  "title": "Generic ordered multi-artifact contract v1",
+  "description": "Platform-neutral collection cardinality, item identity, and ordering primitives.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "value": {
+      "oneOf": [
+        { "type": ["string", "number", "boolean", "null"] },
+        { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } }
+      ]
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceProfileId", "assetId", "fields"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sourceProfileId": { "type": "string", "minLength": 1 },
+        "assetId": { "type": "string", "minLength": 1 },
+        "fields": { "$ref": "#/$defs/fields" },
+        "metadata": { "$ref": "#/$defs/fields" }
+      }
+    }
+  }
+}

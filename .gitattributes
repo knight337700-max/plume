@@ -1,3 +1,4 @@
 contracts-source/*.yaml text eol=lf
 packages/contracts/src/generated/*.ts text eol=lf
 packages/contracts/src/agent-schemas/*.ts text eol=lf
+packages/renderer-vendor/upstream/** -text -diff

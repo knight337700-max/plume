@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/channel-capabilities-v1.schema.json",
+  "title": "Channel and Composition Capability Registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["registryVersion", "channels", "compositionModes", "artifactCardinalities", "naverGfaPlacements", "legacyProfileMappings", "capabilities"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "$id": { "type": "string", "minLength": 1 },
+    "registryVersion": { "const": "1.0.0" },
+    "channels": { "type": "array", "items": { "enum": ["KAKAO_MOMENT", "NAVER_GFA", "META"] }, "minItems": 3, "uniqueItems": true },
+    "compositionModes": { "type": "array", "items": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] }, "minItems": 2, "uniqueItems": true },
+    "artifactCardinalities": { "type": "array", "items": { "enum": ["SINGLE", "COLLECTION"] }, "minItems": 2, "uniqueItems": true },
+    "naverGfaPlacements": { "type": "array", "items": { "enum": ["SMARTCHANNEL", "MOBILE_DA", "IMAGE_BANNER_1_1", "MOBILE_NATIVE", "PC_NATIVE", "SHOPPING_NEWS", "COMMUNICATION_AD", "MOBILE_DA_FEED"] }, "minItems": 8, "uniqueItems": true },
+    "legacyProfileMappings": { "type": "array", "items": { "$ref": "#/$defs/legacyProfileMapping" } },
+    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" }, "minItems": 1 }
+  },
+  "$defs": {
+    "legacyProfileMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatProfileId", "channel", "compositionMode", "layoutMode", "artifactCardinality"],
+      "properties": {
+        "formatProfileId": { "type": "string", "minLength": 1 },
+        "channel": { "const": "KAKAO_MOMENT" },
+        "compositionMode": { "const": "RENDERER_COMPOSED" },
+        "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"] },
+        "artifactCardinality": { "const": "SINGLE" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "placement", "runtimeStatus"],
+      "properties": {
+        "channel": { "enum": ["KAKAO_MOMENT", "NAVER_GFA", "META"] },
+        "placement": { "type": "string", "minLength": 1 },
+        "compositionMode": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] },
+        "compositionModes": { "type": "array", "items": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] }, "minItems": 1, "uniqueItems": true },
+        "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"] },
+        "layoutModes": { "type": "array", "items": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"] }, "minItems": 1, "uniqueItems": true },
+        "artifactCardinality": { "enum": ["SINGLE", "COLLECTION"] },
+        "artifactCardinalities": { "type": "array", "items": { "enum": ["SINGLE", "COLLECTION"] }, "minItems": 1, "uniqueItems": true },
+        "runtimeStatus": { "enum": ["IMPLEMENTED", "CONTRACT_ONLY", "DEFERRED"] },
+        "formatProfileId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

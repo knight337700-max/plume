@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/format-profile-v1.schema.json",
+  "title": "FREEFORM FormatProfile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatProfileId", "canvas", "layoutMode", "allowedOutputFormats", "implementationStatus"],
+  "properties": {
+    "formatProfileId": { "type": "string", "minLength": 1 },
+    "profileVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "channel": { "type": "string", "minLength": 1 },
+    "channelNamespace": { "enum": ["KAKAO_MOMENT", "NAVER_GFA"] },
+    "placement": { "type": "string", "minLength": 1 },
+    "compositionMode": { "enum": ["RENDERER_COMPOSED", "PLATFORM_COMPOSED"] },
+    "artifactCardinality": { "enum": ["SINGLE", "COLLECTION"] },
+    "canvas": { "type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": { "width": { "type": "integer", "minimum": 1 }, "height": { "type": "integer", "minimum": 1 } } },
+    "canvasSpec": { "type": "object", "additionalProperties": false, "required": ["kind", "width"], "properties": { "kind": { "enum": ["FIXED", "VARIABLE_HEIGHT"] }, "width": { "type": "integer", "minimum": 1 }, "minimumHeight": { "type": "integer", "minimum": 1 }, "maximumHeight": { "type": "integer", "minimum": 1 } } },
+    "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"] },
+    "allowedOutputFormats": { "type": "array", "items": { "enum": ["PNG", "JPG", "JPEG"] } },
+    "implementationStatus": { "enum": ["NOT_IMPLEMENTED", "PARTIAL", "IMPLEMENTED", "CONTRACT_BLOCKED_VARIABLE_CANVAS"] },
+    "catalogStatus": { "enum": ["READY", "CATALOG_NOT_READY", "INTERNAL_TEST_ONLY"] },
+    "classification": { "type": "string", "minLength": 1 },
+    "officialSizeRule": { "enum": ["EXACT", "MINIMUM_WITH_RATIO"] },
+    "officialRatio": { "type": "string", "minLength": 3 },
+    "outputConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedFormats", "requiresOpaqueOutput"],
+      "properties": {
+        "allowedFormats": { "type": "array", "items": { "enum": ["PNG", "JPEG"] }, "minItems": 1 },
+        "minimumBytes": { "type": "integer", "minimum": 1 },
+        "maximumBytes": { "type": "integer", "minimum": 1 },
+        "minimumBytesComparator": { "enum": ["GTE", "GT"] },
+        "maximumBytesComparator": { "enum": ["LTE", "LT"] },
+        "requiresOpaqueOutput": { "enum": [true, false, "UNSPECIFIED"] }
+      }
+    },
+    "textConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxLines": { "type": "integer", "minimum": 1 },
+        "maxFontSizePx": { "type": "number", "exclusiveMinimum": 0 },
+        "minRasterHeightPx": { "type": "number", "exclusiveMinimum": 0 },
+        "maxDistinctColors": { "type": "integer", "minimum": 1 },
+        "enforcement": { "enum": ["MACHINE", "NON_MACHINE_ENFORCEABLE"] },
+        "sourceStatus": { "enum": ["SOURCE_CONFIRMED", "UNRESOLVED"] },
+        "minimumFontSizePtByRole": { "type": "object", "additionalProperties": { "type": "number", "exclusiveMinimum": 0 } }
+      }
+    },
+    "complianceMetadata": {},
+    "elementConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowImage", "allowText", "allowLogo"],
+      "properties": {
+        "allowImage": { "type": "boolean" },
+        "allowText": { "type": "boolean" },
+        "allowLogo": { "type": "boolean" },
+        "allowShape": { "type": "boolean" }
+      }
+    },
+    "safeZonePolicy": {},
+    "collectionRule": {}
+  }
+}

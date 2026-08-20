@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/meta-static-placement-set-manifest-1.0.0.schema.json",
+  "title": "META static renderer-composed placement set manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contractId", "compositionMode", "artifactCardinality", "channel", "order", "items", "platformCopy", "collectionFingerprint", "manualAcceptanceStatus"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "contractId": { "const": "META_STATIC_PLACEMENT_SET_V1" },
+    "compositionMode": { "const": "RENDERER_COMPOSED" },
+    "artifactCardinality": { "const": "COLLECTION" },
+    "channel": { "const": "META" },
+    "conceptId": { "type": ["string", "null"] },
+    "sharedLayerIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "order": { "const": ["META_STATIC_FEED_SQUARE", "META_STATIC_FEED_PORTRAIT", "META_STATIC_VERTICAL_FULL"] },
+    "items": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/item" } },
+    "platformCopy": { "type": ["object", "null"] },
+    "collectionFingerprint": { "$ref": "#/$defs/sha256" },
+    "manualAcceptanceStatus": { "const": "NOT_REVIEWED" },
+    "downloadAllowed": { "type": "boolean" },
+    "sourceProvenance": { "type": "object" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "fileName", "format", "sha256", "bytes", "requestFingerprint", "pixelFingerprint"],
+      "properties": {
+        "profileId": { "enum": ["META_STATIC_FEED_SQUARE", "META_STATIC_FEED_PORTRAIT", "META_STATIC_VERTICAL_FULL"] },
+        "fileName": { "type": "string", "minLength": 1 },
+        "format": { "enum": ["PNG", "JPEG"] },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "requestFingerprint": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "pixelFingerprint": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+      }
+    }
+  }
+}

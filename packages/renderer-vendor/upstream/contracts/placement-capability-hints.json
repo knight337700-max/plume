@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "contractVersion": "1.0.0",
+  "status": "FROZEN",
+  "contractName": "PlacementCapabilityHints",
+  "sourceOfTruth": "FROZEN_PROFILE_CONTRACT_AND_VALIDATOR",
+  "authoringOnly": true,
+  "conflictRule": "FROZEN_PROFILE_CONTRACT_WINS_AND_VALIDATION_FAILS",
+  "fields": [
+    "platform",
+    "channel",
+    "profileId",
+    "layoutMode",
+    "compositionMode",
+    "artifactCardinality",
+    "defaultPolicy",
+    "allowedPolicies",
+    "semanticPlacement",
+    "manualCrop",
+    "dragAllowed",
+    "zoomAllowed",
+    "controlsLocked",
+    "rendererOwnsPixels",
+    "platformComposedFields",
+    "geometryReference",
+    "sourceContract"
+  ],
+  "matrixRef": "contracts/p0-plume-capability-matrix.json",
+  "schemaRef": "packages/renderer-contract/schema/placement-capability-hints-v1.schema.json",
+  "neutral": true
+}

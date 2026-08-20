@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/renderer-integration-output-v1.8.0.schema.json",
+  "title": "Renderer Integration Output v1.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "appliedImagePlacements", "validation", "requestFingerprint", "pixelFingerprint", "renderFingerprint"],
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "PASS" } } }, "then": { "properties": { "artifact": {} }, "required": ["artifact"] } },
+    { "if": { "properties": { "status": { "const": "BLOCKED" } } }, "then": { "not": { "required": ["artifact"] } } }
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.8.0" },
+    "status": { "enum": ["PASS", "BLOCKED"] },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mimeType", "width", "height", "bytes", "checksumSha256"],
+      "properties": { "mimeType": { "enum": ["image/png", "image/jpeg"] }, "width": { "type": "integer", "minimum": 1 }, "height": { "type": "integer", "minimum": 1 }, "bytes": { "type": "integer", "minimum": 1 }, "checksumSha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" } }
+    },
+    "appliedImagePlacements": { "type": "array", "items": { "$ref": "#/$defs/applied" } },
+    "validation": {
+      "type": "object", "additionalProperties": false, "required": ["errors", "warnings", "info"],
+      "properties": { "errors": { "type": "array", "items": { "$ref": "#/$defs/issue" } }, "warnings": { "type": "array", "items": { "$ref": "#/$defs/issue" } }, "info": { "type": "array", "items": { "$ref": "#/$defs/issue" } } }
+    },
+    "requestFingerprint": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "pixelFingerprint": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "renderFingerprint": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+  },
+  "$defs": {
+    "rect": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "integer", "minimum": 0 }, "y": { "type": "integer", "minimum": 0 }, "width": { "type": "integer", "minimum": 1 }, "height": { "type": "integer", "minimum": 1 } } },
+    "normalizedRect": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 }, "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } },
+    "applied": {
+      "type": "object", "additionalProperties": false,
+      "required": ["imageSlotId", "assetId", "policy", "source", "destinationRect", "appliedScale", "appliedAnchor", "alphaTrimApplied", "changedFromRequestedPlan"],
+      "properties": {
+        "imageSlotId": { "type": "string", "minLength": 1 }, "slotRole": { "enum": ["IMAGE", "LOGO"] }, "assetId": { "type": "string", "minLength": 1 }, "policy": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] }, "source": { "enum": ["DETERMINISTIC", "MANUAL", "AGENT", "SAVED_CREATIVE"] }, "requestedCropRect": { "$ref": "#/$defs/normalizedRect" }, "resolvedSourceCropRect": { "$ref": "#/$defs/normalizedRect" }, "resolvedSourceCropPixels": { "$ref": "#/$defs/rect" }, "destinationRect": { "$ref": "#/$defs/rect" }, "appliedScale": { "type": "number", "exclusiveMinimum": 0 }, "appliedAnchor": { "enum": ["CENTER", "CENTER_LEFT", "CENTER_RIGHT", "TOP_CENTER", "TOP_LEFT", "TOP_RIGHT", "BOTTOM_CENTER", "BOTTOM_LEFT", "BOTTOM_RIGHT"] }, "alphaTrimApplied": { "type": "boolean" }, "alphaBounds": { "$ref": "#/$defs/normalizedRect" }, "maskAssetId": { "type": "string", "minLength": 1 }, "maskDigest": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }, "cropCandidateId": { "type": "string", "minLength": 1 }, "changedFromRequestedPlan": { "const": false }
+      }
+    },
+    "issue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "severity", "messageKey"],
+      "properties": { "code": { "type": "string", "minLength": 1 }, "severity": { "enum": ["INFO", "WARNING", "ERROR"] }, "messageKey": { "type": "string", "minLength": 1 }, "message": {}, "path": { "type": "string" }, "imageSlotId": { "type": "string" }, "slotRole": { "enum": ["IMAGE", "LOGO"] }, "assetId": { "type": "string" }, "elementId": { "type": "string" }, "actual": {}, "expected": {} }
+    }
+  }
+}

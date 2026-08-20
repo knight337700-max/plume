@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/freeform-font-registry-v1.schema.json",
+  "title": "FREEFORM deterministic font registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["registryVersion", "fallbackAllowed", "entries"],
+  "properties": {
+    "registryVersion": { "type": "string", "minLength": 1 },
+    "fallbackAllowed": { "const": false },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fontId", "familyName", "weight", "style", "assetPath", "sha256", "licenseId", "status"],
+      "properties": { "fontId": { "type": "string", "minLength": 1 }, "familyName": { "type": "string", "minLength": 1 }, "weight": { "type": "integer", "minimum": 1, "maximum": 1000 }, "style": { "enum": ["NORMAL", "ITALIC"] }, "assetPath": { "type": "string", "minLength": 1 }, "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }, "licenseId": { "type": "string", "minLength": 1 }, "status": { "enum": ["RESOLVED_ASSET", "UNRESOLVED_ASSET"] } }
+    }
+  }
+}

@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.renderer/contracts/render-response-envelope-1.0.0.schema.json",
+  "title": "Kakao Bizboard Runtime Response Envelope 1.0.0",
+  "description": "Returned by Core and IPC. It is not persisted as a third artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "manifestDigest",
+    "pngDigest",
+    "manifestPath",
+    "pngPath",
+    "downloadAllowed",
+    "status",
+    "errors",
+    "warnings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "manifestDigest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pngDigest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "manifestPath": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pngPath": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "downloadAllowed": {
+      "type": "boolean"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/issue"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "const": "ERROR"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/issue"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "const": "WARNING"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "formatProfileId": { "type": "string", "minLength": 1 },
+    "templateId": { "type": "string", "minLength": 1 },
+    "objectPlacementToken": { "type": "string", "minLength": 1 },
+    "artifactChecksumSha256": { "$ref": "#/$defs/sha256" },
+    "pixelFingerprint": { "$ref": "#/$defs/sha256" },
+    "requestFingerprint": { "$ref": "#/$defs/sha256" },
+    "renderFingerprint": { "$ref": "#/$defs/sha256" },
+    "appliedElements": { "type": "array", "items": { "type": "object" } }
+    ,"artifactFormat": { "enum": ["PNG", "JPEG"] }
+    ,"artifactDigest": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+    ,"artifactPath": { "type": ["string", "null"] }
+    ,"outputEncoding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format"],
+      "properties": {
+        "format": { "enum": ["PNG", "JPEG"] },
+        "qualityRequested": { "oneOf": [{ "type": "number", "minimum": 0, "maximum": 100 }, { "const": "AUTO_FIT" }] },
+        "qualityResolved": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "chromaSubsampling": { "const": "4:2:0" },
+        "progressive": { "const": false },
+        "metadataStripped": { "const": true }
+      }
+    },
+    "metaStaticReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "profileId", "projectPixelPresetId", "canvas", "officialRatio", "placementContext", "placementContextResolution", "safeZonePolicy", "platformCopy", "reelsGeometryStatus", "manualAcceptanceStatus"],
+      "properties": {
+        "channel": { "const": "META" },
+        "profileId": { "type": "string" },
+        "projectPixelPresetId": { "type": ["string", "null"] },
+        "canvas": { "type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": { "width": { "type": "integer" }, "height": { "type": "integer" } } },
+        "officialRatio": { "type": ["string", "null"] },
+        "placementContext": { "type": ["string", "null"] },
+        "placementContextResolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requested", "resolved", "source", "path"],
+          "properties": {
+            "requested": { "type": ["string", "null"] },
+            "resolved": { "type": ["string", "null"] },
+            "source": { "enum": ["EXPLICIT_REQUEST", "DEFAULT_NONE"] },
+            "path": { "enum": ["/placementContext", "/metaStatic/placementContext", null] }
+          }
+        },
+        "safeZonePolicy": true,
+        "platformCopy": true,
+        "reelsGeometryStatus": { "enum": ["SOURCE_REQUIRED", "NOT_APPLICABLE"] },
+        "manualAcceptanceStatus": { "const": "NOT_REVIEWED" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "downloadAllowed": {
+            "const": true
+          }
+        },
+        "required": [
+          "downloadAllowed"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          },
+          "manifestDigest": {
+            "$ref": "#/$defs/sha256"
+          },
+          "pngDigest": {
+            "$ref": "#/$defs/sha256"
+          },
+          "manifestPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pngPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "errors": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "status": {
+            "const": "FAIL"
+          },
+          "manifestDigest": {
+            "type": "null"
+          },
+          "pngDigest": {
+            "type": "null"
+          },
+          "manifestPath": {
+            "type": "null"
+          },
+          "pngPath": {
+            "type": "null"
+          },
+          "errors": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "severity",
+        "path",
+        "messageKey"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "ERROR",
+            "WARNING",
+            "INFO"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "messageKey": {
+          "type": "string"
+        },
+        "stage": {
+          "enum": ["PRE_RENDER", "POST_RENDER"]
+        },
+        "imageSlotId": {
+          "type": "string"
+        },
+        "slotRole": {
+          "enum": ["IMAGE", "LOGO"]
+        },
+        "assetId": {
+          "type": "string"
+        },
+        "elementId": {
+          "type": "string"
+        },
+        "formatProfileId": {
+          "type": "string"
+        },
+        "expected": true,
+        "actual": true,
+        "bbox": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

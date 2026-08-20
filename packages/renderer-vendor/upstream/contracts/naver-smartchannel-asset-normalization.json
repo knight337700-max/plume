@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/naver-smartchannel-asset-normalization-v1.0.0.json",
+  "registryVersion": "1.0.0",
+  "status": "FROZEN",
+  "channel": "NAVER_GFA",
+  "placement": "SMARTCHANNEL",
+  "pipeline": [
+    "DECODE",
+    "ALPHA_BOUNDS",
+    "ALPHA_TRIM",
+    "PLACEMENT_POLICY",
+    "CONTAIN_SCALE",
+    "FINAL_RENDERED_BOUNDS",
+    "REGION_VALIDATION",
+    "RENDERED_ALPHA_PIXEL_COUNT"
+  ],
+  "sourceCanvasValidation": "FORBIDDEN_FOR_OBJECT_LIMIT",
+  "transparentPaddingValidation": "FORBIDDEN_FOR_OBJECT_LIMIT",
+  "sourceSpacePlacementValidation": "FORBIDDEN",
+  "alpha": {
+    "trimPreserveThreshold": 1,
+    "layoutVisibleThreshold": 8,
+    "connectivity": 8,
+    "isolatedNoisePolicy": "LARGEST_LAYOUT_VISIBLE_COMPONENT_ONLY",
+    "rgbOfFullyTransparentPixels": "IGNORED",
+    "resizedAlphaBinarization": "FORBIDDEN"
+  },
+  "object": {
+    "maxWidth": 260,
+    "maxHeight": 160,
+    "maxArea": 41600,
+    "maxOpaquePixelRatio": 0.7,
+    "maxOpaquePixelCount": 29120,
+    "containScale": true,
+    "maxUpscale": 1.5,
+    "resizeRounding": "ROUND_MAX_1",
+    "destinationRounding": "FLOOR_CENTER"
+  },
+  "diagnosticFields": [
+    "sourceCanvas",
+    "alphaBounds",
+    "normalizedSize",
+    "finalBounds",
+    "targetRegion",
+    "opaquePixelCount",
+    "maxOpaquePixelCount"
+  ],
+  "legacyPrecomposedCompatibility": {
+    "recognizedOnlyWhenSourceCanvasMatchesTemplate": true,
+    "objectLimitStillUsesFinalAlpha": true,
+    "rawCanvasMismatchDoesNotEmitDimensionError": true
+  }
+}

@@ -1,0 +1,569 @@
+{
+  "classificationVocabulary": [
+    "DEFERRED_NON_BLOCKING",
+    "DERIVED_FROM_EXACT_SOURCE_METADATA",
+    "SOURCE_CONFIRMED",
+    "UNRESOLVED"
+  ],
+  "components": [
+    {
+      "id": "LANDING_ICON_COMPACT",
+      "status": "FROZEN",
+      "asset": {
+        "sourceSha256": "0b71bb1e542563d544f6f0f2b7f15d87a24efc4c9a61ce6ea28415beedc4f237",
+        "sourceLayerPath": "랜딩아이콘(선택요소) 변형금지/icon_위치_변형금지",
+        "sourceLayerName": "icon_위치_변형금지",
+        "sourceLayerKind": "pixel",
+        "sourcePixelBounds": [
+          694,
+          65,
+          710,
+          95
+        ],
+        "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62",
+        "rawPixelShape": [
+          30,
+          16,
+          4
+        ],
+        "trimmedPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62",
+        "trimmedPixelShape": [
+          30,
+          16,
+          4
+        ],
+        "alphaBboxLocal": [
+          0,
+          0,
+          16,
+          30
+        ],
+        "alphaVisibleThreshold": 1,
+        "hasEffects": false,
+        "hasMask": false,
+        "hasVectorMask": false,
+        "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA",
+        "assetPath": "assets/naver-smartchannel/landing-icon-compact.png",
+        "assetPngSha256": "c731128d2bb468c5d7088c9d183d4ebbec24aa748085e6fe41f8d0cbd24a8e58",
+        "assetPngFormat": "RGBA_PNG"
+      },
+      "sharedAcrossHeights": true,
+      "heightPlacements": {
+        "160": {
+          "x": 694,
+          "y": 65,
+          "width": 16,
+          "height": 30,
+          "classification": "SOURCE_CONFIRMED"
+        },
+        "200": {
+          "x": 694,
+          "y": 85,
+          "width": 16,
+          "height": 30,
+          "classification": "SOURCE_CONFIRMED",
+          "observedPositions": [
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_LANDING_ICON",
+              "sourceSha256": "efd3f5ca1df761dedc289c5926f2077709ee820c961dbb3f317bdaa8ab8cadc2",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_LANDING_ICON",
+              "sourceSha256": "d7de30657851a95d0f9f6ce50bd34596f3c89b54827128fbb67c3f32abdba85c",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_2LINE_LANDING_ICON",
+              "sourceSha256": "7487a7c916680ff75a95caf310330a885955dd614bcf3446f9b2ebba39229792",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_LANDING_ICON",
+              "sourceSha256": "f6a0548a2f69bd2a3e1147d0520a8efb21bcc1e461d247548181a3e28800fb8e",
+              "bbox": [
+                694,
+                86,
+                710,
+                116
+              ],
+              "offset": [
+                694,
+                86
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_SUB_DISCLOSURE_LANDING_ICON",
+              "sourceSha256": "22fa4883bae31018f0dcd5fb53568273f06ad496aad48b9d5f4f2a3290aa152c",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_LANDING_ICON",
+              "sourceSha256": "ce6b7c820b35cb6e5890e3b5c1826401b7c9211b4c30ef930e907702e2ceff8c",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_LANDING_ICON",
+              "sourceSha256": "9dfb726e409049d4b92ebb0434efc128e0f31956fb7b8ada59241a5ce75f3c8d",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            },
+            {
+              "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_LANDING_ICON",
+              "sourceSha256": "ac0353814654060f988b3b8b65651d01ed19171ffd2cfe5da4ff76c3681b918e",
+              "bbox": [
+                694,
+                85,
+                710,
+                115
+              ],
+              "offset": [
+                694,
+                85
+              ],
+              "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+            }
+          ],
+          "positionClassification": "PSD_AUTHORING_INCONSISTENCY"
+        }
+      },
+      "classification": "SOURCE_CONFIRMED"
+    },
+    {
+      "id": "LANDING_ICON_280",
+      "status": "FROZEN",
+      "asset": {
+        "sourceSha256": "015e55f989e124cf4adff27d651adfee0da2ed9558c01c3a7f9ccabd95c9782e",
+        "sourceLayerPath": "@꺽쇠형 랜딩아이콘(선택요소)_수정금지/icon_위치_변형금지",
+        "sourceLayerName": "icon_위치_변형금지",
+        "sourceLayerKind": "pixel",
+        "sourcePixelBounds": [
+          660,
+          112,
+          716,
+          171
+        ],
+        "rawPixelSha256": "1edd67f84d5c4b4f4a2e15a12aba73becf9b079fa251933671fbc8442b9de26b",
+        "rawPixelShape": [
+          59,
+          56,
+          4
+        ],
+        "trimmedPixelSha256": "1edd67f84d5c4b4f4a2e15a12aba73becf9b079fa251933671fbc8442b9de26b",
+        "trimmedPixelShape": [
+          59,
+          56,
+          4
+        ],
+        "alphaBboxLocal": [
+          0,
+          0,
+          56,
+          59
+        ],
+        "alphaVisibleThreshold": 1,
+        "hasEffects": false,
+        "hasMask": false,
+        "hasVectorMask": false,
+        "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA",
+        "assetPath": "assets/naver-smartchannel/landing-icon-280.png",
+        "assetPngSha256": "b81d74dcadc9d21db0e81169117d52f9fc51973bd2bba0ce18985035efd617ca",
+        "assetPngFormat": "RGBA_PNG"
+      },
+      "placement": {
+        "x": 660,
+        "y": 112,
+        "width": 56,
+        "height": 59,
+        "classification": "SOURCE_CONFIRMED"
+      },
+      "classification": "SOURCE_CONFIRMED"
+    },
+    {
+      "id": "APP_CTA_160_200",
+      "status": "FROZEN",
+      "registryRef": "contracts/naver-smartchannel-cta-options.json#/compact160200",
+      "classification": "SOURCE_CONFIRMED"
+    },
+    {
+      "id": "APP_CTA_280",
+      "status": "FROZEN",
+      "registryRef": "contracts/naver-smartchannel-cta-options.json#/options280",
+      "classification": "SOURCE_CONFIRMED"
+    },
+    {
+      "id": "OBJECT_MAX_GUIDE_260",
+      "status": "DEFERRED_NON_BLOCKING",
+      "classification": "GUIDE_NOTE_NOT_MACHINE_ENFORCEABLE",
+      "n2Blocking": false,
+      "deferTo": "N3_VALIDATOR"
+    },
+    {
+      "id": "LOGO_VERTICAL_MARGIN_24",
+      "status": "SOURCE_CONFIRMED",
+      "topPx": 24,
+      "bottomPx": 24,
+      "effectiveFrom": "2026-06-08",
+      "validationStatus": "DEFERRED_NON_BLOCKING",
+      "classification": "SOURCE_CONFIRMED"
+    },
+    {
+      "id": "EXPORT_BG_GUIDE",
+      "status": "SOURCE_CONFIRMED",
+      "sourceInstruction": "BG guide layer is off when saving PNG",
+      "registrationStatus": "DEFERRED_NON_BLOCKING",
+      "classification": "SOURCE_CONFIRMED"
+    }
+  ],
+  "specialGeometry": {
+    "disclosure160TwoLine": {
+      "status": "FROZEN",
+      "sourceTemplates": [
+        {
+          "sourceFileName": "03_하단고지문구형_A_오브젝트_좌측형(+랜딩아이콘)_3줄(심의필만2줄).psd",
+          "sourceSha256": "eff60150e1ff62af885c064279221deeb56329ce976e696569863d106fcc9350",
+          "headline": {
+            "originX": 278.9140625,
+            "originY": 64.45703125,
+            "boxX": 280,
+            "boxY": 37,
+            "boxWidth": 378,
+            "boxHeight": 30,
+            "baselineY": 64.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure1": {
+            "originX": 278.9140625,
+            "originY": 98.45703125,
+            "boxX": 279,
+            "boxY": 83,
+            "boxWidth": 366,
+            "boxHeight": 17,
+            "baselineY": 98.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure2": {
+            "originX": 278.9140625,
+            "originY": 122.45703125,
+            "boxX": 279,
+            "boxY": 107,
+            "boxWidth": 366,
+            "boxHeight": 17,
+            "baselineY": 122.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "line1ToLine2BaselineGapPx": 24.0,
+          "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+        },
+        {
+          "sourceFileName": "03_하단고지문구형_A_오브젝트_좌측형_3줄(심의필만2줄).psd",
+          "sourceSha256": "029b8effbf68893fcc5b5690ef8c39e781145b0799ddc10628100b3afbf77da9",
+          "headline": {
+            "originX": 278.9140625,
+            "originY": 64.45703125,
+            "boxX": 280,
+            "boxY": 37,
+            "boxWidth": 430,
+            "boxHeight": 30,
+            "baselineY": 64.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure1": {
+            "originX": 278.9140625,
+            "originY": 98.45703125,
+            "boxX": 279,
+            "boxY": 83,
+            "boxWidth": 423,
+            "boxHeight": 17,
+            "baselineY": 98.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure2": {
+            "originX": 278.9140625,
+            "originY": 122.45703125,
+            "boxX": 279,
+            "boxY": 107,
+            "boxWidth": 423,
+            "boxHeight": 17,
+            "baselineY": 122.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "line1ToLine2BaselineGapPx": 24.0,
+          "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+        },
+        {
+          "sourceFileName": "03_하단고지문구형_B_오브젝트_우측형_3줄(심의필만2줄).psd",
+          "sourceSha256": "516f0a0047e881d6337e7991b3296c0b47cb26b665b967d53bf4c393be810e2a",
+          "headline": {
+            "originX": 38.9140625,
+            "originY": 64.45703125,
+            "boxX": 40,
+            "boxY": 37,
+            "boxWidth": 430,
+            "boxHeight": 30,
+            "baselineY": 64.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure1": {
+            "originX": 38.9140625,
+            "originY": 98.45703125,
+            "boxX": 39,
+            "boxY": 83,
+            "boxWidth": 423,
+            "boxHeight": 17,
+            "baselineY": 98.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "disclosure2": {
+            "originX": 38.9140625,
+            "originY": 122.45703125,
+            "boxX": 39,
+            "boxY": 107,
+            "boxWidth": 423,
+            "boxHeight": 17,
+            "baselineY": 122.45703125,
+            "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+            "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+          },
+          "line1ToLine2BaselineGapPx": 24.0,
+          "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+        }
+      ],
+      "invariants": {
+        "headlineBaselineYs": [
+          64.45703125
+        ],
+        "disclosureBaselineYs": [
+          98.45703125,
+          122.45703125
+        ],
+        "line1ToLine2BaselineGapPx": [
+          24.0
+        ],
+        "leftRightBaselineConsistency": true,
+        "landingIconVariantBaselineConsistency": true
+      },
+      "baselineModel": "PSD_POINT_TEXT_TRANSFORM_TRANSLATION",
+      "classification": "DERIVED_FROM_EXACT_SOURCE_METADATA"
+    },
+    "landingIcon200OnePixel": {
+      "status": "RESOLVED",
+      "classification": "PSD_AUTHORING_INCONSISTENCY",
+      "rawPixelDigestSame": true,
+      "trimmedPixelDigestSame": true,
+      "observedYValues": [
+        85,
+        86
+      ],
+      "sourceLayerTransform": "NOT_PRESENT_FOR_PIXEL_LAYER",
+      "effectBoundsDifference": false,
+      "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62",
+      "sourceOccurrences": [
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_MAIN_SUB_LANDING_ICON",
+          "sourceSha256": "efd3f5ca1df761dedc289c5926f2077709ee820c961dbb3f317bdaa8ab8cadc2",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_BASIC_STANDARD_LEFT_ONE_LINE_LANDING_ICON",
+          "sourceSha256": "d7de30657851a95d0f9f6ce50bd34596f3c89b54827128fbb67c3f32abdba85c",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_2LINE_LANDING_ICON",
+          "sourceSha256": "7487a7c916680ff75a95caf310330a885955dd614bcf3446f9b2ebba39229792",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_DISCLOSURE_LANDING_ICON",
+          "sourceSha256": "f6a0548a2f69bd2a3e1147d0520a8efb21bcc1e461d247548181a3e28800fb8e",
+          "bbox": [
+            694,
+            86,
+            710,
+            116
+          ],
+          "offset": [
+            694,
+            86
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_BOTTOM_DISCLOSURE_STANDARD_LEFT_MAIN_SUB_DISCLOSURE_LANDING_ICON",
+          "sourceSha256": "22fa4883bae31018f0dcd5fb53568273f06ad496aad48b9d5f4f2a3290aa152c",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_MAIN_SUB_LANDING_ICON",
+          "sourceSha256": "ce6b7c820b35cb6e5890e3b5c1826401b7c9211b4c30ef930e907702e2ceff8c",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_ONE_LINE_LANDING_ICON",
+          "sourceSha256": "9dfb726e409049d4b92ebb0434efc128e0f31956fb7b8ada59241a5ce75f3c8d",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        },
+        {
+          "templateId": "NAVER_SMARTCHANNEL_200_EMPHASIS_THUMBNAIL_LEFT_THREE_LINE_LANDING_ICON",
+          "sourceSha256": "ac0353814654060f988b3b8b65651d01ed19171ffd2cfe5da4ff76c3681b918e",
+          "bbox": [
+            694,
+            85,
+            710,
+            115
+          ],
+          "offset": [
+            694,
+            85
+          ],
+          "rawPixelSha256": "84df6c8f311934f336657bc6fada523df81b65e0d22117886d934c85ceb82e62"
+        }
+      ]
+    },
+    "thumbnail280CurrentRule": {
+      "status": "FROZEN",
+      "width": 200,
+      "height": 200,
+      "sourceLayerNames": [
+        "썸네일 오브젝트 영역 : 200px X 200px (위치, 가로폭 & 높이값 고정)"
+      ],
+      "classification": "SOURCE_CONFIRMED"
+    },
+    "object260": {
+      "status": "DEFERRED_NON_BLOCKING",
+      "classification": "GUIDE_NOTE_NOT_MACHINE_ENFORCEABLE",
+      "guideOccurrenceCount": 64,
+      "n2Blocking": false,
+      "deferTo": "N3_VALIDATOR"
+    }
+  }
+}

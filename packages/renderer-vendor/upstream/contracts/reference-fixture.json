@@ -1,0 +1,140 @@
+{
+  "registryVersion": "1.0.0",
+  "templateContractVersion": "1.9.0",
+  "fixture": {
+    "id": "KAKAO_TOOL_OBJECT_RIGHT_1029X258",
+    "path": "reference/kakao-tool/OBJECT_RIGHT.png",
+    "sha256": "33204a082327bf14fead6dbc50fd2139f46f7f7156d14ac221c3212368927a3b",
+    "immutable": true,
+    "sourceClassification": "TOOL_OUTPUT",
+    "png": {
+      "width": 1029,
+      "height": 258,
+      "colorType": "RGBA",
+      "bitDepth": 8
+    },
+    "objectSlot": {
+      "x": 666,
+      "y": 0,
+      "width": 315,
+      "height": 258
+    },
+    "rightOuterMargin": {
+      "x": 981,
+      "y": 0,
+      "width": 48,
+      "height": 258,
+      "requiredAlpha": 0
+    },
+    "sampleVisibleInk": {
+      "headline": {
+        "x": 49,
+        "y": 77,
+        "width": 523,
+        "height": 45,
+        "color": "#4C4C4C"
+      },
+      "subcopy": {
+        "x": 50,
+        "y": 144,
+        "width": 533,
+        "height": 36,
+        "color": "#777777"
+      }
+    }
+  },
+  "nonNormativeReferences": [
+    {
+      "path": "reference/kakao-tool/THUMBNAIL_BOX_RIGHT.png",
+      "usage": "PRESERVE_ONLY"
+    }
+  ],
+  "templates": {
+    "thumbnailBoxRight": {
+      "id": "KAKAO_TOOL_THUMBNAIL_BOX_RIGHT_1029X258",
+      "path": "reference/kakao-tool/THUMBNAIL_BOX_RIGHT.png",
+      "sha256": "bde09ea925ede612c814868d90f9595fc29137b1183309123f02fd76dedff030",
+      "immutable": true,
+      "sourceClassification": "TOOL_OUTPUT",
+      "png": {
+        "width": 1029,
+        "height": 258,
+        "colorType": "RGBA",
+        "bitDepth": 8
+      },
+      "imageSlot": {
+        "id": "IMAGE_PRIMARY",
+        "x": 666,
+        "y": 36,
+        "width": 315,
+        "height": 186,
+        "rightExclusive": 981,
+        "bottomExclusive": 222,
+        "cornerRadiusPx": 12,
+        "grayGuideColor": "#D9D9D9"
+      },
+      "text": {
+        "headline": { "x": 48, "baselineY": 120, "visibleBBoxAlphaGte8": { "x": 49, "y": 77, "width": 523, "height": 45 } },
+        "subcopy": { "x": 48, "baselineY": 178, "visibleBBoxAlphaGte8": { "x": 50, "y": 144, "width": 533, "height": 36 } },
+        "hardRightEdgeExclusive": 633,
+        "maximumOccupiedWidthPx": 585,
+        "minimumGapPx": 33
+      }
+    },
+    "thumbnailMultiRight": {
+      "id": "KAKAO_TOOL_THUMBNAIL_MULTI_RIGHT_1029X258",
+      "path": "reference/kakao-tool/THUMBNAIL_MULTI_RIGHT.png",
+      "sha256": "ea6a6ca53faba1215e45e7aa54ddcae33c5d75bbe6244e3aa6a3b2465656a57b",
+      "immutable": true,
+      "sourceClassification": "TOOL_OUTPUT",
+      "png": { "width": 1029, "height": 258, "colorType": "RGBA", "bitDepth": 8 },
+      "text": {
+        "headline": { "x": 48, "baselineY": 120, "visibleBBoxAlphaGte8": { "x": 49, "y": 77, "width": 523, "height": 45 } },
+        "subcopy": { "x": 48, "baselineY": 178, "visibleBBoxAlphaGte8": { "x": 50, "y": 144, "width": 533, "height": 36 } },
+        "hardRightEdgeExclusive": 588,
+        "maximumOccupiedWidthPx": 540,
+        "minimumGapPx": 33
+      },
+      "imageSlots": [
+        { "id": "IMAGE_PRIMARY", "order": 0, "x": 621, "y": 43, "width": 172, "height": 172, "rightExclusive": 793, "bottomExclusive": 215, "cornerRadiusPx": 12 },
+        { "id": "IMAGE_SECONDARY", "order": 1, "x": 809, "y": 43, "width": 172, "height": 172, "rightExclusive": 981, "bottomExclusive": 215, "cornerRadiusPx": 12 }
+      ],
+      "slotGapPx": 16,
+      "rightTransparentMarginPx": 48,
+      "topMarginPx": 43,
+      "bottomMarginPx": 43
+    },
+    "maskSemicircleRight": {
+      "id": "KAKAO_TOOL_MASK_SEMICIRCLE_RIGHT_1029X258",
+      "path": "reference/kakao-tool/MASK_SEMICIRCLE_RIGHT.png",
+      "sha256": "90a2e948d979b204867c837485ca0d4b391de4ca44c22ca36e9f3f53862ac75e",
+      "immutable": true,
+      "sourceClassification": "TOOL_OUTPUT",
+      "png": { "width": 1029, "height": 258, "colorType": "RGBA", "bitDepth": 8 },
+      "text": {
+        "headline": { "x": 48, "baselineY": 120 },
+        "subcopy": { "x": 48, "baselineY": 178 },
+        "hardRightEdgeExclusive": 588,
+        "maximumOccupiedWidthPx": 540,
+        "minimumGapPx": 33
+      },
+      "mask": {
+        "circle": { "centerX": 801, "centerY": 225, "radius": 180 },
+        "imageDestination": { "x": 621, "y": 45, "width": 360, "height": 213 },
+        "rightExclusive": 981,
+        "bottomExclusive": 258,
+        "restoredRegionStrategy": "circle-arc-without-logo-cutout"
+      },
+      "logoSlot": {
+        "id": "LOGO_PRIMARY",
+        "container": { "x": 839, "y": 16, "width": 142, "height": 60 },
+        "safeBox": { "x": 847, "y": 24, "width": 126, "height": 44 },
+        "required": false,
+        "format": "PNG",
+        "alphaRequired": true,
+        "transparentBackgroundRequired": true,
+        "colorRestriction": "NONE"
+      }
+    }
+  }
+}

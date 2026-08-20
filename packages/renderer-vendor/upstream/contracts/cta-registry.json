@@ -1,0 +1,35 @@
+{
+  "registryVersion": "1.0.0",
+  "templateContractVersion": "1.9.0",
+  "disabledModeErrorCode": "KBR-CTA-009",
+  "modes": [
+    {
+      "id": "NONE",
+      "enabled": true,
+      "allowedLabels": [null],
+      "allowedLandingTypes": [
+        "DIRECT_URL",
+        "ADVIEW",
+        "KAKAO_SERVICE"
+      ],
+      "requiredAssetIds": [],
+      "disabledReason": null
+    },
+    {
+      "id": "APP_DOWNLOAD",
+      "enabled": false,
+      "allowedLabels": [],
+      "allowedLandingTypes": [],
+      "requiredAssetIds": [],
+      "disabledReason": "Approved icon source and digest, complete label registry, landing compatibility matrix, and measured absolute coordinates are unresolved"
+    },
+    {
+      "id": "KAKAO_SERVICE_ACTION",
+      "enabled": false,
+      "allowedLabels": [],
+      "allowedLandingTypes": [],
+      "requiredAssetIds": [],
+      "disabledReason": "Approved Kakao icon source and digest, complete label registry, landing compatibility matrix, and measured absolute coordinates are unresolved"
+    }
+  ]
+}

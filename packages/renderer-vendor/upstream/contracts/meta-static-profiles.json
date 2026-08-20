@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/meta-static-profiles-v1.0.0.json",
+  "registryVersion": "1.0.0",
+  "status": "IMPLEMENTED",
+  "sourceProvenance": "contracts/audits/meta-official-source-registry.json",
+  "pixelPresetClassification": "PROJECT_OUTPUT_PRESET_V1",
+  "profiles": [
+    { "id": "META_STATIC_FEED_SQUARE", "width": 1080, "height": 1080, "ratio": "1:1", "ratioStatus": "OFFICIAL_META_PLACEMENT_RATIO", "pixelStatus": "PROJECT_OUTPUT_PRESET_V1" },
+    { "id": "META_STATIC_FEED_PORTRAIT", "width": 1080, "height": 1350, "ratio": "4:5", "ratioStatus": "OFFICIAL_META_PLACEMENT_RATIO", "pixelStatus": "PROJECT_OUTPUT_PRESET_V1" },
+    { "id": "META_STATIC_VERTICAL_FULL", "width": 1080, "height": 1920, "ratio": "9:16", "ratioStatus": "OFFICIAL_META_PLACEMENT_RATIO", "pixelStatus": "PROJECT_OUTPUT_PRESET_V1" }
+  ],
+  "safeZone": { "stories": { "topNormalized": 0.14, "bottomNormalized": 0.2, "severity": "WARNING", "overlayInFinalArtifact": false }, "reels": { "geometry": "SOURCE_REQUIRED", "severity": "INFO", "guessedCoordinates": false } },
+  "platformCopy": { "metadataOnly": true, "fields": ["primaryText", "headline", "description", "callToAction", "destinationUrl"] },
+  "unsupported": ["CAROUSEL", "CATALOG", "DYNAMIC", "VIDEO"]
+}

@@ -1,0 +1,22 @@
+{
+  "registryVersion": "1.0.0",
+  "scope": "renderer-integration",
+  "externalMessagePolicy": "AJV native messages are diagnostic only; stable output uses code and messageKey",
+  "defaultCode": "KBR-INPUT-002",
+  "keywordMappings": [
+    { "keyword": "required", "code": "KBR-INPUT-002" },
+    { "keyword": "type", "code": "KBR-INPUT-002" },
+    { "keyword": "enum", "code": "KBR-INPUT-002" },
+    { "keyword": "const", "code": "KBR-INPUT-002" },
+    { "keyword": "additionalProperties", "code": "KBR-INPUT-002" },
+    { "keyword": "minLength", "code": "KBR-INPUT-002" },
+    { "keyword": "maxLength", "code": "KBR-INPUT-002" },
+    { "keyword": "minimum", "code": "KBR-INPUT-002" },
+    { "keyword": "maximum", "code": "KBR-INPUT-002" },
+    { "keyword": "pattern", "code": "KBR-INPUT-002" },
+    { "keyword": "oneOf", "code": "KBR-INPUT-002" },
+    { "keyword": "anyOf", "code": "KBR-INPUT-002" }
+  ],
+  "deduplicationKey": ["severity", "inputJsonPointer", "code", "messageKey"],
+  "sortOrder": ["severity", "inputJsonPointer", "code", "messageKey"]
+}
