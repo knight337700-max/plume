@@ -19,6 +19,9 @@ import type { JobUseCases } from "../../../packages/core/src/modules/operations/
 import type { SessionUseCases } from "../../../packages/core/src/modules/iam/session-use-cases.js";
 import type { MembershipStore } from "./auth/workspace-membership.js";
 import type { UploadUseCases } from "../../../packages/core/src/modules/asset/upload-use-cases.js";
+import type { AssetRepositories } from "../../../packages/core/src/modules/asset/repositories.js";
+import type { CampaignRepositories } from "../../../packages/core/src/modules/campaign/repositories.js";
+import type { CreativeRepositories } from "../../../packages/core/src/modules/creative/repositories.js";
 import { sessionPlugin } from "./plugins/session.js";
 import { csrfPlugin } from "./plugins/csrf.js";
 import { authorizationPlugin } from "./plugins/authorization.js";
@@ -33,6 +36,10 @@ export interface BuildAppOptions extends FastifyServerOptions {
   readonly sessions?: SessionUseCases;
   readonly memberships?: MembershipStore;
   readonly uploads?: UploadUseCases;
+  /** Shared aggregate seams used by the real-process E2E and worker composition. */
+  readonly campaignRepositories?: CampaignRepositories;
+  readonly assetRepositories?: AssetRepositories;
+  readonly creativeRepositories?: CreativeRepositories;
   readonly sessionSecret?: string;
   readonly cookieSecure?: boolean;
   readonly cookieSameSite?: "lax" | "strict" | "none";
@@ -49,6 +56,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     sessions,
     memberships,
     uploads,
+    campaignRepositories,
+    assetRepositories,
+    creativeRepositories,
     sessionSecret,
     cookieSecure,
     cookieSameSite,
@@ -85,11 +95,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await router.register(clientBrandRoutes);
     await router.register(mediaCatalogRoutes);
     await router.register(assetFileRoutes, uploads ? { uploads } : {});
-    await router.register(assetRoutesGroup);
+    await router.register(assetRoutesGroup, assetRepositories ? { repositories: assetRepositories } : {});
     await router.register(campaignRouteGroup, {
+      ...(campaignRepositories ? { repositories: campaignRepositories } : {}),
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(creativeRouteGroup, {
+      ...(creativeRepositories ? { repositories: creativeRepositories } : {}),
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(validationRouteGroup, {

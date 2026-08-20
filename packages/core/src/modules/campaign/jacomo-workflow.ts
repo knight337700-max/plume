@@ -10,6 +10,16 @@ export interface JacomoCreativeInput {
   readonly sequence: number;
 }
 
+export interface JacomoCanonicalCreativeInput extends JacomoCreativeInput {
+  readonly briefVersionId: string;
+  readonly assetVersionId: string;
+  readonly advertiser: string;
+  readonly headline: string;
+  readonly subcopy: string;
+  readonly creativeId?: string;
+  readonly creativeVersionId?: string;
+}
+
 export interface JacomoCreativeOutput {
   readonly creativeId: string;
   readonly creativeVersionId: string;
@@ -86,6 +96,94 @@ export function composeJacomoCreative(input: JacomoCreativeInput): JacomoCreativ
       usedAssetVersionIds: [],
       copyAssets: {},
       rationale: "Deterministic JACOMO staging composition",
+    },
+    formatProfile,
+  });
+  return {
+    creativeId,
+    creativeVersionId,
+    document,
+    outputProfile: { mimeType: "image/png", width, height, transparentBackground: false },
+  };
+}
+
+/**
+ * Compose the deterministic Product Workflow document used by the canonical
+ * Object Right path.  Geometry here is only the required semantic document
+ * representation; the TEMPLATE_LOCKED Renderer remains the placement source
+ * of truth.
+ */
+export function composeJacomoCanonicalCreative(
+  input: JacomoCanonicalCreativeInput,
+): JacomoCreativeOutput {
+  const creativeId = input.creativeId ?? randomUUID();
+  const creativeVersionId = input.creativeVersionId ?? randomUUID();
+  const width = 1029;
+  const height = 258;
+  const formatProfile = {
+    id: input.formatProfileId,
+    width,
+    height,
+    transparentBackground: false,
+  };
+  const document = composeCreativeDocument({
+    workspaceId: input.workspaceId,
+    campaignId: input.campaignId,
+    creativeId,
+    productId: input.productId,
+    briefVersionId: input.briefVersionId,
+    metadata: { renderMode: "CANONICAL_RENDERER" },
+    plan: {
+      formatProfileId: input.formatProfileId,
+      templateId: "KAKAO_MOMENT_BIZBOARD_OBJECT_RIGHT_1029X258_V1",
+      elements: [
+        {
+          elementId: `product-${input.sequence}`,
+          elementType: "IMAGE",
+          slotCode: "product",
+          assetVersionId: input.assetVersionId,
+          x: 0,
+          y: 0,
+          width: 1,
+          height: 1,
+          zIndex: 0,
+          locked: true,
+          visible: true,
+        },
+        {
+          elementId: `headline-${input.sequence}`,
+          elementType: "TEXT",
+          slotCode: "headline",
+          textValue: input.headline,
+          x: 0,
+          y: 0,
+          width: 1,
+          height: 1,
+          zIndex: 1,
+          locked: true,
+          visible: true,
+        },
+        {
+          elementId: `subcopy-${input.sequence}`,
+          elementType: "TEXT",
+          slotCode: "subcopy",
+          textValue: input.subcopy,
+          x: 0,
+          y: 0,
+          width: 1,
+          height: 1,
+          zIndex: 2,
+          locked: true,
+          visible: true,
+        },
+      ],
+      usedAssetVersionIds: [input.assetVersionId],
+      copyAssets: {
+        advertiser: input.advertiser,
+        headline: input.headline,
+        subcopy: input.subcopy,
+      },
+      rationale: "Confirmed Brief copy and selected Product asset",
     },
     formatProfile,
   });
