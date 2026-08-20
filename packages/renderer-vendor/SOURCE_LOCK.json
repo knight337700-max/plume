@@ -224,12 +224,22 @@
       "sha256": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1"
     },
     {
+      "path": "fixtures/golden/thumbnail-box-right__valid__golden.png",
+      "bytes": 11884,
+      "sha256": "f1111ee8f36fe1d8ccc7aaa445b175906e8a6432027d3e65764158ad40c52996"
+    },
+    {
       "path": "fixtures/integration/alpha-trim-contain/input.json",
       "bytes": 868,
       "sha256": "bcd2e297e0c7f7a677162fc6793564f9c2cb6bd962f9f35bb6d326c14b478ead"
     },
     {
       "path": "fixtures/valid/object-right__product__basic__pass.png",
+      "bytes": 1176,
+      "sha256": "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe"
+    },
+    {
+      "path": "fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
       "bytes": 1176,
       "sha256": "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe"
     },
@@ -532,6 +542,11 @@
       "path": "src/core/types.ts",
       "bytes": 11796,
       "sha256": "217e7cf47cf5566f379c9c879134f3d40bb326c41a1a811c580a65f0674c5484"
+    },
+    {
+      "path": "tests/integration-contract/thumbnail-box-right.test.ts",
+      "bytes": 9381,
+      "sha256": "c186ae8e3961f0b30bc7abfafb0d95261eb92a2c0874256669b70f8f79daa081"
     },
     {
       "path": "tsconfig.build.json",
