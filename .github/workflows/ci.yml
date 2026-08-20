@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Verify architecture and release freeze integrity
+        run: pnpm integrity
+
       - name: Start test infrastructure
         run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
 

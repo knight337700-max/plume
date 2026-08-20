@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1.0.0",
+  "gate": "PI_1C_KAKAO_CANONICAL_INTEGRATION_FREEZE",
+  "status": "FROZEN",
+  "sourceBaseline": {
+    "repository": "knight337700-max/plume",
+    "parentBranch": "codex/pi-1b-real-kakao-product-e2e",
+    "commit": "cf886bb8c0eb9cf83d0c207f9ee2376f323bdbe7",
+    "childBranch": "codex/pi-1c-kakao-canonical-integration-freeze",
+    "parentPullRequest": 23
+  },
+  "renderer": {
+    "repository": "knight337700-max/plume-renderer",
+    "commit": "7baa272dd852ed21a09cf369c928571b3f75fd31",
+    "integrationContract": "1.8.0",
+    "sourceLock": "packages/renderer-vendor/SOURCE_LOCK.json"
+  },
+  "formatBinding": {
+    "plumeFormatProfileId": "kakao-moment-bizboard-1029x258",
+    "rendererFormatProfileId": "KAKAO_BIZBOARD_OBJECT_RIGHT",
+    "rendererTemplateId": "KAKAO_MOMENT_BIZBOARD_OBJECT_RIGHT_1029X258_V1",
+    "layoutMode": "TEMPLATE_LOCKED"
+  },
+  "placementContract": {
+    "imageSlotId": "OBJECT_RIGHT_PRODUCT",
+    "policy": "ALPHA_TRIM_CONTAIN",
+    "source": "DETERMINISTIC",
+    "fitMode": "CONTAIN",
+    "anchor": "CENTER",
+    "subjectProtection": "NONE"
+  },
+  "productFlow": {
+    "generationMode": "CANONICAL_RENDERER",
+    "uploadPipelineRequired": true,
+    "confirmedBriefCopyRequired": true,
+    "selectedAssetRequired": true,
+    "selectedAssetLicense": "VALID",
+    "inputMimeType": "image/png",
+    "alphaChannelRequired": true,
+    "legacyFallbackAllowed": false,
+    "agentCalls": 0,
+    "openAiCalls": 0
+  },
+  "output": {
+    "mimeType": "image/png",
+    "width": 1029,
+    "height": 258,
+    "colorType": "RGBA"
+  },
+  "acceptedArtifact": {
+    "reviewPackFileName": "PI-1B-Kakao-Review-Pack.zip",
+    "reviewPackSha256": "4536f709d5c84310896ec74b157d3877e2897849b4ffef6cdc0907d20b73209b",
+    "inputProductPngSha256": "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe",
+    "canonicalRenderPngSha256": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1",
+    "exportZipSha256": "46c86214f5011328ba407d20d4d233f8b088c9509390909ccfb58cf86511a1ef",
+    "evidenceJsonSha256": "340ad515287e599a763d53604e9ce9b4c7922c552cfe7f23d83acf0b2627a16c",
+    "exportEmbeddedPngSha256": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1"
+  },
+  "acceptedFingerprints": {
+    "requestFingerprint": "5c06983a8f82049c4dbb205553600009a8c170649eac76ca9d3a74b330c2548a",
+    "pixelFingerprint": "f6690a069d861caeb90770d3f8e9304c7bba749177eda83c4222668e6f066836",
+    "renderFingerprint": "f6690a069d861caeb90770d3f8e9304c7bba749177eda83c4222668e6f066836"
+  },
+  "acceptedPlacementEvidence": {
+    "imageSlotId": "OBJECT_RIGHT_PRODUCT",
+    "policy": "ALPHA_TRIM_CONTAIN",
+    "source": "DETERMINISTIC",
+    "appliedScale": 1.3347457627118644,
+    "appliedAnchor": "CENTER",
+    "destinationRect": {
+      "x": 666,
+      "y": 45,
+      "width": 315,
+      "height": 167
+    },
+    "alphaTrimApplied": true,
+    "changedFromRequestedPlan": false,
+    "resolvedSourceCropPixels": {
+      "x": 12,
+      "y": 20,
+      "width": 236,
+      "height": 125
+    }
+  },
+  "validationAcceptance": {
+    "status": "PASS",
+    "rendererErrorCount": 0,
+    "acceptedWarnings": [
+      {
+        "code": "KBR-LAYOUT-009",
+        "kind": "layout.object_near_slot_edge"
+      }
+    ]
+  },
+  "visualAcceptance": {
+    "status": "PASS",
+    "gate": "PI_1B_REAL_KAKAO_PRODUCT_E2E",
+    "acceptedArtifactChecksum": "20dc9d62b8650a72115a8d584846399d9cd6dd2c8a0996b4889edb596feb68b1",
+    "acceptedWarningCodes": ["KBR-LAYOUT-009"],
+    "reviewDate": "2026-08-20",
+    "reviewBasis": "USER_PROVIDED_REVIEW_PACK"
+  },
+  "invariants": {
+    "exportEmbeddedPngMatchesRender": true,
+    "rendererRepositoryUnchanged": true,
+    "rendererVendorSourceUnchanged": true,
+    "rendererGoldenUnchanged": true,
+    "pixelOutputUnchanged": true,
+    "legacyMockAiPathRetained": true,
+    "runtimeNetworkDependency": false,
+    "rendererToPlumeDependency": false,
+    "agentToRendererDependency": false,
+    "openAiDependency": false
+  },
+  "deferredScope": [
+    "PI_2_TEMPLATE_SEMANTIC_PLACEMENT",
+    "FREEFORM",
+    "LAYOUT_PLANNER",
+    "AGENT_IMAGE_INPUTS",
+    "NAVER",
+    "META",
+    "GOOGLE",
+    "LINUX_COMPATIBILITY",
+    "RAILWAY",
+    "STAGING",
+    "PRODUCTION"
+  ]
+}

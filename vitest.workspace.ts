@@ -23,6 +23,7 @@ export default defineWorkspace([
         "apps/worker/src/**/*.test.ts",
         "apps/scheduler/src/**/*.test.ts",
         "tools/codegen/**/*.unit.test.ts",
+        "tools/integrity/**/*.unit.test.ts",
         "tools/renderer/**/*.unit.test.ts",
       ],
       exclude: ["**/node_modules/**", "**/dist/**"],
