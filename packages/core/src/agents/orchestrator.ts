@@ -10,6 +10,11 @@ import { createStrictOutputAdapter } from "./strict-output-adapter.js";
 import { toolRegistry } from "./tool-registry.js";
 import type { AgentResult } from "./agent-result.js";
 import type { ValidationEvidence } from "./result-validator.js";
+import {
+  AgentImageInputError,
+  validateAgentImageInputs,
+  type AgentImageInput,
+} from "./image-input.js";
 
 export type ProviderEvidenceStatus = "PASS" | "FAIL" | "NOT_REACHED";
 
@@ -35,7 +40,7 @@ interface ProviderRequest {
     readonly content: string;
   }[];
   readonly outputSchema: JsonSchema;
-  readonly imageInputs: readonly never[];
+  readonly imageInputs: readonly AgentImageInput[];
   readonly timeoutSeconds: number;
   readonly onSdkRequestAttempt?: () => Promise<void> | void;
   readonly metadata: {
@@ -100,6 +105,7 @@ export interface AgentTaskInput extends Omit<ContextBuilderInput, "agentCode"> {
     readonly content: string;
   }[];
   readonly outputSchema: JsonSchema;
+  readonly imageInputs?: readonly AgentImageInput[];
   readonly syntheticScenarioId?: string;
   readonly channelCode?: string;
   readonly formatProfileId?: string;
@@ -129,13 +135,14 @@ function providerRequest(
   messages: AgentTaskInput["messages"],
   outputSchema: JsonSchema,
   callKind: ProviderCallKind,
+  imageInputs: readonly AgentImageInput[],
 ): ProviderRequest {
   return {
     taskId: input.taskId,
     modelPolicyId,
     messages,
     outputSchema,
-    imageInputs: [],
+    imageInputs,
     timeoutSeconds: input.timeoutSeconds ?? 30,
     ...(input.onSdkRequestAttempt
       ? { onSdkRequestAttempt: () => input.onSdkRequestAttempt!(callKind) }
@@ -161,6 +168,12 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
     async run<T>(input: AgentTaskInput, handler?: AgentSuccessHandler<T>) {
       const prompt = prompts.resolve(input.agentCode);
       const policy = policies.forAgent(input.agentCode);
+      const imageInputs = validateAgentImageInputs(input.imageInputs);
+      if (imageInputs.length && !policy.requiredCapabilities.includes("VISION"))
+        throw new AgentImageInputError(
+          "AGENT_IMAGE_INPUTS_REQUIRE_VISION_POLICY",
+          `Agent ${input.agentCode} does not use a VISION model policy`,
+        );
       for (const toolCode of input.requestedToolCodes ?? []) {
         if (!toolRegistry.canUse(input.agentCode, toolCode))
           throw new Error(`Unauthorized tool ${toolCode} for ${input.agentCode}`);
@@ -186,6 +199,7 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
           input.messages,
           adapter.transportSchema,
           "initial",
+          imageInputs,
         ),
       );
       await options.afterProviderCall?.("initial", first);
@@ -200,6 +214,7 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
             input.messages,
             adapter.transportSchema,
             "retry",
+            imageInputs,
           ),
         );
         await options.afterProviderCall?.("retry", first);
@@ -275,6 +290,7 @@ export function createAgentOrchestrator(options: AgentOrchestratorOptions): Agen
                     repairMessages,
                     adapter.transportSchema,
                     "repair",
+                    imageInputs,
                   ),
                 );
                 validationProviderResult = repaired;

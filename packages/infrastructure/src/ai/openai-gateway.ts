@@ -1,7 +1,13 @@
 import OpenAI from "openai";
 import { createHash } from "node:crypto";
 // eslint-disable-next-line no-restricted-imports -- Docker compiles workspace source directly.
-import { resolveLlmModel, type ProviderEvidence } from "../../../core/src/public.js";
+import {
+  AgentImageInputError,
+  resolveLlmModel,
+  validateAgentImageInputs,
+  type AgentImageInput,
+  type ProviderEvidence,
+} from "../../../core/src/public.js";
 
 export interface SafeMessage {
   readonly role: "system" | "user" | "assistant";
@@ -10,11 +16,7 @@ export interface SafeMessage {
     | readonly { readonly type: string; readonly text?: string; readonly imageUrl?: string }[];
 }
 
-export interface FileReference {
-  readonly fileId: string;
-  readonly mimeType: string;
-  readonly bytes?: Uint8Array;
-}
+export type FileReference = AgentImageInput;
 
 export interface AIExecutionRequest {
   readonly taskId: string;
@@ -182,10 +184,24 @@ export function normalizeResponsesSchema(value: unknown, path = "$"): unknown {
   }
   return normalized;
 }
+function inputContent(request: AIExecutionRequest): readonly Record<string, unknown>[] {
+  return [
+    { type: "input_text", text: inputText(request.messages) },
+    ...request.imageInputs.map((image) => ({
+      type: "input_image",
+      image_url: `data:${image.mimeType};base64,${Buffer.from(image.bytes).toString("base64")}`,
+      ...(image.detail === undefined ? {} : { detail: image.detail }),
+    })),
+  ];
+}
+
 function requestBody(request: AIExecutionRequest, model: string): Record<string, unknown> {
   return {
     model,
-    input: inputText(request.messages),
+    input:
+      request.imageInputs.length === 0
+        ? inputText(request.messages)
+        : [{ role: "user", content: inputContent(request) }],
     text: {
       format: {
         type: "json_schema",
@@ -365,14 +381,19 @@ export function createOpenAIProviderGateway(
   const client = options.fetchImpl || options.client ? options.client : new OpenAI({ apiKey });
   return {
     async execute(request, signal) {
-      if (request.imageInputs.length)
+      try {
+        validateAgentImageInputs(request.imageInputs);
+      } catch (error) {
+        const code =
+          error instanceof AgentImageInputError ? error.code : "AGENT_IMAGE_INPUT_INVALID";
         return {
           provider: "OpenAI",
           model,
           status: "FAILED",
           latencyMs: 0,
-          error: providerError("PROVIDER_ERROR", "Image inputs are disabled for Phase 2C", false),
+          error: providerError("PROVIDER_ERROR", code, false),
         };
+      }
       const startedAt = Date.now();
       const controller = new AbortController();
       const timeout = setTimeout(

@@ -40,6 +40,7 @@
     "lint": "eslint . --max-warnings=0",
     "test": "pnpm verify:renderer-vendor && pnpm build:renderer-vendor && vitest run --workspace vitest.workspace.ts --maxWorkers=2 --minWorkers=1",
     "test:renderer-canonical": "pnpm verify:renderer-vendor && pnpm build:renderer-vendor && vitest run --workspace vitest.workspace.ts packages/infrastructure/src/render/canonical-renderer-adapter.unit.test.ts tools/renderer/renderer-vendor-integrity.unit.test.ts",
+    "test:semantic-placement": "pnpm build:renderer-vendor && vitest run --workspace vitest.workspace.ts packages/core/src/agents/orchestrator.image-input.unit.test.ts packages/infrastructure/src/ai/openai-gateway.image-input.unit.test.ts packages/infrastructure/src/ai/provider-runtime.unit.test.ts packages/infrastructure/src/render/semantic-crop-candidate.unit.test.ts packages/infrastructure/src/render/semantic-placement-planner.unit.test.ts",
     "test:integration": "node --experimental-strip-types tools/test-integration.ts",
     "typecheck": "pnpm build:renderer-vendor && pnpm exec tsc --noEmit -p packages/infrastructure/tsconfig.renderer.json && pnpm --filter @plume/config --filter @plume/web --filter @plume/api --filter @plume/worker --filter @plume/scheduler typecheck",
     "verify:renderer-vendor": "node --experimental-strip-types tools/renderer/verify-renderer-vendor.ts",

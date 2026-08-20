@@ -75,13 +75,27 @@ export function createDeterministicMockProviderGateway(): OpenAIProviderGateway 
       const baseOutput = MOCK_OUTPUTS[request.metadata.agentCode] ?? {};
       const outputSchema = request.outputSchema as MockSchemaNode;
       const layoutSchema = outputSchema.properties?.copyAssets;
+      const semanticPlacementSchema = outputSchema.properties?.semanticPlacement;
+      const semanticOutput =
+        request.metadata.agentCode === "LAYOUT_PLANNER" && semanticPlacementSchema
+          ? {
+              semanticPlacement: {
+                status: "FOUND",
+                primarySubjectBounds: { x: 0.25, y: 0.2, width: 0.3, height: 0.3 },
+                semanticRegion: { x: 0.1, y: 0.1, width: 0.6, height: 0.4 },
+                focalPoint: { x: 0.4, y: 0.35 },
+                confidence: 1,
+              },
+              rationale: "synthetic semantic placement",
+            }
+          : undefined;
       const layoutOutput =
         request.metadata.agentCode === "LAYOUT_PLANNER" &&
         layoutSchema &&
         (layoutSchema.type === "array" ||
           (Array.isArray(layoutSchema.type) && layoutSchema.type.includes("array")))
           ? { ...((baseOutput as Record<string, unknown>) ?? {}), copyAssets: [] }
-          : baseOutput;
+          : (semanticOutput ?? baseOutput);
       const outputJson = materializeNullableProperties(layoutOutput, outputSchema);
       return {
         provider: "OpenAI",

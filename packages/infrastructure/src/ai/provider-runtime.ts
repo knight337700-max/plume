@@ -27,7 +27,6 @@ function asAgentGateway(gateway: OpenAIProviderGateway): AgentProviderGateway {
       const result = await gateway.execute({
         ...request,
         outputSchema: request.outputSchema as Readonly<Record<string, unknown>>,
-        imageInputs: [],
       });
       return {
         status: result.status,

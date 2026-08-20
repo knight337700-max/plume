@@ -7,7 +7,16 @@ export {
   type ProviderCallKind,
   type ProviderEvidence,
   createAgentOrchestrator,
+  type AgentTaskInput,
 } from "./orchestrator.js";
+export {
+  AgentImageInputError,
+  validateAgentImageInputs,
+  type AgentImageDetail,
+  type AgentImageInput,
+  type AgentImageInputErrorCode,
+  type AgentImageMimeType,
+} from "./image-input.js";
 export {
   buildStrictTransportSchemaForLinter,
   createStrictOutputAdapter,
