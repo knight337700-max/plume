@@ -31,6 +31,7 @@ export {
   type AgentCode,
   type AgentOrchestrator,
   type AgentProviderGateway,
+  type AgentTaskInput,
   type ProviderEvidence,
   createAgentOrchestrator,
   buildStrictTransportSchemaForLinter,
@@ -39,6 +40,14 @@ export {
   type JsonSchema,
   type SchemaError,
   type ValidationResult,
+} from "./agents/public.js";
+export {
+  AgentImageInputError,
+  validateAgentImageInputs,
+  type AgentImageDetail,
+  type AgentImageInput,
+  type AgentImageInputErrorCode,
+  type AgentImageMimeType,
 } from "./agents/public.js";
 export {
   DEFAULT_LLM_MODEL,
