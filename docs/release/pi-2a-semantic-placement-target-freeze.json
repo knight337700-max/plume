@@ -1,0 +1,205 @@
+{
+  "schemaVersion": "1.0.0",
+  "gate": "PI_2A_TEMPLATE_SEMANTIC_PLACEMENT_TARGET_FREEZE",
+  "status": "FROZEN_TARGET",
+  "sourceBaseline": {
+    "repository": "knight337700-max/plume",
+    "commit": "88cb3b415c189181d0b970e700bcb5654359f48e",
+    "parentGate": "PI_2A0_RENDERER_VENDOR_EVIDENCE_SYNC"
+  },
+  "renderer": {
+    "repository": "knight337700-max/plume-renderer",
+    "commit": "7baa272dd852ed21a09cf369c928571b3f75fd31",
+    "integrationContract": "1.8.0",
+    "sourceLock": "packages/renderer-vendor/SOURCE_LOCK.json"
+  },
+  "vendorEvidence": {
+    "sourceLockEntries": 111,
+    "requiredFiles": [
+      {
+        "path": "tests/integration-contract/thumbnail-box-right.test.ts",
+        "sha256": "c186ae8e3961f0b30bc7abfafb0d95261eb92a2c0874256669b70f8f79daa081"
+      },
+      {
+        "path": "fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
+        "sha256": "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe"
+      },
+      {
+        "path": "fixtures/golden/thumbnail-box-right__valid__golden.png",
+        "sha256": "f1111ee8f36fe1d8ccc7aaa445b175906e8a6432027d3e65764158ad40c52996"
+      }
+    ]
+  },
+  "targetProfile": {
+    "id": "KAKAO_BIZBOARD_THUMBNAIL_BOX_RIGHT",
+    "implementationStatus": "IMPLEMENTED",
+    "channelNamespace": "KAKAO_MOMENT",
+    "compositionMode": "RENDERER_COMPOSED",
+    "layoutMode": "TEMPLATE_LOCKED",
+    "artifactCardinality": "SINGLE",
+    "defaultPolicy": "SEMANTIC_CROP_COVER",
+    "semanticPlacement": "REQUIRED",
+    "allowedPolicies": ["SEMANTIC_CROP_COVER", "MANUAL_CROP"],
+    "supportsManualCrop": true,
+    "supportsAgentPlacement": true,
+    "imageSlotIds": ["IMAGE_PRIMARY"],
+    "allowedInputMimeTypes": ["image/png", "image/jpeg"],
+    "alphaChannelRequired": false
+  },
+  "rendererTemplate": {
+    "id": "KAKAO_MOMENT_BIZBOARD_THUMBNAIL_BOX_RIGHT",
+    "imageSlotId": "IMAGE_PRIMARY",
+    "plumeFutureFormatId": "kakao-moment-bizboard-thumbnail-box-right-1029x258",
+    "activation": "SELECTION_CONTRACT_ONLY"
+  },
+  "rejectedFirstTargets": [
+    {
+      "id": "KAKAO_BIZBOARD_THUMBNAIL_MULTI_RIGHT",
+      "reason": "requires IMAGE_PRIMARY and IMAGE_SECONDARY semantic slots"
+    },
+    {
+      "id": "KAKAO_BIZBOARD_MASK_SEMICIRCLE_RIGHT",
+      "reason": "adds optional LOGO_PRIMARY and mask variables"
+    }
+  ],
+  "rendererGeometry": {
+    "sourceOfTruth": "Frozen Renderer authoritative runtime geometry",
+    "canvas": {
+      "width": 1029,
+      "height": 258
+    },
+    "imageSlot": {
+      "id": "IMAGE_PRIMARY",
+      "x": 666,
+      "y": 36,
+      "width": 315,
+      "height": 186,
+      "radius": 12
+    },
+    "semanticCropAspectSource": "SOURCE_IMAGE_PIXEL_DIMENSIONS"
+  },
+  "semanticAuthoringBoundary": {
+    "imageSemanticUnderstanding": "Plume LAYOUT_PLANNER constrained semantic-placement mode",
+    "cropCandidateConstruction": "Plume semantic-placement layer",
+    "cropCandidateValidation": "Plume semantic-placement layer",
+    "acceptedImagePlacementPlan": "Plume canonical contract",
+    "finalSlotGeometry": "Frozen Renderer",
+    "finalMaskAndPixels": "Frozen Renderer",
+    "finalHardValidation": "Frozen Renderer Validator",
+    "rendererCallsAgent": false
+  },
+  "layoutPlanner": {
+    "agent": "LAYOUT_PLANNER",
+    "mode": "CONSTRAINED_SEMANTIC_PLACEMENT",
+    "mayDecide": [
+      "primary visual subject",
+      "subject bounds / semantic region",
+      "focal point",
+      "semantic crop preference",
+      "rationale / confidence"
+    ],
+    "mayNotDecide": [
+      "canvas size",
+      "IMAGE_PRIMARY destination x/y",
+      "IMAGE_PRIMARY destination width/height",
+      "thumbnail slot radius",
+      "headline position",
+      "subcopy position",
+      "template structure",
+      "z-index",
+      "freeform element layout"
+    ],
+    "creativeLayoutPlanUsed": false
+  },
+  "initialCandidateCardinality": {
+    "minimum": 1,
+    "maximum": 1
+  },
+  "acceptedPlanIntent": {
+    "schemaVersion": "1.8.0",
+    "imageSlotId": "IMAGE_PRIMARY",
+    "policy": "SEMANTIC_CROP_COVER",
+    "source": "AGENT",
+    "fitMode": "COVER",
+    "anchor": "CENTER",
+    "subjectProtection": "REQUIRED",
+    "candidateReferenceRequired": true,
+    "cropRectForbiddenWithCandidate": true
+  },
+  "subjectPolicy": {
+    "primarySubjectType": "PRODUCT",
+    "subjectProtection": "REQUIRED",
+    "clippedPrimarySubjectAllowed": false,
+    "missingSubjectDataAction": "BLOCKED",
+    "normalCandidatePreservedSubjectIdsRequired": true,
+    "normalCandidateClippedSubjectIds": []
+  },
+  "manualAgentEquivalence": {
+    "manual": {
+      "policy": "MANUAL_CROP",
+      "source": "MANUAL",
+      "cropRectRequired": true
+    },
+    "agent": {
+      "policy": "SEMANTIC_CROP_COVER",
+      "source": "AGENT",
+      "cropCandidateIdRequired": true
+    },
+    "sameEffectiveCropProducesSamePixels": true
+  },
+  "inputOutputContract": {
+    "inputMimeTypes": ["image/png", "image/jpeg"],
+    "alphaChannelRequired": false,
+    "jpegExifOrientationHandledByRenderer": true,
+    "outputMimeType": "image/png",
+    "outputWidth": 1029,
+    "outputHeight": 258,
+    "outputColorType": "RGBA"
+  },
+  "failClosed": {
+    "errors": [
+      "KBR-CROP-RECT-REQUIRED",
+      "KBR-CROP-CANDIDATE-NOT-FOUND",
+      "KBR-CROP-CANDIDATE-MISMATCH",
+      "KBR-CROP-RECT-OUT-OF-BOUNDS",
+      "KBR-PROTECTED-SUBJECT-DATA-MISSING",
+      "KBR-PROTECTED-SUBJECT-CLIPPED",
+      "KBR-PLACEMENT-POLICY-NOT-ALLOWED",
+      "KBR-ASSET-MIME-NOT-ALLOWED",
+      "KBR-TEMPLATE-CONSTRAINT-VIOLATION"
+    ],
+    "semanticPlacementFailure": "BLOCKED",
+    "fallbackAllowed": false,
+    "autoClampAllowed": false,
+    "severityChangesAllowed": false
+  },
+  "deferredScope": [
+    "PI_2B_IMAGE_INPUT_AND_SEMANTIC_CROP_CANDIDATE",
+    "PI_2C_REAL_IMAGE_E2E",
+    "semantic crop generation",
+    "LAYOUT_PLANNER runtime integration",
+    "Agent imageInputs transport",
+    "thumbnail runtime binding",
+    "PI-2_semantic_placement_sample_images.zip",
+    "Naver",
+    "Meta",
+    "Google",
+    "FREEFORM",
+    "Linux compatibility",
+    "Railway",
+    "Staging",
+    "Production"
+  ],
+  "invariants": {
+    "activeThumbnailBindingAdded": false,
+    "rendererPublicSurfaceChanged": false,
+    "imageInputsChanged": false,
+    "agentsChanged": false,
+    "semanticRuntimeChanged": false,
+    "rendererRepositoryChanged": false,
+    "vendorUpstreamChanged": false,
+    "pi1PixelsChanged": false,
+    "samplePackCommitted": false,
+    "runtimeBehaviorChanged": false
+  }
+}
