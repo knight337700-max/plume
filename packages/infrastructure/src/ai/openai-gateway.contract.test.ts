@@ -116,6 +116,35 @@ describe("OpenAI provider gateway", () => {
     expect(schema.additionalProperties).toBe(false);
   });
 
+  it("allows the live PI-2C seam to declare truthful local review metadata", async () => {
+    let receivedBody: Record<string, unknown> | undefined;
+    const gateway = createOpenAIProviderGateway({
+      endpoint: "https://mock.openai.test/v1/responses",
+      environment: { OPENAI_MODEL: "gpt-5.6-luna", OPENAI_API_KEY: "test-secret" },
+      fetchImpl: async (_url, init) => {
+        receivedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({ id: "req-pi-2c", status: "completed", output_text: '{"items":[]}' }),
+          { status: 200 },
+        );
+      },
+    });
+    await gateway.execute({
+      ...request,
+      metadata: {
+        ...request.metadata,
+        environment: "local",
+        gate: "PI_2C_REAL_IMAGE_SEMANTIC_PLACEMENT_E2E",
+        customerData: "synthetic",
+      },
+    });
+    expect(receivedBody?.metadata).toEqual({
+      environment: "local",
+      gate: "PI_2C_REAL_IMAGE_SEMANTIC_PLACEMENT_E2E",
+      customer_data: "synthetic",
+    });
+  });
+
   it("reports the exact path for a schema-valued dynamic map", () => {
     expect(() =>
       normalizeResponsesSchema({

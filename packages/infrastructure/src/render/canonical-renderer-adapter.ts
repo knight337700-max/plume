@@ -2,6 +2,7 @@ import {
   INTEGRATION_SCHEMA_VERSION,
   rendererVersion,
   renderWithIntegrationAdapter,
+  renderThumbnailBoxRight,
   type LegacyRenderResult,
   type RendererAssetResolver,
   type RendererIntegrationOutputV1,
@@ -17,7 +18,12 @@ import type {
   CanonicalRendererResult,
 } from "./canonical-renderer-port.js";
 import { buildObjectRightIntegrationInput } from "./object-right-input-builder.js";
-import { resolveCanonicalRendererBinding } from "./renderer-bindings.js";
+import { buildThumbnailBoxRightIntegrationInput } from "./thumbnail-box-right-input-builder.js";
+import {
+  OBJECT_RIGHT_FORMAT_BINDING,
+  THUMBNAIL_BOX_RIGHT_FORMAT_BINDING,
+  resolveCanonicalRendererBinding,
+} from "./renderer-bindings.js";
 
 const RENDERER_REPOSITORY = "knight337700-max/plume-renderer" as const;
 const RENDERER_COMMIT = "7baa272dd852ed21a09cf369c928571b3f75fd31" as const;
@@ -72,20 +78,60 @@ export function createCanonicalRendererAdapter(
       let outputBytes: Uint8Array | undefined;
       try {
         const binding = resolveCanonicalRendererBinding(request.plumeFormatProfileId);
-        const input = buildObjectRightIntegrationInput(binding, {
-          advertiser: request.advertiser,
-          headline: request.headline,
-          subcopy: request.subcopy,
-          productAsset: request.productAsset,
-        });
-        integrationOutput = await renderWithIntegrationAdapter(input, {
-          resolver: options.assetResolver,
-          renderLegacy: async (legacyInput, resolvedAsset): Promise<LegacyRenderResult> => {
-            const rendered = await fileBridge(legacyInput, resolvedAsset);
-            outputBytes = rendered.bytes.slice();
-            return rendered;
-          },
-        });
+        if (binding.plumeFormatProfileId === OBJECT_RIGHT_FORMAT_BINDING.plumeFormatProfileId) {
+          const input = buildObjectRightIntegrationInput(binding, {
+            advertiser: request.advertiser,
+            headline: request.headline,
+            subcopy: request.subcopy,
+            productAsset: request.productAsset,
+          });
+          integrationOutput = await renderWithIntegrationAdapter(input, {
+            resolver: options.assetResolver,
+            renderLegacy: async (legacyInput, resolvedAsset): Promise<LegacyRenderResult> => {
+              const rendered = await fileBridge(legacyInput, resolvedAsset);
+              outputBytes = rendered.bytes.slice();
+              return rendered;
+            },
+          });
+        } else if (
+          binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId
+        ) {
+          if (!request.semanticPlacement)
+            throw Object.assign(new Error("Semantic placement evidence is required"), {
+              code: "SEMANTIC_EVIDENCE_MISSING",
+            });
+          const input = buildThumbnailBoxRightIntegrationInput(binding, {
+            advertiser: request.advertiser,
+            headline: request.headline,
+            subcopy: request.subcopy,
+            productAsset: {
+              ...request.productAsset,
+              declaredWidth:
+                request.productAsset.declaredWidth ?? request.semanticPlacement.source.width,
+              declaredHeight:
+                request.productAsset.declaredHeight ?? request.semanticPlacement.source.height,
+            },
+            cropCandidate: request.semanticPlacement.candidate,
+            acceptedPlan: request.semanticPlacement.acceptedPlan,
+          });
+          integrationOutput = await renderWithIntegrationAdapter(input, {
+            resolver: options.assetResolver,
+            renderThumbnail: async (thumbnailRequest): Promise<LegacyRenderResult> => {
+              const rendered = await renderThumbnailBoxRight(thumbnailRequest);
+              outputBytes = rendered.bytes.slice();
+              return rendered;
+            },
+          });
+        } else {
+          throw Object.assign(
+            new Error(
+              "No canonical Renderer binding exists for the requested Plume format profile",
+            ),
+            {
+              code: "CANONICAL_RENDERER_FORMAT_BINDING_NOT_FOUND",
+            },
+          );
+        }
       } catch (error) {
         const code =
           error && typeof error === "object" && "code" in error && typeof error.code === "string"

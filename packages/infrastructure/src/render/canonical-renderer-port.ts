@@ -1,4 +1,5 @@
 import type { RendererIntegrationOutputV1 } from "@plume/renderer-vendor";
+import type { SemanticPlacementEvidence } from "./semantic-placement-evidence.js";
 
 export interface CanonicalRendererRequest {
   readonly requestId: string;
@@ -14,6 +15,8 @@ export interface CanonicalRendererRequest {
     readonly declaredWidth?: number;
     readonly declaredHeight?: number;
   };
+  /** Required only for the activated semantic thumbnail binding. */
+  readonly semanticPlacement?: SemanticPlacementEvidence;
 }
 
 export interface CanonicalRendererMetadata extends Readonly<Record<string, unknown>> {

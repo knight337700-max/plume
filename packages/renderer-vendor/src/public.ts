@@ -8,6 +8,9 @@ export {
   OBJECT_RIGHT_FORMAT_PROFILE_ID,
   OBJECT_RIGHT_IMAGE_SLOT_ID,
   OBJECT_RIGHT_TEMPLATE_ID,
+  THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
+  THUMBNAIL_BOX_RIGHT_IMAGE_SLOT_ID,
+  THUMBNAIL_BOX_RIGHT_TEMPLATE_ID,
   canonicalJson,
   renderWithIntegrationAdapter,
   normalizedRectToPixelRect,
@@ -39,6 +42,12 @@ export {
   readRenderedManifest,
   rendererVersion,
 } from "../upstream/src/core/renderer.js";
+// eslint-disable-next-line no-restricted-imports -- Frozen Thumbnail renderer is exposed through this public boundary.
+export {
+  renderThumbnailBoxRight,
+  THUMBNAIL_BOX_RIGHT_RADIUS,
+  THUMBNAIL_BOX_RIGHT_SLOT,
+} from "../upstream/src/core/index.js";
 // eslint-disable-next-line no-restricted-imports -- Frozen image inspection is exposed through this wrapper.
 export { inspectImageBytes } from "../upstream/src/core/image-input.js";
 // eslint-disable-next-line no-restricted-imports -- Pinned upstream image metadata is exposed only through this public boundary.

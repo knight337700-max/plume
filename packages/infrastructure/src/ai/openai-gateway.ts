@@ -31,6 +31,9 @@ export interface AIExecutionRequest {
     readonly agentCode: string;
     readonly promptVersion: string;
     readonly correlationId: string;
+    readonly environment?: string;
+    readonly gate?: string;
+    readonly customerData?: string;
   };
 }
 
@@ -196,6 +199,12 @@ function inputContent(request: AIExecutionRequest): readonly Record<string, unkn
 }
 
 function requestBody(request: AIExecutionRequest, model: string): Record<string, unknown> {
+  const metadata = {
+    ...RESPONSE_METADATA,
+    ...(request.metadata.environment ? { environment: request.metadata.environment } : {}),
+    ...(request.metadata.gate ? { gate: request.metadata.gate } : {}),
+    ...(request.metadata.customerData ? { customer_data: request.metadata.customerData } : {}),
+  };
   return {
     model,
     input:
@@ -214,7 +223,7 @@ function requestBody(request: AIExecutionRequest, model: string): Record<string,
     reasoning: { effort: "none" },
     store: false,
     background: false,
-    metadata: RESPONSE_METADATA,
+    metadata,
   };
 }
 

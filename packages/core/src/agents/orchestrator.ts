@@ -53,6 +53,9 @@ interface ProviderRequest {
     readonly formatProfileId?: string;
     readonly profileVersion?: string;
     readonly synthetic?: boolean;
+    readonly environment?: string;
+    readonly gate?: string;
+    readonly customerData?: string;
   };
 }
 

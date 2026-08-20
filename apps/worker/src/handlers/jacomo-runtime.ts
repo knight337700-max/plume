@@ -32,6 +32,7 @@ import {
 } from "../../../../packages/infrastructure/src/async/durable-workflow-repository.js";
 import type { Sql } from "postgres";
 import type { AgentProviderGateway } from "../../../../packages/core/src/agents/orchestrator.js";
+import type { ClientBrandRepositories } from "../../../../packages/core/src/modules/client-brand/repositories.js";
 import {
   createLiveSmokeHandler,
   createLiveSmokeProviderCanaryHandler,
@@ -62,6 +63,7 @@ interface RuntimeDependencies {
   readonly campaignRepositories: CampaignRepositories;
   readonly assetRepositories: AssetRepositories;
   readonly creativeRepositories: CreativeRepositories;
+  readonly clientBrandRepositories?: ClientBrandRepositories;
   readonly fileObjectReader: {
     getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
   };
@@ -133,6 +135,10 @@ export function createJacomoRuntimeHandlers(
     creativeRepositories: dependencies.creativeRepositories,
     fileObjectReader: dependencies.fileObjectReader,
     storage: dependencies.storage,
+    providerGateway: dependencies.providerGateway,
+    ...(dependencies.clientBrandRepositories
+      ? { clientBrandRepositories: dependencies.clientBrandRepositories }
+      : {}),
   } satisfies CanonicalProductDependencies;
 
   const withCommonContract =
@@ -322,8 +328,7 @@ export function createJacomoRuntimeHandlers(
       typeof document.metadata === "object" &&
       document.metadata !== null &&
       !Array.isArray(document.metadata) &&
-      (document.metadata as { readonly renderMode?: unknown }).renderMode ===
-        "CANONICAL_RENDERER";
+      (document.metadata as { readonly renderMode?: unknown }).renderMode === "CANONICAL_RENDERER";
     const canonicalResult = isCanonical
       ? await renderCanonicalProductDocument(
           canonicalDependencies,
@@ -352,7 +357,11 @@ export function createJacomoRuntimeHandlers(
       readonly rendererRuntimeVersion?: string;
       readonly legacyFallbackUsed?: boolean;
       readonly rendererIntegrationOutput?: {
-        readonly validation?: { readonly errors?: readonly unknown[]; readonly warnings?: readonly unknown[]; readonly info?: readonly unknown[] };
+        readonly validation?: {
+          readonly errors?: readonly unknown[];
+          readonly warnings?: readonly unknown[];
+          readonly info?: readonly unknown[];
+        };
         readonly appliedImagePlacements?: readonly unknown[];
         readonly requestFingerprint?: string;
         readonly pixelFingerprint?: string;
@@ -370,13 +379,21 @@ export function createJacomoRuntimeHandlers(
         creativeVersionId: payload.creativeVersionId,
         checksumSha256: rendered.checksumSha256,
         renderMode: isCanonical ? "CANONICAL_RENDERER" : "MOCK_AI",
-        ...(rendererMetadata.rendererCommit ? { rendererCommit: rendererMetadata.rendererCommit } : {}),
+        ...(rendererMetadata.rendererCommit
+          ? { rendererCommit: rendererMetadata.rendererCommit }
+          : {}),
         ...(rendererMetadata.rendererIntegrationContract
           ? { integrationContract: rendererMetadata.rendererIntegrationContract }
           : {}),
-        ...(rendererOutput?.requestFingerprint ? { requestFingerprint: rendererOutput.requestFingerprint } : {}),
-        ...(rendererOutput?.pixelFingerprint ? { pixelFingerprint: rendererOutput.pixelFingerprint } : {}),
-        ...(rendererOutput?.renderFingerprint ? { renderFingerprint: rendererOutput.renderFingerprint } : {}),
+        ...(rendererOutput?.requestFingerprint
+          ? { requestFingerprint: rendererOutput.requestFingerprint }
+          : {}),
+        ...(rendererOutput?.pixelFingerprint
+          ? { pixelFingerprint: rendererOutput.pixelFingerprint }
+          : {}),
+        ...(rendererOutput?.renderFingerprint
+          ? { renderFingerprint: rendererOutput.renderFingerprint }
+          : {}),
       },
     });
     if (stored.checksumSha256 !== rendered.checksumSha256)
@@ -481,7 +498,8 @@ export function createJacomoRuntimeHandlers(
       if (
         payload.renderChecksumsSha256 &&
         payload.renderChecksumsSha256.some(
-          (expected, index) => expected.toLowerCase() !== embeddedPngChecksums[index]?.toLowerCase(),
+          (expected, index) =>
+            expected.toLowerCase() !== embeddedPngChecksums[index]?.toLowerCase(),
         )
       )
         throw Object.assign(new Error("Render checksum differs from export input"), {
@@ -542,7 +560,9 @@ export function createJacomoRuntimeHandlers(
       if (validationItems.length === 0 || !validationItems.every(isCompleted)) return;
       if (items.some((item) => item.command === "export.render_and_package")) return;
       const blockedValidation = validationItems.some((item) => {
-        const result = item.result as { readonly status?: string; readonly validationReport?: { readonly status?: string } } | undefined;
+        const result = item.result as
+          | { readonly status?: string; readonly validationReport?: { readonly status?: string } }
+          | undefined;
         return result?.status === "ERROR" || result?.validationReport?.status === "ERROR";
       });
       if (blockedValidation) throw new Error("VALIDATION_BLOCKED_EXPORT");
@@ -550,7 +570,12 @@ export function createJacomoRuntimeHandlers(
         (item) => item.command === "creative.render" && isCompleted(item),
       );
       const renderOutputs = renderItems.map(
-        (item) => item.result as { creativeVersionId?: string; objectKey?: string; checksumSha256?: string },
+        (item) =>
+          item.result as {
+            creativeVersionId?: string;
+            objectKey?: string;
+            checksumSha256?: string;
+          },
       );
       const renderObjectKeys = renderOutputs.flatMap((item) =>
         item.objectKey ? [item.objectKey] : [],

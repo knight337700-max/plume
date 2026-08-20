@@ -50,6 +50,10 @@ import {
   createInMemoryCreativeRepositories,
   type CreativeRepositories,
 } from "../../../packages/core/src/modules/creative/repositories.js";
+import {
+  createInMemoryClientBrandRepositories,
+  type ClientBrandRepositories,
+} from "../../../packages/core/src/modules/client-brand/repositories.js";
 import { PostgresUploadSessionRepository } from "../../../packages/infrastructure/src/db/upload-session-repository.js";
 import type { FileObjectRecord } from "../../../packages/core/src/modules/asset/upload-session.js";
 
@@ -77,6 +81,7 @@ export interface WorkerRuntimeCompositionOptions {
   readonly campaignRepositories?: CampaignRepositories;
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
+  readonly clientBrandRepositories?: ClientBrandRepositories;
   readonly fileObjectReader?: {
     getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
   };
@@ -122,11 +127,11 @@ export function createWorkerRuntimeComposition(
     options.liveSmokeValidationEvidenceStore ?? new PostgresLiveSmokeValidationEvidenceStore(sql);
   const liveSmokeFailureEvidenceStore =
     options.liveSmokeFailureEvidenceStore ?? new PostgresLiveSmokeFailureEvidenceStore(sql);
-  const campaignRepositories =
-    options.campaignRepositories ?? createInMemoryCampaignRepositories();
+  const campaignRepositories = options.campaignRepositories ?? createInMemoryCampaignRepositories();
   const assetRepositories = options.assetRepositories ?? createInMemoryAssetRepositories();
-  const creativeRepositories =
-    options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const creativeRepositories = options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const clientBrandRepositories =
+    options.clientBrandRepositories ?? createInMemoryClientBrandRepositories();
   const fileObjectReader = options.fileObjectReader ?? new PostgresUploadSessionRepository(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
@@ -150,6 +155,7 @@ export function createWorkerRuntimeComposition(
     campaignRepositories,
     assetRepositories,
     creativeRepositories,
+    clientBrandRepositories,
     fileObjectReader,
     providerMode: aiRuntime.provider.mode,
     ...(pricingPolicy ? { pricingPolicy } : {}),

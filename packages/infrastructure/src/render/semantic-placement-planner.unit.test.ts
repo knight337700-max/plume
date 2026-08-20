@@ -151,7 +151,7 @@ describe("semantic placement planner", () => {
           correlationId: "semantic-correlation",
           creativeId: "creative-1",
           productId: "product-1",
-          assets: [],
+          asset: undefined as never,
         },
         {
           gateway: { execute: async () => ({ status: "COMPLETED", outputJson: {}, latencyMs: 1 }) },
@@ -163,11 +163,12 @@ describe("semantic placement planner", () => {
       planSemanticPlacement(
         {
           ...request(input),
+          asset: input,
           assets: [
             input,
             { ...input, assetId: "semantic-asset-2", fileId: "file-semantic-asset-2" },
           ],
-        },
+        } as unknown as Parameters<typeof planSemanticPlacement>[0],
         {
           gateway: { execute: async () => ({ status: "COMPLETED", outputJson: {}, latencyMs: 1 }) },
         },

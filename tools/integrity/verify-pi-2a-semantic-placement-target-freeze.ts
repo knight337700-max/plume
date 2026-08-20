@@ -421,18 +421,11 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
 
   requireCapabilitySource(failures, sources.capabilitySource);
   requireGeometrySources(failures, sources);
-  requireSource(
-    failures,
-    sources.bindingSource,
-    /^(?![\s\S]*THUMBNAIL_BOX_RIGHT)(?![\s\S]*KAKAO_BIZBOARD_THUMBNAIL_BOX_RIGHT)/u,
-    "no active thumbnail runtime binding",
-  );
-  requireSource(
-    failures,
-    sources.publicSource,
-    /^(?![\s\S]*THUMBNAIL_BOX_RIGHT)(?![\s\S]*KAKAO_BIZBOARD_THUMBNAIL_BOX_RIGHT)/u,
-    "no thumbnail public surface expansion",
-  );
+  // PI-2A froze the target before runtime activation.  PI-2C intentionally
+  // activates the already-frozen thumbnail binding and public wrapper, so the
+  // old non-activation assertions are temporal guards rather than invariants
+  // of the target itself.  The historical manifest and all renderer evidence
+  // above remain mandatory.
 
   return failures;
 }
