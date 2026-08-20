@@ -44,4 +44,10 @@ export default [
       ],
     },
   },
+  {
+    files: ["packages/renderer-vendor/upstream/tests/**/*.{js,mjs,cjs,ts,tsx}"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
 ];
