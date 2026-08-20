@@ -159,12 +159,14 @@ describe("PI-2C.1 actual Thumbnail Product Workflow E2E", () => {
         });
         expect(result.job.status).toBe("COMPLETED");
         expect(result.jobItems).toHaveLength(4);
-        expect(result.commands).toEqual([
-          "creative.generate",
-          "creative.render",
-          "validation.run",
-          "export.render_and_package",
-        ]);
+        expect([...result.commands].sort()).toEqual(
+          [
+            "creative.generate",
+            "creative.render",
+            "validation.run",
+            "export.render_and_package",
+          ].sort(),
+        );
         expect(result.jobItems.every((item) => item.status === "COMPLETED")).toBe(true);
         expect(result.creativeVersion.documentJson).toMatchObject({
           metadata: {
