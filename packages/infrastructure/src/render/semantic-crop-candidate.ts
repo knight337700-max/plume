@@ -120,6 +120,165 @@ function bound(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+const BINARY64_BUFFER = new ArrayBuffer(8);
+const BINARY64_VIEW = new DataView(BINARY64_BUFFER);
+
+function nextUp(value: number): number {
+  if (!Number.isFinite(value)) return value;
+  if (value === 0) return Number.MIN_VALUE;
+  BINARY64_VIEW.setFloat64(0, value, false);
+  let bits = BINARY64_VIEW.getBigUint64(0, false);
+  bits = value > 0 ? bits + 1n : bits - 1n;
+  BINARY64_VIEW.setBigUint64(0, bits, false);
+  return BINARY64_VIEW.getFloat64(0, false);
+}
+
+function nextDown(value: number): number {
+  if (!Number.isFinite(value)) return value;
+  if (value === 0) return -Number.MIN_VALUE;
+  BINARY64_VIEW.setFloat64(0, value, false);
+  let bits = BINARY64_VIEW.getBigUint64(0, false);
+  bits = value > 0 ? bits - 1n : bits + 1n;
+  BINARY64_VIEW.setBigUint64(0, bits, false);
+  return BINARY64_VIEW.getFloat64(0, false);
+}
+
+function adjacentBinary64Values(value: number): number[] {
+  return [...new Set([value, nextDown(value), nextUp(value)])].map((candidate) =>
+    candidate === 0 ? 0 : candidate,
+  );
+}
+
+function sortByNaturalDistance(candidates: number[], natural: number): number[] {
+  return candidates.sort((left, right) => {
+    const distance = Math.abs(left - natural) - Math.abs(right - natural);
+    return distance === 0 ? left - right : distance;
+  });
+}
+
+function edgeCandidates(
+  edgePixels: number,
+  sourceDimension: number,
+  edgeKind: "floor" | "ceil",
+): number[] {
+  const natural = edgePixels / sourceDimension;
+  const candidates = adjacentBinary64Values(natural).filter(
+    (candidate) =>
+      Number.isFinite(candidate) &&
+      candidate >= 0 &&
+      candidate <= 1 &&
+      (edgeKind === "floor"
+        ? Math.floor(candidate * sourceDimension) === edgePixels
+        : Math.ceil(candidate * sourceDimension) === edgePixels),
+  );
+  return sortByNaturalDistance(candidates, natural);
+}
+
+interface CanonicalAxisRect {
+  readonly start: number;
+  readonly span: number;
+}
+
+function canonicalAxisRect(
+  startPixels: number,
+  spanPixels: number,
+  sourceDimension: number,
+): CanonicalAxisRect | undefined {
+  const endPixels = startPixels + spanPixels;
+  const startNatural = startPixels / sourceDimension;
+  const endNatural = endPixels / sourceDimension;
+  const starts = edgeCandidates(startPixels, sourceDimension, "floor");
+  const ends = edgeCandidates(endPixels, sourceDimension, "ceil");
+  const candidates: {
+    readonly start: number;
+    readonly span: number;
+    readonly score: readonly number[];
+  }[] = [];
+
+  for (const start of starts) {
+    for (const end of ends) {
+      const naturalSpan = end - start;
+      for (const span of sortByNaturalDistance(
+        adjacentBinary64Values(naturalSpan).filter(
+          (candidate) =>
+            Number.isFinite(candidate) &&
+            candidate > 0 &&
+            candidate <= 1 &&
+            start + candidate >= 0 &&
+            start + candidate <= 1 &&
+            Math.ceil((start + candidate) * sourceDimension) === endPixels,
+        ),
+        naturalSpan,
+      )) {
+        candidates.push({
+          start,
+          span,
+          score: [
+            Math.abs(start - startNatural),
+            Math.abs(end - endNatural),
+            Math.abs(span - naturalSpan),
+            start,
+            end,
+            span,
+          ],
+        });
+      }
+    }
+  }
+
+  candidates.sort((left, right) => {
+    for (let index = 0; index < left.score.length; index += 1) {
+      const difference = left.score[index]! - right.score[index]!;
+      if (difference !== 0) return difference;
+    }
+    return 0;
+  });
+  const selected = candidates[0];
+  return selected === undefined ? undefined : { start: selected.start, span: selected.span };
+}
+
+function samePixelRect(left: PixelRect, right: PixelRect): boolean {
+  return (
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height
+  );
+}
+
+function pixelRectToCanonicalNormalizedRect(
+  pixelRect: PixelRect,
+  sourceWidth: number,
+  sourceHeight: number,
+): NormalizedRect | undefined {
+  const horizontal = canonicalAxisRect(pixelRect.x, pixelRect.width, sourceWidth);
+  const vertical = canonicalAxisRect(pixelRect.y, pixelRect.height, sourceHeight);
+  if (horizontal === undefined || vertical === undefined) return undefined;
+  const rect: NormalizedRect = {
+    x: horizontal.start,
+    y: vertical.start,
+    width: horizontal.span,
+    height: vertical.span,
+  };
+  if (
+    rect.x < 0 ||
+    rect.y < 0 ||
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    rect.x + rect.width > 1 ||
+    rect.y + rect.height > 1 ||
+    validateNormalizedRect(rect, "canonicalCropRect").length > 0
+  )
+    return undefined;
+  try {
+    return samePixelRect(normalizedRectToPixelRect(rect, sourceWidth, sourceHeight), pixelRect)
+      ? rect
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function canonicalCandidateDigest(input: {
   readonly assetId: string;
   readonly sourceWidth: number;
@@ -246,24 +405,12 @@ export function buildSemanticCropCandidate(
   if (cropPixelRect.width * 186 !== cropPixelRect.height * 315)
     fail("SEMANTIC_CROP_REGION_UNFIT", "crop pixel ratio is not exactly 315:186");
 
-  const cropRect: NormalizedRect = {
-    x: left / input.sourceWidth,
-    y: top / input.sourceHeight,
-    width: cropWidth / input.sourceWidth,
-    height: cropHeight / input.sourceHeight,
-  };
-  let roundTrip: PixelRect;
-  try {
-    roundTrip = normalizedRectToPixelRect(cropRect, input.sourceWidth, input.sourceHeight);
-  } catch {
-    fail("SEMANTIC_CROP_ROUNDTRIP_MISMATCH", "normalized crop cannot be converted back to pixels");
-  }
-  if (
-    roundTrip.x !== cropPixelRect.x ||
-    roundTrip.y !== cropPixelRect.y ||
-    roundTrip.width !== cropPixelRect.width ||
-    roundTrip.height !== cropPixelRect.height
-  )
+  const cropRect = pixelRectToCanonicalNormalizedRect(
+    cropPixelRect,
+    input.sourceWidth,
+    input.sourceHeight,
+  );
+  if (cropRect === undefined)
     fail("SEMANTIC_CROP_ROUNDTRIP_MISMATCH", "normalized crop pixel round-trip changed boundaries");
 
   const candidateId = `semantic-${canonicalCandidateDigest({
