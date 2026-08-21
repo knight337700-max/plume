@@ -3,6 +3,7 @@ import {
   rendererVersion,
   renderWithIntegrationAdapter,
   renderThumbnailBoxRight,
+  validateThumbnailBoxRightText,
   type LegacyRenderResult,
   type RendererAssetResolver,
   type RendererIntegrationOutputV1,
@@ -114,6 +115,7 @@ export function createCanonicalRendererAdapter(
             cropCandidate: request.semanticPlacement.candidate,
             acceptedPlan: request.semanticPlacement.acceptedPlan,
           });
+          await validateThumbnailBoxRightText(input.copy);
           integrationOutput = await renderWithIntegrationAdapter(input, {
             resolver: options.assetResolver,
             renderThumbnail: async (thumbnailRequest): Promise<LegacyRenderResult> => {

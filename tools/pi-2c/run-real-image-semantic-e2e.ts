@@ -10,7 +10,10 @@ import { createInMemoryClientBrandRepositories } from "../../packages/core/src/m
 import { createOpenAIProviderRuntime } from "../../packages/infrastructure/src/ai/provider-runtime.js";
 import { createLiveSmokePricingPolicy } from "../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 import { PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID } from "../../packages/infrastructure/src/render/renderer-bindings.js";
-import { inspectImageBytes } from "../../packages/renderer-vendor/src/public.js";
+import {
+  inspectImageBytes,
+  inspectThumbnailBoxRightTextRaster,
+} from "../../packages/renderer-vendor/src/public.js";
 import { createJacomoFixture } from "../../packages/testkit/src/factories/jacomo-factory.js";
 import { seedJacomoFixture } from "../../packages/testkit/src/fixtures/jacomo.js";
 import { startProcessHarness } from "../../packages/testkit/src/harness/process-harness.js";
@@ -183,6 +186,23 @@ async function writeSampleArtifacts(
     ? renderer.appliedImagePlacements[0]
     : undefined;
   const rendererCropCandidateId = optionalStringField(rendererPlacement, "cropCandidateId");
+  const canonicalRequest =
+    result.renderResult.renderer && typeof result.renderResult.renderer === "object"
+      ? (result.renderResult.renderer as Record<string, unknown>).canonicalRequest
+      : undefined;
+  const copy =
+    canonicalRequest && typeof canonicalRequest === "object"
+      ? (canonicalRequest as Record<string, unknown>)
+      : undefined;
+  const headline = typeof copy?.headline === "string" ? copy.headline : undefined;
+  const subcopy = typeof copy?.subcopy === "string" ? copy.subcopy : undefined;
+  if (headline === undefined || subcopy === undefined)
+    blocked(`${sampleKey}:CANONICAL_COPY_MISSING`);
+  const textVisualQa = await inspectThumbnailBoxRightTextRaster(result.renderBytes, {
+    headline,
+    subcopy,
+  });
+  if (textVisualQa.status !== "PASS") blocked(`${sampleKey}:TEXT_VISUAL_QA_FAILED`);
   await writeFile(path.join(directory, "input.png"), inputBytes);
   await writeFile(path.join(directory, "render.png"), result.renderBytes);
   await writeFile(
@@ -225,6 +245,10 @@ async function writeSampleArtifacts(
       2,
     ),
   );
+  await writeFile(
+    path.join(directory, "text-visual-qa.json"),
+    JSON.stringify(textVisualQa, null, 2),
+  );
   return {
     status: "PASS",
     inputSha256: sha256(inputBytes),
@@ -249,6 +273,7 @@ async function writeSampleArtifacts(
       candidateId !== undefined &&
       candidateId === acceptedPlanCropCandidateId &&
       candidateId === rendererCropCandidateId,
+    textVisualQa,
   };
 }
 

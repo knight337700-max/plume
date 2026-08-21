@@ -384,8 +384,12 @@ export async function runThumbnailSemanticProductWorkflow(input: {
         contentJson: {
           creativeCopy: {
             advertiser: fixture.advertiser.name,
-            headline: `${productName} 특별 기획`,
-            subcopy: "실제 제품으로 확인하는 카카오모먼트 소재",
+            // THUMBNAIL_BOX_RIGHT is a one-line locked layout. Keep the
+            // synthetic E2E copy within the frozen Korean text contract; the
+            // product/sample label remains in the Product record and review
+            // metadata rather than being painted into the headline slot.
+            headline: "자코모 프리미엄 소파",
+            subcopy: "거실을 바꾸는 선택",
           },
           products: [productName],
         },

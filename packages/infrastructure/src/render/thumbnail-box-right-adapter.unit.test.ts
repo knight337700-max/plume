@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { inspectImageBytes } from "@plume/renderer-vendor";
+import {
+  inspectImageBytes,
+  inspectThumbnailBoxRightTextRaster,
+  validateThumbnailBoxRightText,
+} from "@plume/renderer-vendor";
 import { createCanonicalRendererAdapter } from "./canonical-renderer-adapter.js";
 import { buildSemanticCropCandidate } from "./semantic-crop-candidate.js";
 import { createSemanticPlacementEvidence } from "./semantic-placement-evidence.js";
@@ -29,7 +33,11 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-async function renderThumbnail(bytes: Uint8Array, mimeType: "image/png" | "image/jpeg") {
+async function renderThumbnail(
+  bytes: Uint8Array,
+  mimeType: "image/png" | "image/jpeg",
+  copy: Readonly<{ headline?: string; subcopy?: string }> = {},
+) {
   const metadata = await inspectImageBytes(bytes);
   const planner = buildSemanticCropCandidate({
     assetId: "asset-version-thumbnail",
@@ -91,8 +99,8 @@ async function renderThumbnail(bytes: Uint8Array, mimeType: "image/png" | "image
     workspaceId,
     plumeFormatProfileId: PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
     advertiser: "자코모",
-    headline: "자코모 프리미엄 소파",
-    subcopy: "거실을 바꾸는 선택",
+    headline: copy.headline ?? "자코모 프리미엄 소파",
+    subcopy: copy.subcopy ?? "거실을 바꾸는 선택",
     productAsset: {
       token,
       mimeType,
@@ -105,6 +113,48 @@ async function renderThumbnail(bytes: Uint8Array, mimeType: "image/png" | "image
 }
 
 describe("canonical Thumbnail Box Right adapter", () => {
+  it("preflights the pinned Korean fonts and enforces the text/image contract", async () => {
+    const valid = await validateThumbnailBoxRightText({
+      headline: "자코모 프리미엄 소파",
+      subcopy: "거실을 바꾸는 선택",
+    });
+    expect(valid.status).toBe("PASS");
+    expect(valid.fontDigests).toEqual({
+      bold: "5a6b9b258145e243dfd5f70cc869119c6af708843658e380304bdfe3d4f4eaef",
+      regular: "1f56c8535b6592672ea7f540a67bb5792c34558d72875fc504166a3e2b28b4b1",
+    });
+    expect(valid.headline.rightExclusive).toBeLessThanOrEqual(633);
+    expect(valid.subcopy.rightExclusive).toBeLessThanOrEqual(633);
+    await expect(
+      validateThumbnailBoxRightText({
+        headline: "PI-2C real sample D_wide_negative_space 특별 기획",
+        subcopy: "실제 제품으로 확인하는 카카오모먼트 소재",
+      }),
+    ).rejects.toMatchObject({ code: "CANONICAL_THUMBNAIL_TEXT_OVERFLOW" });
+    await expect(
+      validateThumbnailBoxRightText({ headline: "자코모 😀", subcopy: "거실을 바꾸는 선택" }),
+    ).rejects.toMatchObject({ code: "CANONICAL_THUMBNAIL_FONT_GLYPH_UNSUPPORTED" });
+  });
+
+  it("fails closed before raster output when copy would enter IMAGE_PRIMARY", async () => {
+    const bytes = new Uint8Array(
+      await readFile(
+        path.join(
+          process.cwd(),
+          "packages/renderer-vendor/upstream/fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
+        ),
+      ),
+    );
+    const result = await renderThumbnail(bytes, "image/png", {
+      headline: "PI-2C real sample D_wide_negative_space 특별 기획",
+      subcopy: "실제 제품으로 확인하는 카카오모먼트 소재",
+    });
+    expect(result).toMatchObject({
+      status: "FAILED",
+      error: { code: "CANONICAL_THUMBNAIL_TEXT_OVERFLOW" },
+    });
+  });
+
   it("connects the frozen thumbnail renderer with one semantic candidate and plan", async () => {
     const bytes = new Uint8Array(
       await readFile(
@@ -129,6 +179,19 @@ describe("canonical Thumbnail Box Right adapter", () => {
           changedFromRequestedPlan: false,
         },
       ],
+    });
+    const textVisualQa = await inspectThumbnailBoxRightTextRaster(
+      result.outputBytes ?? new Uint8Array(),
+      {
+        headline: "자코모 프리미엄 소파",
+        subcopy: "거실을 바꾸는 선택",
+      },
+    );
+    expect(textVisualQa).toMatchObject({
+      status: "PASS",
+      hangulGlyphsRendered: true,
+      expectedTextPixelsInImageSlot: 0,
+      textRegionMismatchPixels: 0,
     });
   });
 

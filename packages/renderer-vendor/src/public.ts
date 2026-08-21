@@ -2,6 +2,24 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// eslint-disable-next-line no-restricted-imports -- Frozen Thumbnail renderer is wrapped at this public boundary.
+import {
+  renderThumbnailBoxRight as renderFrozenThumbnailBoxRight,
+  THUMBNAIL_BOX_RIGHT_RADIUS,
+  THUMBNAIL_BOX_RIGHT_SLOT,
+  type ThumbnailRenderRequest,
+  type ThumbnailRenderResult,
+} from "../upstream/src/core/thumbnail-box-right.js";
+import {
+  validateThumbnailBoxRightText,
+  type ThumbnailBoxRightCopy,
+  type ThumbnailBoxRightTextMetrics,
+  type ThumbnailBoxRightTextRasterInspection,
+  type ThumbnailBoxRightTextValidation,
+  type ThumbnailBoxRightTextValidationErrorCode,
+  inspectThumbnailBoxRightTextRaster,
+} from "./thumbnail-box-right-text.js";
+
 export {
   INTEGRATION_SCHEMA_VERSION,
   NORMALIZED_EPSILON,
@@ -42,12 +60,29 @@ export {
   readRenderedManifest,
   rendererVersion,
 } from "../upstream/src/core/renderer.js";
-// eslint-disable-next-line no-restricted-imports -- Frozen Thumbnail renderer is exposed through this public boundary.
+/**
+ * Public Plume boundary for the frozen thumbnail renderer.
+ *
+ * The upstream renderer remains byte-for-byte pinned. The boundary performs
+ * the renderer-owned font/glyph/text preflight that the direct integration
+ * call path otherwise cannot obtain from createKakaoBizboardRenderer.
+ */
+export async function renderThumbnailBoxRight(
+  request: ThumbnailRenderRequest,
+): Promise<ThumbnailRenderResult> {
+  await validateThumbnailBoxRightText(request.input.copy);
+  return renderFrozenThumbnailBoxRight(request);
+}
+export { THUMBNAIL_BOX_RIGHT_RADIUS, THUMBNAIL_BOX_RIGHT_SLOT };
 export {
-  renderThumbnailBoxRight,
-  THUMBNAIL_BOX_RIGHT_RADIUS,
-  THUMBNAIL_BOX_RIGHT_SLOT,
-} from "../upstream/src/core/index.js";
+  validateThumbnailBoxRightText,
+  inspectThumbnailBoxRightTextRaster,
+  type ThumbnailBoxRightCopy,
+  type ThumbnailBoxRightTextMetrics,
+  type ThumbnailBoxRightTextRasterInspection,
+  type ThumbnailBoxRightTextValidation,
+  type ThumbnailBoxRightTextValidationErrorCode,
+};
 // eslint-disable-next-line no-restricted-imports -- Frozen image inspection is exposed through this wrapper.
 export { inspectImageBytes } from "../upstream/src/core/image-input.js";
 // eslint-disable-next-line no-restricted-imports -- Pinned upstream image metadata is exposed only through this public boundary.

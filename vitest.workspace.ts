@@ -25,6 +25,7 @@ export default defineWorkspace([
         "tools/codegen/**/*.unit.test.ts",
         "tools/integrity/**/*.unit.test.ts",
         "tools/renderer/**/*.unit.test.ts",
+        "packages/renderer-vendor/src/**/*.unit.test.ts",
       ],
       exclude: ["**/node_modules/**", "**/dist/**"],
       passWithNoTests: false,
