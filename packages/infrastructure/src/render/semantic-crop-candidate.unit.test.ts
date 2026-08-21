@@ -6,6 +6,7 @@ import {
 import {
   validatePlacementPlan,
   validateProtectedSubjects,
+  normalizedRectToPixelRect,
   type RendererAssetDescriptor,
 } from "@plume/renderer-vendor";
 
@@ -31,6 +32,46 @@ function input(
     ...overrides,
   };
 }
+
+function inputForPixelCrop(
+  sourceWidth: number,
+  sourceHeight: number,
+  crop: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): SemanticCropCandidateBuildInput {
+  const semanticWidth = Math.max(1, crop.width - 20);
+  const semanticHeight = Math.max(1, crop.height - 20);
+  const focalX = crop.x + crop.width / 2 + 0.25;
+  const focalY = crop.y + crop.height / 2 + 0.25;
+  const subjectX = focalX - 5;
+  const subjectY = focalY - 5;
+  return input({
+    sourceWidth,
+    sourceHeight,
+    primarySubjectBounds: {
+      x: subjectX / sourceWidth,
+      y: subjectY / sourceHeight,
+      width: 10 / sourceWidth,
+      height: 10 / sourceHeight,
+    },
+    semanticRegion: {
+      x: (crop.x + 0.5) / sourceWidth,
+      y: (crop.y + 0.5) / sourceHeight,
+      width: semanticWidth / sourceWidth,
+      height: semanticHeight / sourceHeight,
+    },
+    focalPoint: { x: focalX / sourceWidth, y: focalY / sourceHeight },
+  });
+}
+
+const fixedRoundTripCases = [
+  { sourceWidth: 1448, sourceHeight: 1086, crop: { x: 0, y: 6, width: 105, height: 62 } },
+  { sourceWidth: 1024, sourceHeight: 768, crop: { x: 0, y: 36, width: 105, height: 62 } },
+  { sourceWidth: 1920, sourceHeight: 1080, crop: { x: 0, y: 37, width: 105, height: 62 } },
+  { sourceWidth: 4032, sourceHeight: 3024, crop: { x: 0, y: 129, width: 105, height: 62 } },
+  { sourceWidth: 1001, sourceHeight: 777, crop: { x: 0, y: 48, width: 105, height: 62 } },
+  { sourceWidth: 315, sourceHeight: 186, crop: { x: 0, y: 13, width: 105, height: 62 } },
+  { sourceWidth: 630, sourceHeight: 372, crop: { x: 0, y: 13, width: 105, height: 62 } },
+] as const;
 
 describe("semantic crop candidate builder", () => {
   it.each([
@@ -111,6 +152,67 @@ describe("semantic crop candidate builder", () => {
     expect(issues.filter((issue) => issue.severity === "ERROR")).toEqual([]);
     expect(validateProtectedSubjects(first.acceptedPlan, first.candidate.cropRect)).toEqual([]);
     expect(first.candidate.candidateId).toMatch(/^semantic-[a-f0-9]{64}$/u);
+  });
+
+  it("reproduces the naive 1448x1086 boundary drift", () => {
+    const naiveCropRect = {
+      x: 0 / 1448,
+      y: 6 / 1086,
+      width: 105 / 1448,
+      height: 62 / 1086,
+    };
+    expect(normalizedRectToPixelRect(naiveCropRect, 1448, 1086)).toEqual({
+      x: 0,
+      y: 6,
+      width: 105,
+      height: 63,
+    });
+  });
+
+  it.each(fixedRoundTripCases)(
+    "canonicalizes the fixed $sourceWidth x $sourceHeight pixel crop exactly",
+    ({ sourceWidth, sourceHeight, crop }) => {
+      const first = buildSemanticCropCandidate(inputForPixelCrop(sourceWidth, sourceHeight, crop));
+      const second = buildSemanticCropCandidate(inputForPixelCrop(sourceWidth, sourceHeight, crop));
+      expect(first.cropPixelRect).toEqual(crop);
+      expect(
+        normalizedRectToPixelRect(first.candidate.cropRect, sourceWidth, sourceHeight),
+      ).toEqual(crop);
+      expect(second).toEqual(first);
+      expect(first.candidate.preservedSubjectIds).toEqual(["primary-product"]);
+      expect(first.candidate.clippedSubjectIds).toEqual([]);
+      expect(first.acceptedPlan.cropCandidateId).toBe(first.candidate.candidateId);
+      expect(first.acceptedPlan.policy).toBe("SEMANTIC_CROP_COVER");
+      expect(first.acceptedPlan.source).toBe("AGENT");
+      expect(first.acceptedPlan.fitMode).toBe("COVER");
+      expect(first.acceptedPlan.anchor).toBe("CENTER");
+      expect(first.acceptedPlan.subjectProtection).toBe("REQUIRED");
+      expect(first.acceptedPlan.protectedSubjects[0]?.subjectType).toBe("PRODUCT");
+    },
+  );
+
+  it.each([
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+    { x: 1024 - 105 - 1, y: 768 - 62 - 1 },
+    { x: 1024 - 105, y: 768 - 62 },
+  ])("preserves boundary crop origin (%s, %s)", (origin) => {
+    const crop = { ...origin, width: 105, height: 62 };
+    const result = buildSemanticCropCandidate(inputForPixelCrop(1024, 768, crop));
+    expect(result.cropPixelRect).toEqual(crop);
+    expect(normalizedRectToPixelRect(result.candidate.cropRect, 1024, 768)).toEqual(crop);
+  });
+
+  it.each([
+    { width: 105, height: 62 },
+    { width: 210, height: 124 },
+    { width: 315, height: 186 },
+  ])("preserves exact-ratio crop scale %s", (cropSize) => {
+    const crop = { x: 0, y: 0, ...cropSize };
+    const result = buildSemanticCropCandidate(inputForPixelCrop(1000, 800, crop));
+    expect(result.cropPixelRect).toEqual(crop);
+    expect(result.cropPixelRect.width * 186).toBe(result.cropPixelRect.height * 315);
+    expect(normalizedRectToPixelRect(result.candidate.cropRect, 1000, 800)).toEqual(crop);
   });
 
   it.each([

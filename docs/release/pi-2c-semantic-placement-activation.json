@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "gate": "PI_2C_REAL_IMAGE_SEMANTIC_PLACEMENT_E2E",
+  "status": "IMPLEMENTED_PENDING_USER_VISUAL_ACCEPTANCE",
+  "sourceBaseline": {
+    "repository": "knight337700-max/plume",
+    "parentBranch": "codex/pi-2b-image-input-semantic-crop-candidate",
+    "parentCommit": "c042bf81aefbbb4363419b66926fa8753691624b"
+  },
+  "renderer": {
+    "repository": "knight337700-max/plume-renderer",
+    "commit": "7baa272dd852ed21a09cf369c928571b3f75fd31",
+    "integrationContract": "1.8.0"
+  },
+  "target": {
+    "plumeFormatProfileId": "kakao-moment-bizboard-thumbnail-box-right-1029x258",
+    "rendererFormatProfileId": "KAKAO_BIZBOARD_THUMBNAIL_BOX_RIGHT",
+    "rendererTemplateId": "KAKAO_MOMENT_BIZBOARD_THUMBNAIL_BOX_RIGHT",
+    "layoutMode": "TEMPLATE_LOCKED",
+    "imageSlotId": "IMAGE_PRIMARY",
+    "canvas": { "width": 1029, "height": 258 },
+    "slot": { "x": 666, "y": 36, "width": 315, "height": 186, "radius": 12 }
+  },
+  "runtime": {
+    "agentCommand": "creative.generate",
+    "renderAgentCalls": 0,
+    "validationCommand": "validation.run",
+    "exportCommand": "export.render_and_package",
+    "providerModeForReview": "live",
+    "model": "gpt-5.6-luna"
+  },
+  "userVisualAcceptance": "PENDING"
+}

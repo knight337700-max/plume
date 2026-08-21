@@ -18,6 +18,8 @@ export interface JacomoCanonicalCreativeInput extends JacomoCreativeInput {
   readonly subcopy: string;
   readonly creativeId?: string;
   readonly creativeVersionId?: string;
+  readonly templateId?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 export interface JacomoCreativeOutput {
@@ -132,10 +134,10 @@ export function composeJacomoCanonicalCreative(
     creativeId,
     productId: input.productId,
     briefVersionId: input.briefVersionId,
-    metadata: { renderMode: "CANONICAL_RENDERER" },
+    metadata: { ...(input.metadata ?? {}), renderMode: "CANONICAL_RENDERER" },
     plan: {
       formatProfileId: input.formatProfileId,
-      templateId: "KAKAO_MOMENT_BIZBOARD_OBJECT_RIGHT_1029X258_V1",
+      templateId: input.templateId ?? "KAKAO_MOMENT_BIZBOARD_OBJECT_RIGHT_1029X258_V1",
       elements: [
         {
           elementId: `product-${input.sequence}`,

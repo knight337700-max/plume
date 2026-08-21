@@ -53,6 +53,22 @@ export const APPROVED_FORMAT_PROFILES: readonly ApprovedFormatDefinition[] = Obj
     exportRecipeId: "kakao-moment-bizboard",
     specificationVersion: "2026.1",
   },
+  {
+    id: "kakao-moment-bizboard-thumbnail-box-right-1029x258",
+    channelCode: "KAKAO_MOMENT",
+    productCode: "BIZBOARD_THUMBNAIL_BOX_RIGHT",
+    productName: "Kakao Moment Bizboard Thumbnail Box Right",
+    stableKey: "kakao-moment-bizboard-thumbnail-box-right-1029x258",
+    version: "2026.1",
+    name: "Kakao Moment Bizboard Thumbnail Box Right 1029x258",
+    status: "ACTIVE",
+    renderMode: "SERVER_RENDER",
+    mediaType: "PNG",
+    spec: { width: 1029, height: 258, maxBytes: 307200, alpha: false, colorMode: "RGBA" },
+    ruleSetId: "kakao-moment-2026.1",
+    exportRecipeId: "kakao-moment-bizboard",
+    specificationVersion: "2026.1",
+  },
 ]);
 
 export function isCanonicalChannelCode(value: unknown): value is CanonicalChannelCode {

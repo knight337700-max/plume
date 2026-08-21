@@ -50,8 +50,13 @@ import {
   createInMemoryCreativeRepositories,
   type CreativeRepositories,
 } from "../../../packages/core/src/modules/creative/repositories.js";
+import {
+  createInMemoryClientBrandRepositories,
+  type ClientBrandRepositories,
+} from "../../../packages/core/src/modules/client-brand/repositories.js";
 import { PostgresUploadSessionRepository } from "../../../packages/infrastructure/src/db/upload-session-repository.js";
 import type { FileObjectRecord } from "../../../packages/core/src/modules/asset/upload-session.js";
+import type { AgentProviderGateway } from "../../../packages/core/src/agents/orchestrator.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -77,6 +82,10 @@ export interface WorkerRuntimeCompositionOptions {
   readonly campaignRepositories?: CampaignRepositories;
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
+  readonly clientBrandRepositories?: ClientBrandRepositories;
+  /** Additive test/local seam; omitted production composition keeps the configured runtime. */
+  readonly providerGateway?: AgentProviderGateway;
+  readonly providerMode?: "mock" | "live";
   readonly fileObjectReader?: {
     getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
   };
@@ -122,26 +131,32 @@ export function createWorkerRuntimeComposition(
     options.liveSmokeValidationEvidenceStore ?? new PostgresLiveSmokeValidationEvidenceStore(sql);
   const liveSmokeFailureEvidenceStore =
     options.liveSmokeFailureEvidenceStore ?? new PostgresLiveSmokeFailureEvidenceStore(sql);
-  const campaignRepositories =
-    options.campaignRepositories ?? createInMemoryCampaignRepositories();
+  const campaignRepositories = options.campaignRepositories ?? createInMemoryCampaignRepositories();
   const assetRepositories = options.assetRepositories ?? createInMemoryAssetRepositories();
-  const creativeRepositories =
-    options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const creativeRepositories = options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const clientBrandRepositories =
+    options.clientBrandRepositories ?? createInMemoryClientBrandRepositories();
   const fileObjectReader = options.fileObjectReader ?? new PostgresUploadSessionRepository(sql);
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),
     leaseMs: Number(process.env.OUTBOX_LEASE_MS ?? 30_000),
   });
-  const aiRuntime = createWorkerAIRuntime({ environment: process.env });
-  const pricingPolicy = createLiveSmokePricingPolicy(process.env);
+  const runtimeEnvironment =
+    options.providerMode === undefined
+      ? process.env
+      : { ...process.env, OPENAI_PROVIDER_MODE: options.providerMode };
+  const aiRuntime = createWorkerAIRuntime({ environment: runtimeEnvironment });
+  const providerGateway = options.providerGateway ?? aiRuntime.provider.gateway;
+  const providerMode = options.providerMode ?? aiRuntime.provider.mode;
+  const pricingPolicy = createLiveSmokePricingPolicy(runtimeEnvironment);
   const handlers = createJacomoRuntimeHandlers({
     sql,
     publisher,
     storage,
     workflow,
     queuePrefix: adapter.queuePrefix,
-    providerGateway: aiRuntime.provider.gateway,
+    providerGateway,
     liveSmokeBudgetStore,
     liveSmokeCoverageStore,
     liveSmokeLifecycleStore,
@@ -150,8 +165,9 @@ export function createWorkerRuntimeComposition(
     campaignRepositories,
     assetRepositories,
     creativeRepositories,
+    clientBrandRepositories,
     fileObjectReader,
-    providerMode: aiRuntime.provider.mode,
+    providerMode,
     ...(pricingPolicy ? { pricingPolicy } : {}),
   });
   let closed = false;
@@ -178,7 +194,7 @@ export function createWorkerRuntimeComposition(
     {
       name: "spend-ledger",
       check: async () => {
-        if (aiRuntime.provider.mode === "live" && !pricingPolicy)
+        if (providerMode === "live" && !pricingPolicy)
           throw new Error("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
         await sql`SELECT to_regclass('public.live_smoke_spend_ledger')`;
       },

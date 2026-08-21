@@ -84,8 +84,8 @@ export interface ThumbnailSemanticPlacementRequest {
   readonly correlationId: string;
   readonly creativeId: string;
   readonly productId: string;
-  readonly asset?: ThumbnailSemanticPlacementAsset;
-  readonly assets?: readonly ThumbnailSemanticPlacementAsset[];
+  readonly asset: ThumbnailSemanticPlacementAsset;
+  readonly productName?: string;
   readonly copy?: Readonly<Record<string, string>>;
 }
 
@@ -115,23 +115,6 @@ function resolveOrchestrator(options: SemanticPlacementPlannerOptions): AgentOrc
   if (options.orchestrator) return options.orchestrator;
   if (options.gateway) return createAgentOrchestrator({ gateway: options.gateway });
   throw new Error("SEMANTIC_AGENT_FAILED: an Agent orchestrator is required");
-}
-
-function selectedAsset(
-  request: ThumbnailSemanticPlacementRequest,
-): ThumbnailSemanticPlacementAsset {
-  const assets = request.assets ?? (request.asset ? [request.asset] : []);
-  if (assets.length === 0)
-    throw new SemanticPlacementError(
-      "SEMANTIC_IMAGE_INPUT_REQUIRED",
-      "One image input is required",
-    );
-  if (assets.length !== 1)
-    throw new SemanticPlacementError(
-      "SEMANTIC_IMAGE_CARDINALITY_INVALID",
-      "Exactly one image input is required",
-    );
-  return assets[0]!;
 }
 
 function rendererAssetDescriptor(
@@ -177,6 +160,9 @@ function contextData(
       rendererProfileId: SEMANTIC_PLACEMENT_RENDERER_PROFILE_ID,
     },
     safeZones: ["immutable IMAGE_PRIMARY geometry"],
+    ...(request.productName
+      ? { selectedProduct: { id: request.productId, name: request.productName } }
+      : {}),
     copy: request.copy ?? {},
   };
 }
@@ -194,10 +180,12 @@ function userMessage(
   asset: ThumbnailSemanticPlacementAsset,
   metadata: ImageInputMetadata,
   productId: string,
+  productName?: string,
 ): string {
   return [
     `Analyze referenced image fileId=${asset.fileId}.`,
     `The selected product identity is productId=${productId}.`,
+    ...(productName ? [`The selected product name is productName=${productName}.`] : []),
     `assetId=${asset.assetId}, mimeType=${asset.mimeType}, checksumSha256=${asset.checksumSha256}.`,
     `oriented dimensions=${metadata.width}x${metadata.height}, exifOrientation=${metadata.exifOrientation}.`,
     "The immutable IMAGE_PRIMARY slot is 315x186 at (666,36) on a 1029x258 canvas; geometry is not an Agent decision.",
@@ -236,7 +224,20 @@ export async function planSemanticPlacement(
   request: ThumbnailSemanticPlacementRequest,
   options: SemanticPlacementPlannerOptions,
 ): Promise<SemanticPlacementPlannerResult> {
-  const asset = selectedAsset(request);
+  const legacyAssets = (request as unknown as { readonly assets?: unknown }).assets;
+  if (legacyAssets !== undefined)
+    throw new SemanticPlacementError(
+      Array.isArray(legacyAssets) && legacyAssets.length === 0
+        ? "SEMANTIC_IMAGE_INPUT_REQUIRED"
+        : "SEMANTIC_IMAGE_CARDINALITY_INVALID",
+      "The semantic planner accepts exactly one required asset field",
+    );
+  const asset = request.asset;
+  if (!asset)
+    throw new SemanticPlacementError(
+      "SEMANTIC_IMAGE_INPUT_REQUIRED",
+      "One image input is required",
+    );
   const imageInput: AgentImageInput = {
     fileId: asset.fileId,
     mimeType: asset.mimeType,
@@ -274,7 +275,10 @@ export async function planSemanticPlacement(
       referencedFileIds: [asset.fileId],
       messages: [
         { role: "system", content: SYSTEM_MESSAGE },
-        { role: "user", content: userMessage(asset, metadata, request.productId) },
+        {
+          role: "user",
+          content: userMessage(asset, metadata, request.productId, request.productName),
+        },
       ],
       outputSchema: SEMANTIC_PLACEMENT_SCHEMA,
       formatProfileId: SEMANTIC_PLACEMENT_FORMAT_PROFILE_ID,

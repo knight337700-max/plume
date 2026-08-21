@@ -1,6 +1,13 @@
-import { OBJECT_RIGHT_FORMAT_PROFILE_ID, OBJECT_RIGHT_TEMPLATE_ID } from "@plume/renderer-vendor";
+import {
+  OBJECT_RIGHT_FORMAT_PROFILE_ID,
+  OBJECT_RIGHT_TEMPLATE_ID,
+  THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
+  THUMBNAIL_BOX_RIGHT_TEMPLATE_ID,
+} from "@plume/renderer-vendor";
 
 export const PLUME_KAKAO_BIZBOARD_FORMAT_PROFILE_ID = "kakao-moment-bizboard-1029x258" as const;
+export const PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID =
+  "kakao-moment-bizboard-thumbnail-box-right-1029x258" as const;
 
 export interface CanonicalRendererFormatBinding {
   readonly plumeFormatProfileId: string;
@@ -16,8 +23,16 @@ export const OBJECT_RIGHT_FORMAT_BINDING: CanonicalRendererFormatBinding = Objec
   layoutMode: "TEMPLATE_LOCKED",
 });
 
+export const THUMBNAIL_BOX_RIGHT_FORMAT_BINDING: CanonicalRendererFormatBinding = Object.freeze({
+  plumeFormatProfileId: PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
+  rendererFormatProfileId: THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID,
+  rendererTemplateId: THUMBNAIL_BOX_RIGHT_TEMPLATE_ID,
+  layoutMode: "TEMPLATE_LOCKED",
+});
+
 const bindings = new Map<string, CanonicalRendererFormatBinding>([
   [OBJECT_RIGHT_FORMAT_BINDING.plumeFormatProfileId, OBJECT_RIGHT_FORMAT_BINDING],
+  [THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId, THUMBNAIL_BOX_RIGHT_FORMAT_BINDING],
 ]);
 
 export class CanonicalRendererBindingError extends Error {
