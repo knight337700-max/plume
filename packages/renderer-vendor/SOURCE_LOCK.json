@@ -49,6 +49,16 @@
       "sha256": "d52f079821b8eb72844603ec6b994b2357dd8475c6b24b8cd45c3a76454949e7"
     },
     {
+      "path": "contracts/freeform-font-registry.json",
+      "bytes": 760,
+      "sha256": "29b9ced3ec8a284869bb115988e33e368a0d1eb25f936972f9c3d29c7020148f"
+    },
+    {
+      "path": "contracts/freeform-format-profiles.json",
+      "bytes": 25472,
+      "sha256": "f092f6862c95ee3747085e782f5ef452b54535ccce8589945628fea2ea025f46"
+    },
+    {
       "path": "contracts/input.schema.json",
       "bytes": 6330,
       "sha256": "e349581f4ccfbdc0850c205fb551efa80774f07836c6d32f020f01655fc652cd"

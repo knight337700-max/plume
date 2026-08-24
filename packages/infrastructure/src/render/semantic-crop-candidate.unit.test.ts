@@ -216,6 +216,39 @@ describe("semantic crop candidate builder", () => {
   });
 
   it.each([
+    [1200, 600],
+    [900, 600],
+    [720, 600],
+    [600, 600],
+  ] as const)(
+    "generalizes deterministic crop geometry to %sx%s targets",
+    (targetWidth, targetHeight) => {
+      const legacy = buildSemanticCropCandidate(input());
+      const result = buildSemanticCropCandidate(
+        input({ targetPixelWidth: targetWidth, targetPixelHeight: targetHeight }),
+      );
+      expect(result.cropPixelRect.width * targetHeight).toBe(
+        result.cropPixelRect.height * targetWidth,
+      );
+      expect(normalizedRectToPixelRect(result.candidate.cropRect, 2000, 1200)).toEqual(
+        result.cropPixelRect,
+      );
+      expect(result.candidate.preservedSubjectIds).toEqual(["primary-product"]);
+      expect(result.candidate.clippedSubjectIds).toEqual([]);
+      expect(result.candidate.subjectCoverageRatio).toBe(1);
+      expect(result.candidate.candidateId).not.toBe(legacy.candidate.candidateId);
+    },
+  );
+
+  it("keeps the historical candidate identity for an explicit 315:186 target", () => {
+    const implicit = buildSemanticCropCandidate(input());
+    const explicit = buildSemanticCropCandidate(
+      input({ targetPixelWidth: 315, targetPixelHeight: 186 }),
+    );
+    expect(explicit).toEqual(implicit);
+  });
+
+  it.each([
     [
       "invalid subject",
       { primarySubjectBounds: { x: -0.1, y: 0, width: 0.2, height: 0.2 } },

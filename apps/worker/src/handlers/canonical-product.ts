@@ -13,6 +13,7 @@ import type {
 } from "../../../../packages/core/src/modules/campaign/repositories.js";
 import type { ClientBrandRepositories } from "../../../../packages/core/src/modules/client-brand/repositories.js";
 import type { AgentProviderGateway } from "../../../../packages/core/src/agents/orchestrator.js";
+import type { AgentOrchestrator } from "../../../../packages/core/src/agents/orchestrator.js";
 import type { AssetRepositories } from "../../../../packages/core/src/modules/asset/repositories.js";
 import type { CreativeRepositories } from "../../../../packages/core/src/modules/creative/repositories.js";
 import type { FileObjectRecord } from "../../../../packages/core/src/modules/asset/upload-session.js";
@@ -26,6 +27,7 @@ import {
 import {
   PLUME_KAKAO_BIZBOARD_FORMAT_PROFILE_ID,
   THUMBNAIL_BOX_RIGHT_FORMAT_BINDING,
+  type CanonicalRendererBinding,
   resolveCanonicalRendererBinding,
 } from "../../../../packages/infrastructure/src/render/renderer-bindings.js";
 import { planSemanticPlacement } from "../../../../packages/infrastructure/src/render/semantic-placement-planner.js";
@@ -37,6 +39,25 @@ import {
   type SemanticPlacementSourceEvidence,
 } from "../../../../packages/infrastructure/src/render/semantic-placement-evidence.js";
 import { inspectImageBytes } from "../../../../packages/renderer-vendor/src/public.js";
+import {
+  createFreeformLayoutPlannerHandler,
+  type FreeformPlannerSelectedAsset,
+} from "./ai/plan-freeform-layout.js";
+import { assertCompleted } from "./ai/index.js";
+import {
+  createFreeformCanonicalDocument,
+} from "./freeform-canonical-document.js";
+import {
+  createFreeformLayoutEvidence,
+  FREEFORM_PLUME_FORMAT_PROFILE_ID,
+  getKakaoDisplayNative21FormatProfile,
+  validateFreeformLayoutEvidence,
+  type FreeformLayoutEvidenceMetadata,
+} from "../../../../packages/infrastructure/src/render/freeform-layout-contract.js";
+import {
+  getRendererRuntimeRoot,
+  loadFreeformFontRegistry,
+} from "../../../../packages/renderer-vendor/src/public.js";
 
 export interface CanonicalProductDependencies {
   readonly campaignRepositories: CampaignRepositories;
@@ -47,6 +68,7 @@ export interface CanonicalProductDependencies {
   };
   readonly storage: ObjectStorage;
   readonly providerGateway?: AgentProviderGateway;
+  readonly agentOrchestrator?: AgentOrchestrator;
   readonly clientBrandRepositories?: ClientBrandRepositories;
 }
 
@@ -82,12 +104,32 @@ export interface CanonicalRenderContext {
     readonly token: string;
   };
   readonly asset: CanonicalAssetContext;
+  readonly document: CreativeDocument;
 }
 
 function canonicalError(code: string, message = code): Error {
   const error = new Error(message);
   Object.assign(error, { code, statusCode: 422, retryable: false });
   return error;
+}
+
+function freeformEvidenceError(cause: unknown): Error {
+  const error = canonicalError(
+    "CANONICAL_FREEFORM_LAYOUT_EVIDENCE_INVALID",
+    "Persisted FREEFORM layout evidence is invalid",
+  );
+  const causeCode =
+    cause && typeof cause === "object" && "code" in cause && typeof cause.code === "string"
+      ? cause.code
+      : cause instanceof Error
+        ? cause.message
+        : "FREEFORM_LAYOUT_EVIDENCE_INVALID";
+  Object.assign(error, { causeCode });
+  return error;
+}
+
+function freeformProfile(): ReturnType<typeof getKakaoDisplayNative21FormatProfile> {
+  return getKakaoDisplayNative21FormatProfile();
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -183,6 +225,7 @@ export async function resolveCanonicalProductAsset(
   const binding = resolveCanonicalRendererBinding(plumeFormatProfileId);
   const isThumbnail =
     binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId;
+  const isFreeform = binding.layoutMode === "FREEFORM";
   let selections: readonly CampaignAssetPoolSelectionRecord[];
   try {
     selections = await dependencies.campaignRepositories.listAssetPoolSelections(
@@ -249,13 +292,16 @@ export async function resolveCanonicalProductAsset(
     );
   if (
     (isThumbnail && file.mimeType !== "image/png" && file.mimeType !== "image/jpeg") ||
-    (!isThumbnail && file.mimeType !== "image/png")
+    (!isThumbnail && !isFreeform && file.mimeType !== "image/png") ||
+    (isFreeform && file.mimeType !== "image/png" && file.mimeType !== "image/jpeg")
   )
     throw canonicalError(
       "CANONICAL_PRODUCT_ASSET_MIME_INVALID",
       isThumbnail
         ? "Thumbnail accepts PNG or JPEG Product assets only"
-        : "Object Right accepts PNG Product assets only",
+        : isFreeform
+          ? "FREEFORM accepts PNG or JPEG Product assets only"
+          : "Object Right accepts PNG Product assets only",
     );
   let bytes: Uint8Array;
   try {
@@ -286,7 +332,7 @@ export async function resolveCanonicalProductAsset(
       "CANONICAL_PRODUCT_ASSET_MIME_MISMATCH",
       "Uploaded image MIME does not match its declaration",
     );
-  if (!isThumbnail && (!isPngWithAlpha(bytes) || !inspected.hasAlpha))
+  if (!isThumbnail && !isFreeform && (!isPngWithAlpha(bytes) || !inspected.hasAlpha))
     throw canonicalError(
       "CANONICAL_PRODUCT_ASSET_ALPHA_REQUIRED",
       "Object Right requires an alpha-enabled PNG",
@@ -315,7 +361,7 @@ export async function resolveCanonicalProductContext(
   productId: string,
   plumeFormatProfileId: string,
 ): Promise<{
-  readonly binding: ReturnType<typeof resolveCanonicalRendererBinding>;
+  readonly binding: CanonicalRendererBinding;
   readonly asset: CanonicalAssetContext;
 }> {
   const binding = resolveCanonicalRendererBinding(plumeFormatProfileId);
@@ -347,6 +393,83 @@ export function resolveCanonicalFormatProfileId(
   return profileId;
 }
 
+function validatePersistedFreeformVersion(
+  version: {
+    readonly id: string;
+    readonly creativeId: string;
+    readonly formatProfileId: string;
+    readonly documentJson: CreativeDocument;
+  },
+  input: {
+    readonly workspaceId: string;
+    readonly campaignId: string;
+    readonly productId: string;
+    readonly creativeId: string;
+    readonly copy: CanonicalCopy;
+    readonly asset: CanonicalAssetContext;
+    readonly profile: ReturnType<typeof getKakaoDisplayNative21FormatProfile>;
+    readonly fontRegistry: ReturnType<typeof loadFreeformFontRegistry>;
+    readonly payloadDocument?: CreativeDocument;
+  },
+): FreeformLayoutEvidenceMetadata {
+  try {
+    if (
+      version.formatProfileId !== FREEFORM_PLUME_FORMAT_PROFILE_ID ||
+      version.creativeId !== input.creativeId
+    )
+      throw new Error("FREEFORM_PERSISTED_IDENTITY_MISMATCH");
+    const document = parseCreativeDocument(version.documentJson);
+    const metadata = document.metadata;
+    if (
+      metadata.workspaceId !== input.workspaceId ||
+      metadata.campaignId !== input.campaignId ||
+      metadata.productId !== input.productId ||
+      metadata.creativeId !== input.creativeId ||
+      metadata.renderMode !== "CANONICAL_RENDERER" ||
+      metadata.layoutMode !== "FREEFORM" ||
+      document.formatProfileId !== FREEFORM_PLUME_FORMAT_PROFILE_ID
+    )
+      throw new Error("FREEFORM_PERSISTED_IDENTITY_MISMATCH");
+    if (input.payloadDocument) {
+      const payloadMetadata = input.payloadDocument.metadata;
+      if (
+        payloadMetadata.workspaceId !== metadata.workspaceId ||
+        payloadMetadata.campaignId !== metadata.campaignId ||
+        payloadMetadata.productId !== metadata.productId ||
+        payloadMetadata.creativeId !== metadata.creativeId
+      )
+        throw new Error("FREEFORM_PAYLOAD_PERSISTED_IDENTITY_MISMATCH");
+    }
+    const evidence = validateFreeformLayoutEvidence(
+      { freeformLayoutEvidence: metadata.freeformLayoutEvidence },
+      {
+        expectedRendererAssetId: input.asset.assetVersionId,
+        confirmedCopy: { headline: input.copy.headline, subcopy: input.copy.subcopy },
+        profile: input.profile,
+        fontRegistry: input.fontRegistry,
+      },
+    );
+    const plan = evidence.freeformLayoutEvidence.creativeLayoutPlan;
+    const image = plan.elements.find((element) => element.type === "IMAGE");
+    const copyAssets = record(document.copyAssets);
+    if (
+      !image ||
+      image.assetId !== input.asset.assetVersionId ||
+      document.usedAssetVersionIds.length !== 1 ||
+      document.usedAssetVersionIds[0] !== input.asset.assetVersionId ||
+      copyAssets?.advertiser !== input.copy.advertiser ||
+      copyAssets?.headline !== input.copy.headline ||
+      copyAssets?.subcopy !== input.copy.subcopy
+    )
+      throw new Error("FREEFORM_PERSISTED_CONTENT_MISMATCH");
+    return evidence;
+  } catch (error) {
+    if ((error as { readonly code?: unknown })?.code === "CANONICAL_FREEFORM_LAYOUT_EVIDENCE_INVALID")
+      throw error;
+    throw freeformEvidenceError(error);
+  }
+}
+
 export async function composeCanonicalProductCreative(
   dependencies: CanonicalProductDependencies,
   input: {
@@ -374,6 +497,12 @@ export async function composeCanonicalProductCreative(
     input.campaignId,
   );
   const formatProfileId = resolveCanonicalFormatProfileId(input.formatProfileId, selections);
+  const requestedBinding = resolveCanonicalRendererBinding(formatProfileId);
+  if (requestedBinding.layoutMode === "FREEFORM" && !dependencies.agentOrchestrator)
+    throw canonicalError(
+      "CANONICAL_FREEFORM_LAYOUT_PLANNER_REQUIRED",
+      "FREEFORM canonical generation requires the configured LAYOUT_PLANNER orchestrator",
+    );
   const { binding, asset } = await resolveCanonicalProductContext(
     dependencies,
     input.workspaceId,
@@ -417,7 +546,7 @@ export async function composeCanonicalProductCreative(
     input.workspaceId,
     creativeVersionId,
   );
-  if (existingVersion)
+  if (existingVersion && binding.layoutMode === "TEMPLATE_LOCKED")
     return {
       creative: {
         creativeId,
@@ -433,8 +562,135 @@ export async function composeCanonicalProductCreative(
       copy,
       asset,
     };
+  if (existingVersion && binding.layoutMode === "FREEFORM") {
+    const profile = freeformProfile();
+    const fontRegistry = loadFreeformFontRegistry(getRendererRuntimeRoot());
+    validatePersistedFreeformVersion(existingVersion, {
+      workspaceId: input.workspaceId,
+      campaignId: input.campaignId,
+      productId: input.productId,
+      creativeId,
+      copy,
+      asset,
+      profile,
+      fontRegistry,
+    });
+    return {
+      creative: {
+        creativeId,
+        creativeVersionId,
+        document: existingVersion.documentJson,
+        outputProfile: {
+          mimeType: "image/png",
+          width: profile.canvas.width,
+          height: profile.canvas.height,
+          transparentBackground: false,
+        },
+      },
+      copy,
+      asset,
+    };
+  }
+  if (binding.layoutMode === "FREEFORM") {
+    const runtimeRoot = getRendererRuntimeRoot();
+    const profile = freeformProfile();
+    const fontRegistry = loadFreeformFontRegistry(runtimeRoot);
+    const planner = createFreeformLayoutPlannerHandler({
+      orchestrator: dependencies.agentOrchestrator!,
+      rendererRuntimeRoot: runtimeRoot,
+      fontRegistry,
+    });
+    const selectedAsset: FreeformPlannerSelectedAsset = {
+      assetVersionId: asset.assetVersionId,
+      rendererAssetId: asset.assetVersionId,
+      mimeType: asset.mimeType,
+      checksumSha256: asset.checksumSha256,
+      width: asset.width,
+      height: asset.height,
+      imageInput: {
+        fileId: asset.assetVersionId,
+        mimeType: asset.mimeType,
+        bytes: asset.bytes,
+        checksumSha256: asset.checksumSha256,
+      },
+    };
+    const plannerTaskId = `${input.jobId}:layout-planner:${input.productId}`;
+    const planned = await planner({
+      taskId: plannerTaskId,
+      workspaceId: input.workspaceId,
+      campaignId: input.campaignId,
+      creativeId,
+      productId: input.productId,
+      targetProfile: profile,
+      confirmedCopy: { headline: copy.headline, subcopy: copy.subcopy },
+      selectedAsset,
+    });
+    const plan = assertCompleted(planned.agentResult);
+    const evidence = createFreeformLayoutEvidence(plan, {
+      expectedRendererAssetId: asset.assetVersionId,
+      confirmedCopy: { headline: copy.headline, subcopy: copy.subcopy },
+      profile,
+      fontRegistry,
+    });
+    const document = createFreeformCanonicalDocument({
+      workspaceId: input.workspaceId,
+      campaignId: input.campaignId,
+      creativeId,
+      productId: input.productId,
+      briefVersionId: input.briefVersionId,
+      assetVersionId: asset.assetVersionId,
+      advertiser: copy.advertiser,
+      confirmedCopy: { headline: copy.headline, subcopy: copy.subcopy },
+      evidence,
+      profile,
+      fontRegistry,
+    });
+    const creative = {
+      creativeId,
+      creativeVersionId,
+      document,
+      outputProfile: {
+        mimeType: "image/png" as const,
+        width: profile.canvas.width,
+        height: profile.canvas.height,
+        transparentBackground: false,
+      },
+    };
+    await dependencies.creativeRepositories.createVersion({
+      id: creative.creativeVersionId,
+      workspaceId: input.workspaceId,
+      creativeId: creative.creativeId,
+      formatProfileId: creative.document.formatProfileId,
+      layoutTemplateId: null,
+      briefVersionId: input.briefVersionId,
+      documentJson: creative.document,
+      copyAssetsJson: creative.document.copyAssets,
+      generationMetadataJson: {
+        stage: "COMPOSED",
+        renderMode: "CANONICAL_RENDERER",
+        source: "CONFIRMED_BRIEF_SELECTED_ASSET_AND_LAYOUT_PLANNER",
+        assetVersionId: asset.assetVersionId,
+        freeformLayoutPlanSha256: evidence.freeformLayoutEvidence.creativeLayoutPlanSha256,
+        layoutPlannerTaskId: plannerTaskId,
+      },
+    });
+    await dependencies.creativeRepositories.addAssetUsages([
+      {
+        workspaceId: input.workspaceId,
+        creativeVersionId: creative.creativeVersionId,
+        assetVersionId: asset.assetVersionId,
+        elementId: creative.document.elements.find((element) => element.type === "IMAGE")?.id ?? null,
+        usageType: "IMAGE",
+        transformJson: { x: 0, y: 0, width: 1, height: 1, rotation: 0 },
+      },
+    ]);
+    return { creative, copy, asset };
+  }
   let semanticPlacement: SemanticPlacementEvidence | undefined;
-  if (binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId) {
+  if (
+    binding.layoutMode === "TEMPLATE_LOCKED" &&
+    binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId
+  ) {
     if (!dependencies.providerGateway)
       throw canonicalError(
         "CANONICAL_SEMANTIC_PROVIDER_REQUIRED",
@@ -527,8 +783,70 @@ export async function renderCanonicalProductDocument(
   workspaceId: string,
   documentInput: unknown,
   requestId: string,
+  creativeVersionId?: string,
 ): Promise<CanonicalRenderContext> {
-  const document = parseCreativeDocument(documentInput);
+  const payloadDocument = parseCreativeDocument(documentInput);
+  const payloadBinding = resolveCanonicalRendererBinding(payloadDocument.formatProfileId);
+  let document = payloadDocument;
+  let persistedVersion:
+    | {
+        readonly id: string;
+        readonly creativeId: string;
+        readonly formatProfileId: string;
+        readonly documentJson: CreativeDocument;
+      }
+    | undefined;
+  const persistedCandidate = creativeVersionId
+    ? await dependencies.creativeRepositories.getVersion(workspaceId, creativeVersionId)
+    : null;
+  const persistedCandidateDocument = persistedCandidate
+    ? parseCreativeDocument(persistedCandidate.documentJson)
+    : undefined;
+  const persistedCandidateBinding = persistedCandidateDocument
+    ? resolveCanonicalRendererBinding(persistedCandidateDocument.formatProfileId)
+    : undefined;
+  const requiresPersistedFreeform =
+    payloadBinding.layoutMode === "FREEFORM" ||
+    persistedCandidateBinding?.layoutMode === "FREEFORM";
+  if (requiresPersistedFreeform) {
+    if (
+      !creativeVersionId ||
+      !persistedCandidate ||
+      !persistedCandidateDocument ||
+      persistedCandidateBinding?.layoutMode !== "FREEFORM"
+    )
+      throw canonicalError(
+        "CANONICAL_FREEFORM_PERSISTED_VERSION_REQUIRED",
+        "FREEFORM rendering requires a persisted CreativeVersion identity",
+      );
+    persistedVersion = persistedCandidate;
+    document = persistedCandidateDocument;
+    const campaignId = requiredText(document.metadata.campaignId);
+    const productId = requiredText(document.metadata.productId);
+    const copyAssets = record(document.copyAssets);
+    const confirmed =
+      campaignId && productId
+        ? await readConfirmedCanonicalCopy(dependencies, workspaceId, campaignId, document.metadata.briefVersionId ?? "")
+        : null;
+    if (!confirmed)
+      throw canonicalError(
+        "CANONICAL_FREEFORM_PERSISTED_IDENTITY_MISMATCH",
+        "Persisted FREEFORM CreativeVersion identity is incomplete",
+      );
+    if (
+      payloadDocument.metadata.workspaceId !== document.metadata.workspaceId ||
+      payloadDocument.metadata.campaignId !== document.metadata.campaignId ||
+      payloadDocument.metadata.productId !== document.metadata.productId ||
+      payloadDocument.metadata.creativeId !== document.metadata.creativeId ||
+      copyAssets?.advertiser !== confirmed.advertiser ||
+      copyAssets?.headline !== confirmed.headline ||
+      copyAssets?.subcopy !== confirmed.subcopy
+    )
+      throw canonicalError(
+        "CANONICAL_FREEFORM_PERSISTED_IDENTITY_MISMATCH",
+        "FREEFORM render payload does not match the persisted CreativeVersion",
+      );
+  }
   if (document.metadata.renderMode !== "CANONICAL_RENDERER")
     throw canonicalError(
       "CANONICAL_RENDER_MODE_REQUIRED",
@@ -572,8 +890,30 @@ export async function renderCanonicalProductDocument(
     bindings: [resolverBinding],
   });
   const adapter = createCanonicalRendererAdapter({ workspaceId, assetResolver: resolver });
+  let freeformEvidence: FreeformLayoutEvidenceMetadata | undefined;
+  if (binding.layoutMode === "FREEFORM") {
+    if (!persistedVersion)
+      throw canonicalError(
+        "CANONICAL_FREEFORM_PERSISTED_VERSION_REQUIRED",
+        "FREEFORM rendering requires a persisted CreativeVersion identity",
+      );
+    freeformEvidence = validatePersistedFreeformVersion(persistedVersion, {
+      workspaceId,
+      campaignId,
+      productId,
+      creativeId: persistedVersion.creativeId,
+      copy: { advertiser: advertiser!, headline: headline!, subcopy: subcopy! },
+      asset,
+      profile: freeformProfile(),
+      fontRegistry: loadFreeformFontRegistry(getRendererRuntimeRoot()),
+      payloadDocument,
+    });
+  }
   let semanticPlacement: SemanticPlacementEvidence | undefined;
-  if (binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId) {
+  if (
+    binding.layoutMode === "TEMPLATE_LOCKED" &&
+    binding.plumeFormatProfileId === THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId
+  ) {
     const rawEvidence = document.metadata.semanticPlacement;
     const source: SemanticPlacementSourceEvidence = {
       assetVersionId: asset.assetVersionId,
@@ -590,22 +930,41 @@ export async function renderCanonicalProductDocument(
       assetId: asset.assetVersionId,
     });
   }
-  const result = await adapter.render({
-    requestId,
-    workspaceId,
-    plumeFormatProfileId: document.formatProfileId,
-    advertiser,
-    headline,
-    subcopy,
-    productAsset: {
-      token: asset.token,
-      mimeType: asset.mimeType,
-      checksumSha256: asset.checksumSha256,
-      declaredWidth: asset.width,
-      declaredHeight: asset.height,
-    },
-    ...(semanticPlacement ? { semanticPlacement } : {}),
-  });
+  const result = freeformEvidence
+    ? await adapter.render({
+        requestId,
+        workspaceId,
+        plumeFormatProfileId: document.formatProfileId,
+        layoutMode: "FREEFORM",
+        creativeLayoutPlan: freeformEvidence.freeformLayoutEvidence.creativeLayoutPlan,
+        assets: [
+          {
+            assetId: asset.assetVersionId,
+            token: asset.token,
+            mimeType: asset.mimeType,
+            checksumSha256: asset.checksumSha256,
+            declaredWidth: asset.width,
+            declaredHeight: asset.height,
+          },
+        ],
+        output: { mimeType: "image/png", format: "PNG" },
+      })
+    : await adapter.render({
+        requestId,
+        workspaceId,
+        plumeFormatProfileId: document.formatProfileId,
+        advertiser,
+        headline,
+        subcopy,
+        productAsset: {
+          token: asset.token,
+          mimeType: asset.mimeType,
+          checksumSha256: asset.checksumSha256,
+          declaredWidth: asset.width,
+          declaredHeight: asset.height,
+        },
+        ...(semanticPlacement ? { semanticPlacement } : {}),
+      });
   return {
     result,
     request: {
@@ -615,8 +974,17 @@ export async function renderCanonicalProductDocument(
       assetVersionId,
       fileObjectId: asset.fileObjectId,
       token: asset.token,
+      ...(freeformEvidence
+        ? {
+            layoutMode: "FREEFORM" as const,
+            creativeLayoutPlanSha256:
+              freeformEvidence.freeformLayoutEvidence.creativeLayoutPlanSha256,
+            rendererAssetId: asset.assetVersionId,
+          }
+        : {}),
     },
     asset,
+    document,
   };
 }
 

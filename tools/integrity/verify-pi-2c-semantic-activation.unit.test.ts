@@ -23,6 +23,13 @@ const baseSources: ActivationSources = {
   sourceLock: JSON.parse(read("packages/renderer-vendor/SOURCE_LOCK.json")) as unknown,
 };
 
+function cloneSources(): ActivationSources {
+  return {
+    ...baseSources,
+    sourceLock: JSON.parse(JSON.stringify(baseSources.sourceLock)) as unknown,
+  };
+}
+
 describe("PI-2C semantic activation verifier", () => {
   it("passes the exact activated thumbnail and preserved Object Right bindings", () => {
     expect(verifySemanticActivation(baseSources)).toEqual({
@@ -89,13 +96,52 @@ describe("PI-2C semantic activation verifier", () => {
     );
   });
 
-  it("rejects SOURCE_LOCK count drift", () => {
-    const lock = baseSources.sourceLock as { files: unknown[] };
-    expect(
-      collectActivationFailures({
-        ...baseSources,
-        sourceLock: { ...lock, files: lock.files.slice(0, 110) },
-      }),
-    ).toContain("SOURCE_LOCK entry count");
+  it("allows an unrelated additive source-lock entry", () => {
+    const sources = cloneSources();
+    const lock = sources.sourceLock as { files: unknown[] };
+    lock.files = [
+      ...lock.files,
+      { path: "contracts/synthetic-unrelated-entry.json", bytes: 1, sha256: "0".repeat(64) },
+    ];
+    expect(collectActivationFailures(sources)).toEqual([]);
+  });
+
+  it("rejects a missing required source-lock entry", () => {
+    const sources = cloneSources();
+    const lock = sources.sourceLock as { files: unknown[] };
+    lock.files = lock.files.filter(
+      (entry) =>
+        (entry as { path?: unknown }).path !==
+        "tests/integration-contract/thumbnail-box-right.test.ts",
+    );
+    expect(collectActivationFailures(sources)).toContain(
+      "SOURCE_LOCK required entry missing: tests/integration-contract/thumbnail-box-right.test.ts",
+    );
+  });
+
+  it("rejects required source-lock entry digest drift", () => {
+    const sources = cloneSources();
+    const lock = sources.sourceLock as { files: unknown[] };
+    const entry = lock.files.find(
+      (value) =>
+        (value as { path?: unknown }).path ===
+        "fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
+    ) as { sha256: string } | undefined;
+    if (!entry) throw new Error("Required SOURCE_LOCK fixture missing in test setup");
+    entry.sha256 = "0".repeat(64);
+    expect(collectActivationFailures(sources)).toContain(
+      "SOURCE_LOCK required entry digest or byte drift: fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
+    );
+  });
+
+  it.each([
+    ["repository", "wrong-repository", "SOURCE_LOCK repository"],
+    ["commit", "0".repeat(40), "SOURCE_LOCK commit"],
+    ["integrationContractVersion", "0.0.0", "SOURCE_LOCK integration contract"],
+  ] as const)("rejects SOURCE_LOCK %s drift", (field, value, expectedFailure) => {
+    const sources = cloneSources();
+    const lock = sources.sourceLock as Record<string, unknown> & { files: unknown[] };
+    lock[field] = value;
+    expect(collectActivationFailures(sources)).toContain(expectedFailure);
   });
 });

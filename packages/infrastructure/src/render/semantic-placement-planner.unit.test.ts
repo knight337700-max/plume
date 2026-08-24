@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { inspectImageBytes } from "@plume/renderer-vendor";
-import { planSemanticPlacement } from "./semantic-placement-planner.js";
+import {
+  planFreeformSemanticPlacement,
+  planSemanticPlacement,
+} from "./semantic-placement-planner.js";
 
 const fixturePath = new URL(
   "../../../renderer-vendor/upstream/fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
@@ -102,6 +105,81 @@ describe("semantic placement planner", () => {
     expect(metadata.exifOrientation).toBeGreaterThanOrEqual(1);
     expect(metadata.exifOrientation).toBeLessThanOrEqual(8);
     expect(metadata.hasAlpha).toBe(false);
+  });
+
+  it("runs the additive FREEFORM target mode without changing the TEMPLATE_LOCKED planner", async () => {
+    const input = await asset();
+    let providerCalls = 0;
+    const target = {
+      normalizedBounds: { x: 0.5, y: 0.1, width: 0.5, height: 0.5 },
+      pixelWidth: 600,
+      pixelHeight: 300,
+      canvasWidth: 1200,
+      canvasHeight: 600,
+      plumeFormatProfileId: "kakao-moment-display-native-2-1-1200x600",
+      rendererFormatProfileId: "KAKAO_DISPLAY_NATIVE_2_1",
+    } as const;
+    const result = await planFreeformSemanticPlacement(
+      {
+        ...request(input),
+        target,
+        productName: "selected sofa",
+      },
+      {
+        gateway: {
+          execute: async (providerRequest) => {
+            providerCalls += 1;
+            expect(providerRequest.imageInputs).toHaveLength(1);
+            expect(providerRequest.messages[0]?.content).toContain("FREEFORM semantic");
+            expect(providerRequest.messages[1]?.content).toContain("layoutMode=FREEFORM");
+            expect(providerRequest.messages[1]?.content).toContain("pixelBounds=600x300");
+            return {
+              status: "COMPLETED",
+              outputJson: {
+                semanticPlacement: {
+                  status: "FOUND",
+                  primarySubjectBounds: { x: 0.25, y: 0.2, width: 0.3, height: 0.3 },
+                  semanticRegion: { x: 0.1, y: 0.1, width: 0.6, height: 0.4 },
+                  focalPoint: { x: 0.4, y: 0.35 },
+                  confidence: 0.95,
+                },
+                rationale: "synthetic freeform semantic placement",
+              },
+              latencyMs: 1,
+            };
+          },
+        },
+      },
+    );
+    expect(providerCalls).toBe(1);
+    expect(result.cropPixelRect.width * target.pixelHeight).toBe(
+      result.cropPixelRect.height * target.pixelWidth,
+    );
+    expect(result.candidate.candidateId).toMatch(/^semantic-[a-f0-9]{64}$/u);
+    expect(result.agentOutput.formatProfileId).toBe(target.plumeFormatProfileId);
+  });
+
+  it("fails closed when FREEFORM target normalized bounds and pixel dimensions drift", async () => {
+    const input = await asset();
+    await expect(
+      planFreeformSemanticPlacement(
+        {
+          ...request(input),
+          target: {
+            normalizedBounds: { x: 0.5, y: 0.1, width: 0.5, height: 0.5 },
+            pixelWidth: 599,
+            pixelHeight: 300,
+            canvasWidth: 1200,
+            canvasHeight: 600,
+            plumeFormatProfileId: "kakao-moment-display-native-2-1-1200x600",
+            rendererFormatProfileId: "KAKAO_DISPLAY_NATIVE_2_1",
+          },
+        },
+        {
+          gateway: { execute: async () => ({ status: "COMPLETED", outputJson: {}, latencyMs: 1 }) },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "SEMANTIC_CROP_REGION_UNFIT" });
   });
 
   it("fails closed on NOT_FOUND without producing a candidate or plan", async () => {

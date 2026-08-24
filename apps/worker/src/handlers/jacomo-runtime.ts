@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { buildExportPackage } from "../../../../packages/infrastructure/src/export/build-package.js";
 import { renderCreativeDocument } from "../../../../packages/infrastructure/src/render/renderer-adapter.js";
 import { runDeterministicValidation } from "../../../../packages/core/src/modules/validation/deterministic-validator.js";
+import { createAgentOrchestrator } from "../../../../packages/core/src/public.js";
 import { composeJacomoCreative } from "../../../../packages/core/src/modules/campaign/jacomo-workflow.js";
 import {
   composeCanonicalProductCreative,
@@ -136,6 +137,7 @@ export function createJacomoRuntimeHandlers(
     fileObjectReader: dependencies.fileObjectReader,
     storage: dependencies.storage,
     providerGateway: dependencies.providerGateway,
+    agentOrchestrator: createAgentOrchestrator({ gateway: dependencies.providerGateway }),
     ...(dependencies.clientBrandRepositories
       ? { clientBrandRepositories: dependencies.clientBrandRepositories }
       : {}),
@@ -303,7 +305,11 @@ export function createJacomoRuntimeHandlers(
           productId: creative.document.metadata.productId ?? undefined,
           creativeDocument: creative.document,
           purpose: "FINAL_EXPORT",
-          outputProfile: creative.outputProfile,
+          outputProfile:
+            creative.document.formatProfileId ===
+            "kakao-moment-display-native-2-1-1200x600"
+              ? { ...creative.outputProfile, maxBytes: 500000 }
+              : creative.outputProfile,
         },
       });
     }
@@ -324,17 +330,32 @@ export function createJacomoRuntimeHandlers(
   handlers["creative.render"] = withCommonContract("creative.render", async (envelope) => {
     const payload = envelope.payload as CreativeRenderPayload;
     const document = payload.creativeDocument as Readonly<Record<string, unknown>>;
+    const persistedVersion = await canonicalDependencies.creativeRepositories.getVersion(
+      envelope.workspaceId,
+      payload.creativeVersionId,
+    );
+    const persistedDocument = persistedVersion?.documentJson as
+      | Readonly<Record<string, unknown>>
+      | undefined;
+    const persistedMetadata = persistedDocument?.metadata;
+    const payloadMetadata = document.metadata;
     const isCanonical =
-      typeof document.metadata === "object" &&
-      document.metadata !== null &&
-      !Array.isArray(document.metadata) &&
-      (document.metadata as { readonly renderMode?: unknown }).renderMode === "CANONICAL_RENDERER";
+      (typeof persistedMetadata === "object" &&
+        persistedMetadata !== null &&
+        !Array.isArray(persistedMetadata) &&
+        (persistedMetadata as { readonly renderMode?: unknown }).renderMode ===
+          "CANONICAL_RENDERER") ||
+      (typeof payloadMetadata === "object" &&
+        payloadMetadata !== null &&
+        !Array.isArray(payloadMetadata) &&
+        (payloadMetadata as { readonly renderMode?: unknown }).renderMode === "CANONICAL_RENDERER");
     const canonicalResult = isCanonical
       ? await renderCanonicalProductDocument(
           canonicalDependencies,
           envelope.workspaceId,
           document,
           envelope.messageId,
+          payload.creativeVersionId,
         )
       : null;
     const rendered = canonicalResult
@@ -356,6 +377,10 @@ export function createJacomoRuntimeHandlers(
       readonly rendererIntegrationContract?: string;
       readonly rendererRuntimeVersion?: string;
       readonly legacyFallbackUsed?: boolean;
+      readonly requestFingerprint?: string;
+      readonly pixelFingerprint?: string;
+      readonly renderFingerprint?: string;
+      readonly rendererWarnings?: readonly unknown[];
       readonly rendererIntegrationOutput?: {
         readonly validation?: {
           readonly errors?: readonly unknown[];
@@ -369,6 +394,10 @@ export function createJacomoRuntimeHandlers(
       };
     };
     const rendererOutput = rendererMetadata.rendererIntegrationOutput;
+    const requestFingerprint =
+      rendererOutput?.requestFingerprint ?? rendererMetadata.requestFingerprint;
+    const pixelFingerprint = rendererOutput?.pixelFingerprint ?? rendererMetadata.pixelFingerprint;
+    const renderFingerprint = rendererOutput?.renderFingerprint ?? rendererMetadata.renderFingerprint;
     const objectKey = `renders/${envelope.workspaceId}/${payload.creativeVersionId}/${rendered.checksumSha256}.png`;
     const stored = await dependencies.storage.put({
       body: rendered.outputBytes,
@@ -385,15 +414,9 @@ export function createJacomoRuntimeHandlers(
         ...(rendererMetadata.rendererIntegrationContract
           ? { integrationContract: rendererMetadata.rendererIntegrationContract }
           : {}),
-        ...(rendererOutput?.requestFingerprint
-          ? { requestFingerprint: rendererOutput.requestFingerprint }
-          : {}),
-        ...(rendererOutput?.pixelFingerprint
-          ? { pixelFingerprint: rendererOutput.pixelFingerprint }
-          : {}),
-        ...(rendererOutput?.renderFingerprint
-          ? { renderFingerprint: rendererOutput.renderFingerprint }
-          : {}),
+        ...(requestFingerprint ? { requestFingerprint } : {}),
+        ...(pixelFingerprint ? { pixelFingerprint } : {}),
+        ...(renderFingerprint ? { renderFingerprint } : {}),
       },
     });
     if (stored.checksumSha256 !== rendered.checksumSha256)
@@ -410,16 +433,19 @@ export function createJacomoRuntimeHandlers(
       purpose: payload.purpose,
       renderMode: isCanonical ? "CANONICAL_RENDERER" : "MOCK_AI",
       legacyFallbackUsed: rendererMetadata.legacyFallbackUsed ?? !isCanonical,
+      ...(canonicalResult ? { canonicalDocument: canonicalResult.document } : {}),
       renderer: {
         repository: rendererMetadata.rendererRepository,
         commit: rendererMetadata.rendererCommit,
         integrationContract: rendererMetadata.rendererIntegrationContract,
         runtimeVersion: rendererMetadata.rendererRuntimeVersion,
-        validation: rendererOutput?.validation ?? { errors: [], warnings: [], info: [] },
+        validation:
+          rendererOutput?.validation ??
+          { errors: [], warnings: rendererMetadata.rendererWarnings ?? [], info: [] },
         appliedImagePlacements: rendererOutput?.appliedImagePlacements ?? [],
-        requestFingerprint: rendererOutput?.requestFingerprint,
-        pixelFingerprint: rendererOutput?.pixelFingerprint,
-        renderFingerprint: rendererOutput?.renderFingerprint,
+        requestFingerprint,
+        pixelFingerprint,
+        renderFingerprint,
         ...(canonicalResult
           ? {
               canonicalRequest: canonicalResult.request,
@@ -617,6 +643,7 @@ export function createJacomoRuntimeHandlers(
       objectKey?: string;
       checksumSha256?: string;
       renderer?: unknown;
+      canonicalDocument?: Readonly<Record<string, unknown>>;
     };
     if (!value.objectKey || !value.creativeVersionId)
       throw new Error("RENDER_RESULT_REFERENCE_REQUIRED");
@@ -629,7 +656,9 @@ export function createJacomoRuntimeHandlers(
       causationId: envelope.messageId,
       payload: {
         creativeVersionId: value.creativeVersionId,
-        creativeDocument: (envelope.payload as CreativeRenderPayload).creativeDocument,
+        creativeDocument:
+          value.canonicalDocument ??
+          (envelope.payload as CreativeRenderPayload).creativeDocument,
         renderObjectKey: value.objectKey,
         renderChecksumSha256: value.checksumSha256,
         ...(value.renderer ? { renderer: value.renderer } : {}),

@@ -19,6 +19,7 @@ describe("canonical media channel catalog", () => {
     expect(formatsForCanonicalChannel("KAKAO_MOMENT").map((format) => format.productCode)).toEqual([
       "BIZBOARD",
       "BIZBOARD_THUMBNAIL_BOX_RIGHT",
+      "DISPLAY_NATIVE_2_1",
     ]);
     expect(formatsForCanonicalChannel("NAVER_GFA")).toEqual([]);
     expect(
@@ -31,5 +32,11 @@ describe("canonical media channel catalog", () => {
       APPROVED_FORMAT_PROFILES.length,
     );
     expect(APPROVED_FORMAT_PROFILES.every((format) => format.status === "ACTIVE")).toBe(true);
+    expect(APPROVED_FORMAT_PROFILES).toContainEqual(
+      expect.objectContaining({
+        id: "kakao-moment-display-native-2-1-1200x600",
+        productCode: "DISPLAY_NATIVE_2_1",
+      }),
+    );
   });
 });

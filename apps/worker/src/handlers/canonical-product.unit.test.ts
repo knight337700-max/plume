@@ -14,6 +14,7 @@ import {
   resolveCanonicalProductAsset,
   type CanonicalProductDependencies,
 } from "./canonical-product.js";
+import { PLUME_KAKAO_MOMENT_DISPLAY_NATIVE_2_1_FORMAT_PROFILE_ID } from "../../../../packages/infrastructure/src/render/renderer-bindings.js";
 
 const workspaceId = "00000000-0000-4000-8000-000000000101";
 const campaignId = "00000000-0000-4000-8000-00000000010b";
@@ -110,6 +111,58 @@ describe("canonical Product composition and asset boundary", () => {
     await expect(resolveCanonicalProductAsset((await dependencies()).deps, "workspace-other", campaignId, productId)).rejects.toMatchObject({ code: "CANONICAL_PRODUCT_ASSET_REQUIRED" });
     const unknown = await dependencies();
     await expect(composeCanonicalProductCreative(unknown.deps, { workspaceId, campaignId, productId, briefVersionId, formatProfileId: "unknown-format", sequence: 1, jobId: "00000000-0000-4000-8000-000000000303" })).rejects.toMatchObject({ code: "CANONICAL_RENDERER_FORMAT_BINDING_NOT_FOUND" });
+  });
+
+  it("rejects FREEFORM canonical product flow before asset storage or provider access", async () => {
+    const { deps } = await dependencies();
+    const reads = { assetSelections: 0, fileObject: 0, storage: 0, provider: 0 };
+    const originalListAssetPoolSelections = deps.campaignRepositories.listAssetPoolSelections.bind(deps.campaignRepositories);
+    const guardedDeps: CanonicalProductDependencies = {
+      ...deps,
+      campaignRepositories: {
+        ...deps.campaignRepositories,
+        async listAssetPoolSelections(...args) {
+          reads.assetSelections += 1;
+          return originalListAssetPoolSelections(...args);
+        },
+      },
+      fileObjectReader: {
+        async getFileObject(...args) {
+          reads.fileObject += 1;
+          return deps.fileObjectReader.getFileObject(...args);
+        },
+      },
+      storage: {
+        ...deps.storage,
+        async get(...args) {
+          reads.storage += 1;
+          return deps.storage.get(...args);
+        },
+      },
+      providerGateway: {
+        async execute() {
+          reads.provider += 1;
+          throw new Error("PROVIDER_MUST_NOT_BE_CALLED");
+        },
+      },
+    };
+
+    await expect(
+      composeCanonicalProductCreative(guardedDeps, {
+        workspaceId,
+        campaignId,
+        productId,
+        briefVersionId,
+        formatProfileId: PLUME_KAKAO_MOMENT_DISPLAY_NATIVE_2_1_FORMAT_PROFILE_ID,
+        sequence: 1,
+        jobId: "00000000-0000-4000-8000-000000000308",
+      }),
+    ).rejects.toMatchObject({
+      code: "CANONICAL_FREEFORM_LAYOUT_PLANNER_REQUIRED",
+      statusCode: 422,
+      retryable: false,
+    });
+    expect(reads).toEqual({ assetSelections: 0, fileObject: 0, storage: 0, provider: 0 });
   });
 
   it("keeps applied placement evidence different for different Product geometry", async () => {

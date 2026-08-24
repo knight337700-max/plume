@@ -96,6 +96,41 @@ export type {
   RenderResponse,
   ValidationIssue,
 } from "../upstream/src/core/types.js";
+// eslint-disable-next-line no-restricted-imports -- Frozen FREEFORM runtime types are exposed only through this public boundary.
+export type {
+  FreeformAssetInput,
+  FreeformRenderRequest,
+  FreeformRenderResult,
+} from "../upstream/src/core/freeform.js";
+export {
+  FREEFORM_CANONICAL_SCHEMA_PATH,
+  FREEFORM_CANONICAL_SCHEMA_SHA256,
+  FREEFORM_CANONICAL_SCHEMA_VERSION,
+  FREEFORM_FONT_REGISTRY_PATH,
+  FREEFORM_FONT_REGISTRY_SHA256,
+  FREEFORM_FORMAT_PROFILE_REGISTRY_PATH,
+  FREEFORM_FORMAT_PROFILE_REGISTRY_SHA256,
+  canonicalFreeformPlan,
+  loadCanonicalCreativeLayoutPlanSchema,
+  loadResolvedCanonicalCreativeLayoutPlanSchema,
+  loadFreeformFontRegistry,
+  loadFreeformFormatProfileRegistry,
+  validateCreativeLayoutPlan,
+  validateFontReference,
+} from "./freeform-contract.js";
+export type {
+  CanonicalFreeformLayoutPlanSchema,
+  CreativeElement,
+  CreativeLayoutPlan,
+  FormatProfile,
+  FreeformFontRegistry,
+  FreeformFormatProfileRegistry,
+  FreeformImageElement,
+  FreeformLogoElement,
+  FreeformTextElement,
+  ImagePlacementSpec,
+  OutputFormat,
+} from "./freeform-contract.js";
 
 const runtimeRootCandidates = [
   fileURLToPath(new URL("../upstream/", import.meta.url)),

@@ -79,6 +79,15 @@ describe("PI-2A semantic placement target freeze verifier", () => {
     });
   });
 
+  it("rejects historical manifest SOURCE_LOCK snapshot drift", () => {
+    const manifest = cloneManifest();
+    recordAt(manifest, "vendorEvidence").sourceLockEntries = 999;
+    const failures = collectFreezeFailures(manifest, baseSources);
+    expect(failures.some((failure) => failure.includes("vendorEvidence.sourceLockEntries"))).toBe(
+      true,
+    );
+  });
+
   it.each([
     [
       "wrong parent SHA",
@@ -164,12 +173,48 @@ describe("PI-2A semantic placement target freeze verifier", () => {
     expect(failures.some((failure) => failure.includes(expectedFailure))).toBe(true);
   });
 
-  it("rejects a source-lock file count drift", () => {
+  it("allows an unrelated additive source-lock entry", () => {
     const sources = cloneSources();
     const sourceLock = sources.sourceLock as { files: unknown[] };
-    sourceLock.files = sourceLock.files.slice(0, 110);
+    sourceLock.files = [
+      ...sourceLock.files,
+      { path: "contracts/synthetic-unrelated-entry.json", bytes: 1, sha256: "0".repeat(64) },
+    ];
     const failures = collectFreezeFailures(baseManifest, sources);
-    expect(failures.some((failure) => failure.includes("SOURCE_LOCK.json.files"))).toBe(true);
+    expect(failures).toEqual([]);
+  });
+
+  it("rejects a missing required source-lock entry", () => {
+    const sources = cloneSources();
+    const sourceLock = sources.sourceLock as { files: unknown[] };
+    sourceLock.files = sourceLock.files.filter(
+      (entry) => (entry as { path?: unknown }).path !== evidencePaths[0],
+    );
+    const failures = collectFreezeFailures(baseManifest, sources);
+    expect(failures).toContain(`SOURCE_LOCK.json.files.${evidencePaths[0]}: missing`);
+  });
+
+  it("rejects required source-lock entry digest drift", () => {
+    const sources = cloneSources();
+    const sourceLock = sources.sourceLock as { files: unknown[] };
+    const entry = sourceLock.files.find(
+      (value) => (value as { path?: unknown }).path === evidencePaths[1],
+    ) as { sha256: string } | undefined;
+    if (!entry) throw new Error("Required SOURCE_LOCK fixture missing in test setup");
+    entry.sha256 = "0".repeat(64);
+    const failures = collectFreezeFailures(baseManifest, sources);
+    expect(failures).toContain(`SOURCE_LOCK.json.files.${evidencePaths[1]}: digest or byte drift`);
+  });
+
+  it.each([
+    ["repository", "wrong-repository", "SOURCE_LOCK.json: renderer repository drift"],
+    ["commit", "0".repeat(40), "SOURCE_LOCK.json: renderer commit drift"],
+    ["integrationContractVersion", "0.0.0", "SOURCE_LOCK.json: integration contract drift"],
+  ] as const)("rejects SOURCE_LOCK %s drift", (field, value, expectedFailure) => {
+    const sources = cloneSources();
+    const sourceLock = sources.sourceLock as Record<string, unknown> & { files: unknown[] };
+    sourceLock[field] = value;
+    expect(collectFreezeFailures(baseManifest, sources)).toContain(expectedFailure);
   });
 
   it("rejects missing and mismatched evidence digests", () => {

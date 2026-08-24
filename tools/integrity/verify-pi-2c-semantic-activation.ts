@@ -16,8 +16,25 @@ const EXPECTED = Object.freeze({
   rendererRepository: "knight337700-max/plume-renderer",
   rendererSha: "7baa272dd852ed21a09cf369c928571b3f75fd31",
   contract: "1.8.0",
-  sourceLockEntries: 111,
 } as const);
+
+const REQUIRED_SOURCE_LOCK_EVIDENCE = Object.freeze([
+  {
+    path: "tests/integration-contract/thumbnail-box-right.test.ts",
+    bytes: 9381,
+    sha256: "c186ae8e3961f0b30bc7abfafb0d95261eb92a2c0874256669b70f8f79daa081",
+  },
+  {
+    path: "fixtures/valid/thumbnail-box-right__asset__basic__pass.png",
+    bytes: 1176,
+    sha256: "fd5d6e48ebbf443f10f40af1b70091649b208bc7118f64dc3a990434915fc2fe",
+  },
+  {
+    path: "fixtures/golden/thumbnail-box-right__valid__golden.png",
+    bytes: 11884,
+    sha256: "f1111ee8f36fe1d8ccc7aaa445b175906e8a6432027d3e65764158ad40c52996",
+  },
+] as const);
 
 export interface ActivationSources {
   readonly bindingSource: string;
@@ -42,10 +59,38 @@ function requireMatch(failures: string[], source: string, pattern: RegExp, name:
   if (!pattern.test(source)) failures.push(name);
 }
 
-function sourceLockCount(sourceLock: unknown): number | undefined {
-  if (!sourceLock || typeof sourceLock !== "object" || Array.isArray(sourceLock)) return undefined;
-  const files = (sourceLock as { readonly files?: unknown }).files;
-  return Array.isArray(files) ? files.length : undefined;
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function requireSourceLockEvidence(failures: string[], sourceLock: unknown): void {
+  const record = asRecord(sourceLock);
+  if (!record) {
+    failures.push("SOURCE_LOCK object");
+    return;
+  }
+  if (record.repository !== EXPECTED.rendererRepository) failures.push("SOURCE_LOCK repository");
+  if (record.commit !== EXPECTED.rendererSha) failures.push("SOURCE_LOCK commit");
+  if (record.integrationContractVersion !== EXPECTED.contract)
+    failures.push("SOURCE_LOCK integration contract");
+
+  const files = record.files;
+  if (!Array.isArray(files)) {
+    failures.push("SOURCE_LOCK files");
+    return;
+  }
+  for (const required of REQUIRED_SOURCE_LOCK_EVIDENCE) {
+    const entry = files.find((value) => asRecord(value)?.path === required.path);
+    const entryRecord = asRecord(entry);
+    if (!entryRecord) {
+      failures.push(`SOURCE_LOCK required entry missing: ${required.path}`);
+      continue;
+    }
+    if (entryRecord.bytes !== required.bytes || entryRecord.sha256 !== required.sha256)
+      failures.push(`SOURCE_LOCK required entry digest or byte drift: ${required.path}`);
+  }
 }
 
 export function collectActivationFailures(sources: ActivationSources): readonly string[] {
@@ -181,8 +226,7 @@ export function collectActivationFailures(sources: ActivationSources): readonly 
     )
   )
     failures.push("live runner directly invokes worker helpers");
-  if (sourceLockCount(sources.sourceLock) !== EXPECTED.sourceLockEntries)
-    failures.push("SOURCE_LOCK entry count");
+  requireSourceLockEvidence(failures, sources.sourceLock);
   return Object.freeze(failures);
 }
 

@@ -72,6 +72,12 @@ export interface SemanticCropCandidateBuildInput extends SemanticPlacementGeomet
   readonly sourceHeight: number;
   readonly assetDescriptor?: RendererAssetDescriptor;
   readonly imageSlotId?: string;
+  /**
+   * Optional exact output slot dimensions.  Omitting these preserves the
+   * historical PI-2 315:186 candidate identity and geometry.
+   */
+  readonly targetPixelWidth?: number;
+  readonly targetPixelHeight?: number;
 }
 
 export interface SemanticCropCandidateBuildResult {
@@ -118,6 +124,17 @@ function pointInside(rect: NormalizedRect, point: NormalizedPoint): boolean {
 
 function bound(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function greatestCommonDivisor(left: number, right: number): number {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b !== 0) {
+    const remainder = a % b;
+    a = b;
+    b = remainder;
+  }
+  return a;
 }
 
 const BINARY64_BUFFER = new ArrayBuffer(8);
@@ -287,7 +304,16 @@ function canonicalCandidateDigest(input: {
   readonly semanticRegion: NormalizedRect;
   readonly focalPoint: NormalizedPoint;
   readonly cropPixelRect: PixelRect;
+  readonly targetPixelWidth?: number;
+  readonly targetPixelHeight?: number;
 }): string {
+  const target =
+    input.targetPixelWidth === undefined || input.targetPixelHeight === undefined
+      ? {}
+      : {
+          targetPixelWidth: input.targetPixelWidth,
+          targetPixelHeight: input.targetPixelHeight,
+        };
   return createHash("sha256")
     .update(
       canonicalJson({
@@ -299,6 +325,7 @@ function canonicalCandidateDigest(input: {
         semanticRegion: input.semanticRegion,
         focalPoint: input.focalPoint,
         cropPixelRect: input.cropPixelRect,
+        ...target,
       }),
       "utf8",
     )
@@ -348,6 +375,25 @@ export function buildSemanticCropCandidate(
     input.sourceHeight <= 0
   )
     fail("SEMANTIC_CROP_REGION_UNFIT", "source dimensions must be positive integers");
+  const hasTargetWidth = input.targetPixelWidth !== undefined;
+  const hasTargetHeight = input.targetPixelHeight !== undefined;
+  if (hasTargetWidth !== hasTargetHeight)
+    fail("SEMANTIC_CROP_REGION_UNFIT", "target pixel width and height must be provided together");
+  const targetPixelWidth = input.targetPixelWidth ?? 315;
+  const targetPixelHeight = input.targetPixelHeight ?? 186;
+  if (
+    !Number.isInteger(targetPixelWidth) ||
+    !Number.isInteger(targetPixelHeight) ||
+    targetPixelWidth <= 0 ||
+    targetPixelHeight <= 0
+  )
+    fail("SEMANTIC_CROP_REGION_UNFIT", "target pixel dimensions must be positive integers");
+  const ratioDivisor = greatestCommonDivisor(targetPixelWidth, targetPixelHeight);
+  if (ratioDivisor <= 0)
+    fail("SEMANTIC_CROP_REGION_UNFIT", "target pixel dimensions have no exact ratio");
+  const cropBaseWidth = targetPixelWidth / ratioDivisor;
+  const cropBaseHeight = targetPixelHeight / ratioDivisor;
+  const includeTargetInCandidateId = !(targetPixelWidth === 315 && targetPixelHeight === 186);
 
   ensureRect(input.primarySubjectBounds, "SEMANTIC_SUBJECT_BOUNDS_INVALID", "primarySubjectBounds");
   ensureRect(input.semanticRegion, "SEMANTIC_REGION_INVALID", "semanticRegion");
@@ -375,13 +421,10 @@ export function buildSemanticCropCandidate(
     fail("SEMANTIC_REGION_INVALID", "semanticRegion cannot be converted to source pixels");
   }
   const scale = Math.ceil(
-    Math.max(
-      requiredPixels.width / SEMANTIC_CROP_BASE_WIDTH,
-      requiredPixels.height / SEMANTIC_CROP_BASE_HEIGHT,
-    ),
+    Math.max(requiredPixels.width / cropBaseWidth, requiredPixels.height / cropBaseHeight),
   );
-  const cropWidth = SEMANTIC_CROP_BASE_WIDTH * Math.max(1, scale);
-  const cropHeight = SEMANTIC_CROP_BASE_HEIGHT * Math.max(1, scale);
+  const cropWidth = cropBaseWidth * Math.max(1, scale);
+  const cropHeight = cropBaseHeight * Math.max(1, scale);
   if (cropWidth > input.sourceWidth || cropHeight > input.sourceHeight)
     fail("SEMANTIC_CROP_REGION_UNFIT", "exact-ratio crop does not fit the source image");
 
@@ -402,8 +445,8 @@ export function buildSemanticCropCandidate(
     width: cropWidth,
     height: cropHeight,
   };
-  if (cropPixelRect.width * 186 !== cropPixelRect.height * 315)
-    fail("SEMANTIC_CROP_REGION_UNFIT", "crop pixel ratio is not exactly 315:186");
+  if (cropPixelRect.width * targetPixelHeight !== cropPixelRect.height * targetPixelWidth)
+    fail("SEMANTIC_CROP_REGION_UNFIT", "crop pixel ratio does not match the target slot");
 
   const cropRect = pixelRectToCanonicalNormalizedRect(
     cropPixelRect,
@@ -421,6 +464,7 @@ export function buildSemanticCropCandidate(
     semanticRegion: input.semanticRegion,
     focalPoint: input.focalPoint,
     cropPixelRect,
+    ...(includeTargetInCandidateId ? { targetPixelWidth, targetPixelHeight } : {}),
   })}`;
   const candidate: CropCandidate = {
     schemaVersion: INTEGRATION_SCHEMA_VERSION,

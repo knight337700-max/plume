@@ -26,7 +26,11 @@ describe("campaign media selection routes", () => {
       url: `/api/v1/workspaces/ws-1/campaigns/${campaignId}/format-options?channelCode=KAKAO_MOMENT`,
     });
     expect(formats.statusCode).toBe(200);
-    expect(formats.json().items).toHaveLength(2);
+    expect(formats.json().items.map((item: { readonly id: string }) => item.id)).toEqual([
+      "kakao-moment-bizboard-1029x258",
+      "kakao-moment-bizboard-thumbnail-box-right-1029x258",
+      "kakao-moment-display-native-2-1-1200x600",
+    ]);
     const formatProfileId = formats.json().items[0].id as string;
     const formatSelection = await app.inject({
       method: "PUT",

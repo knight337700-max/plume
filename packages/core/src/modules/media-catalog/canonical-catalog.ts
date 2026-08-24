@@ -69,6 +69,30 @@ export const APPROVED_FORMAT_PROFILES: readonly ApprovedFormatDefinition[] = Obj
     exportRecipeId: "kakao-moment-bizboard",
     specificationVersion: "2026.1",
   },
+  {
+    id: "kakao-moment-display-native-2-1-1200x600",
+    channelCode: "KAKAO_MOMENT",
+    productCode: "DISPLAY_NATIVE_2_1",
+    productName: "Kakao Moment Display Native 2:1",
+    stableKey: "kakao-moment-display-native-2-1-1200x600",
+    version: "2026.1",
+    name: "Kakao Moment Display Native 2:1 1200x600",
+    status: "ACTIVE",
+    renderMode: "SERVER_RENDER",
+    mediaType: "PNG",
+    spec: {
+      width: 1200,
+      height: 600,
+      maxBytes: 500000,
+      alpha: false,
+      colorMode: "RGBA",
+      layoutMode: "FREEFORM",
+      officialRatio: "2:1",
+    },
+    ruleSetId: "kakao-moment-2026.1",
+    exportRecipeId: "kakao-moment-display-native",
+    specificationVersion: "2026.1",
+  },
 ]);
 
 export function isCanonicalChannelCode(value: unknown): value is CanonicalChannelCode {

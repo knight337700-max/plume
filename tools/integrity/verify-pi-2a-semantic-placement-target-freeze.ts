@@ -12,7 +12,7 @@ const EXPECTED = Object.freeze({
   rendererRepository: "knight337700-max/plume-renderer",
   rendererSha: "7baa272dd852ed21a09cf369c928571b3f75fd31",
   contractVersion: "1.8.0",
-  sourceLockEntries: 111,
+  historicalSourceLockEntries: 111,
   targetProfile: "KAKAO_BIZBOARD_THUMBNAIL_BOX_RIGHT",
   templateId: "KAKAO_MOMENT_BIZBOARD_THUMBNAIL_BOX_RIGHT",
   imageSlotId: "IMAGE_PRIMARY",
@@ -137,11 +137,6 @@ function requireEvidence(
   if (!Array.isArray(files)) {
     failures.push("SOURCE_LOCK.json.files: expected an array");
   } else {
-    if (files.length !== EXPECTED.sourceLockEntries) {
-      failures.push(
-        `SOURCE_LOCK.json.files: expected ${EXPECTED.sourceLockEntries}, received ${files.length}`,
-      );
-    }
     for (const expected of REQUIRED_EVIDENCE) {
       const entry = files.find((value) => asRecord(value)?.path === expected.path);
       const record = asRecord(entry);
@@ -289,7 +284,12 @@ export function collectFreezeFailures(manifest: unknown, sources: FreezeSources)
   requireValue(manifest, failures, "renderer.repository", EXPECTED.rendererRepository);
   requireValue(manifest, failures, "renderer.commit", EXPECTED.rendererSha);
   requireValue(manifest, failures, "renderer.integrationContract", EXPECTED.contractVersion);
-  requireValue(manifest, failures, "vendorEvidence.sourceLockEntries", EXPECTED.sourceLockEntries);
+  requireValue(
+    manifest,
+    failures,
+    "vendorEvidence.sourceLockEntries",
+    EXPECTED.historicalSourceLockEntries,
+  );
 
   const sourceLock = asRecord(sources.sourceLock);
   if (!sourceLock) {

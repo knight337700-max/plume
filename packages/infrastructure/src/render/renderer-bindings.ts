@@ -8,6 +8,8 @@ import {
 export const PLUME_KAKAO_BIZBOARD_FORMAT_PROFILE_ID = "kakao-moment-bizboard-1029x258" as const;
 export const PLUME_KAKAO_MOMENT_THUMBNAIL_BOX_RIGHT_FORMAT_PROFILE_ID =
   "kakao-moment-bizboard-thumbnail-box-right-1029x258" as const;
+export const PLUME_KAKAO_MOMENT_DISPLAY_NATIVE_2_1_FORMAT_PROFILE_ID =
+  "kakao-moment-display-native-2-1-1200x600" as const;
 
 export interface CanonicalRendererFormatBinding {
   readonly plumeFormatProfileId: string;
@@ -30,9 +32,32 @@ export const THUMBNAIL_BOX_RIGHT_FORMAT_BINDING: CanonicalRendererFormatBinding 
   layoutMode: "TEMPLATE_LOCKED",
 });
 
-const bindings = new Map<string, CanonicalRendererFormatBinding>([
+export interface CanonicalFreeformRendererFormatBinding {
+  readonly plumeFormatProfileId: string;
+  readonly rendererFormatProfileId: string;
+  readonly rendererTemplateId: null;
+  readonly layoutMode: "FREEFORM";
+}
+
+export type CanonicalRendererBinding =
+  | CanonicalRendererFormatBinding
+  | CanonicalFreeformRendererFormatBinding;
+
+export const KAKAO_DISPLAY_NATIVE_2_1_FREEFORM_BINDING: CanonicalFreeformRendererFormatBinding =
+  Object.freeze({
+    plumeFormatProfileId: PLUME_KAKAO_MOMENT_DISPLAY_NATIVE_2_1_FORMAT_PROFILE_ID,
+    rendererFormatProfileId: "KAKAO_DISPLAY_NATIVE_2_1",
+    rendererTemplateId: null,
+    layoutMode: "FREEFORM",
+  });
+
+const bindings = new Map<string, CanonicalRendererBinding>([
   [OBJECT_RIGHT_FORMAT_BINDING.plumeFormatProfileId, OBJECT_RIGHT_FORMAT_BINDING],
   [THUMBNAIL_BOX_RIGHT_FORMAT_BINDING.plumeFormatProfileId, THUMBNAIL_BOX_RIGHT_FORMAT_BINDING],
+  [
+    KAKAO_DISPLAY_NATIVE_2_1_FREEFORM_BINDING.plumeFormatProfileId,
+    KAKAO_DISPLAY_NATIVE_2_1_FREEFORM_BINDING,
+  ],
 ]);
 
 export class CanonicalRendererBindingError extends Error {
@@ -45,8 +70,14 @@ export class CanonicalRendererBindingError extends Error {
 }
 
 export function resolveCanonicalRendererBinding(
+  plumeFormatProfileId: typeof PLUME_KAKAO_MOMENT_DISPLAY_NATIVE_2_1_FORMAT_PROFILE_ID,
+): CanonicalFreeformRendererFormatBinding;
+export function resolveCanonicalRendererBinding(
   plumeFormatProfileId: string,
-): CanonicalRendererFormatBinding {
+): CanonicalRendererBinding;
+export function resolveCanonicalRendererBinding(
+  plumeFormatProfileId: string,
+): CanonicalRendererBinding {
   const binding = bindings.get(plumeFormatProfileId);
   if (!binding) throw new CanonicalRendererBindingError();
   return binding;
