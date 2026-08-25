@@ -7,10 +7,8 @@ import type {
   LiveSmokeValidationEvidenceInput,
   LiveSmokeValidationEvidenceStore,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
-import {
-  createLiveSmokeHandler,
-  createLiveSmokeVerificationHandler,
-} from "./live-smoke.js";
+import { createLiveSmokeHandler, createLiveSmokeVerificationHandler } from "./live-smoke.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const ids = {
   workspaceId: "00000000-0000-4000-8000-0000000002c0",
@@ -36,6 +34,15 @@ function budgetStore(): LiveSmokeBudgetStore {
     async reserve() {
       return { allowed: true, duplicate: false, used: 1, remaining: 8 };
     },
+    async markDispatchStarted() {
+      return { marked: true, duplicate: false };
+    },
+    async settle() {
+      return { settled: true, duplicate: false };
+    },
+    async markUnknownBillable() {
+      return { marked: true, duplicate: false };
+    },
   };
 }
 
@@ -44,14 +51,21 @@ function lifecycleStore(): LiveSmokeLifecycleStore {
     async record() {
       return { inserted: true };
     },
+    async markProviderRequestAttempt() {
+      return { updated: true };
+    },
     async recordReconciliation() {
       return { inserted: true };
     },
-    async ensureCanary() {},
+    async ensureCanary() {
+      return { created: true, scopeMatches: true, status: "PENDING" as const };
+    },
     async getCanaryStatus() {
       return "PASS";
     },
-    async recordCanary() {},
+    async recordCanary() {
+      return { updated: true, status: "PASS" as const };
+    },
   };
 }
 
@@ -118,6 +132,7 @@ function job(agentCode: string) {
       smokeRunId: ids.smokeRunId,
       budgetEpochId: ids.budgetEpochId,
       workflowCallBudget: 9,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
     },
   } as never;
 }
@@ -135,6 +150,12 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
       const rows: LiveSmokeValidationEvidenceInput[] = [];
       const handler = createLiveSmokeHandler(providerGateway(true), budgetStore(), {
         providerMode: "live",
+        pricingPolicy: {
+          model: "gpt-5.6-luna",
+          pricingVersion: "test",
+          inputMicroUsdPerMillionTokens: 1,
+          outputMicroUsdPerMillionTokens: 1,
+        },
         validationEvidenceStore: evidenceStore(rows),
       });
       await handler(job(agentCode), invocation(agentCode));
@@ -160,9 +181,19 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
     const rows: LiveSmokeValidationEvidenceInput[] = [];
     const handler = createLiveSmokeHandler(providerGateway(false), budgetStore(), {
       providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+      },
       validationEvidenceStore: evidenceStore(rows),
     });
-    await handler(job("LAYOUT_PLANNER"), invocation("LAYOUT_PLANNER"));
+    await expect(
+      handler(job("LAYOUT_PLANNER"), invocation("LAYOUT_PLANNER")),
+    ).rejects.toMatchObject({
+      code: "LIVE_SMOKE_UNKNOWN_BILLABLE",
+    });
     expect(rows.some((row) => row.evidenceStage === "SDK_ATTEMPT")).toBe(false);
     expect(rows.find((row) => row.evidenceStage === "PROVIDER_RESPONSE")?.sdkRequestAttempted).toBe(
       false,
@@ -188,6 +219,12 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
       idempotentCoverage,
       {
         providerMode: "live",
+        pricingPolicy: {
+          model: "gpt-5.6-luna",
+          pricingVersion: "test",
+          inputMicroUsdPerMillionTokens: 1,
+          outputMicroUsdPerMillionTokens: 1,
+        },
         lifecycleStore: lifecycleStore(),
         validationEvidenceStore: evidenceStore(rows),
       },
@@ -197,10 +234,11 @@ describe("Phase 2C.9 validation evidence instrumentation", () => {
         id: "LAYOUT_PLANNER-item",
         attemptsMade: 0,
         data: {
-          ...((job("LAYOUT_PLANNER") as { data: Record<string, unknown> }).data),
+          ...(job("LAYOUT_PLANNER") as { data: Record<string, unknown> }).data,
           verificationOnly: true,
           verificationRunId: ids.verificationRunId,
           parentWorkflowJobId: ids.parentWorkflowJobId,
+          canaryVerificationRunId: ids.verificationRunId,
         },
       } as never,
       invocation("LAYOUT_PLANNER"),

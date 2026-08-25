@@ -5,6 +5,7 @@ import {
   promptRegistry,
   type AgentCode,
 } from "../../../../../packages/core/src/agents/prompt-registry.js";
+import { modelPolicyRegistry } from "../../../../../packages/core/src/agents/model-policy-registry.js";
 import {
   createAgentOrchestrator,
   type AgentProviderGateway,
@@ -16,15 +17,27 @@ import type {
   JsonSchema,
   ValidationEvidence,
 } from "../../../../../packages/core/src/agents/result-validator.js";
-import type {
-  AiLiveSmokeCanaryPayload,
-  AiLiveSmokePayload,
-  AiLiveSmokeVerificationPayload,
+import {
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
+  type AiLiveSmokeCanaryPayload,
+  type AiLiveSmokePayload,
+  type AiLiveSmokeVerificationPayload,
 } from "../../../../../packages/contracts/src/async.js";
 import type {
   LiveSmokeBudgetStore,
   LiveSmokeProviderMode,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
+import {
+  isApprovedLiveSmokeSyntheticScenarioId,
+  resolveLiveSmokeSyntheticScenario,
+} from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
+import {
+  assertLiveSmokeInputEstimate,
+  calculateLiveSmokeCostMicroUsd,
+  calculateLiveSmokeReservationMicroUsd,
+  estimateLiveSmokeInputTokens,
+  type LiveSmokePricingPolicy,
+} from "../../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
 import type { LiveSmokeCoverageStore } from "../../../../../packages/infrastructure/src/async/live-smoke-coverage-store.js";
 import type {
   LiveSmokeLifecycleStore,
@@ -34,65 +47,10 @@ import type {
   LiveSmokeValidationEvidenceStage,
   LiveSmokeValidationEvidenceStore,
 } from "../../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
-
-const SYNTHETIC_IDS = Object.freeze({
-  campaign: "00000000-0000-4000-8000-0000000002c1",
-  product: "00000000-0000-4000-8000-0000000002c2",
-  format: "00000000-0000-4000-8000-0000000002c3",
-  asset: "00000000-0000-4000-8000-0000000002c4",
-  creative: "00000000-0000-4000-8000-0000000002c5",
-});
-
-const SYNTHETIC_DATA: Readonly<Record<string, unknown>> = Object.freeze({
-  sourceIds: ["00000000-0000-4000-8000-0000000002c6"],
-  sourceText: "Synthetic JACOMO Autumn Sofa Preview brief for staging validation.",
-  citations: [],
-  brandProfile: { brand: "JACOMO", market: "KR", synthetic: true },
-  productNames: ["Synthetic Autumn Sofa"],
-  candidates: [],
-  products: [{ id: SYNTHETIC_IDS.product, name: "Synthetic Autumn Sofa" }],
-  product: { id: SYNTHETIC_IDS.product, name: "Synthetic Autumn Sofa" },
-  formatProfile: { id: SYNTHETIC_IDS.format, width: 1200, height: 628 },
-  brief: {
-    campaign: "Synthetic Autumn Sofa Preview",
-    objective: "Generate validation-safe staging planning metadata",
-  },
-  assets: [],
-  template: { id: "synthetic-template", safeZone: true },
-  safeZones: [],
-  copy: { headline: "Synthetic autumn comfort" },
-  creativeDocument: { schemaVersion: "1.0.0", metadata: { campaignId: SYNTHETIC_IDS.campaign } },
-  editRequest: "Move the synthetic headline slightly lower.",
-  validation: [],
-  render: { mimeType: "image/png", synthetic: true },
-  rules: [],
-  landingSnapshot: null,
-  campaign: { id: SYNTHETIC_IDS.campaign, name: "Synthetic Autumn Sofa Preview" },
-  creative: { id: SYNTHETIC_IDS.creative, synthetic: true },
-  exportRecipe: { id: "synthetic-export", packageType: "ZIP" },
-});
-
-const SYNTHETIC_MESSAGES = Object.freeze([
-  {
-    role: "system" as const,
-    content:
-      "Staging-only synthetic evaluation. Return only the registered JSON schema. Do not use tools or external data.",
-  },
-  {
-    role: "user" as const,
-    content:
-      "Evaluate the synthetic JACOMO Autumn Sofa Preview brief for a KR Naver GFA planning workflow. Customer data, images, and external URLs are absent.",
-  },
-]);
-
-const LAYOUT_SYNTHETIC_MESSAGES = Object.freeze([
-  ...SYNTHETIC_MESSAGES,
-  {
-    role: "system" as const,
-    content:
-      "LAYOUT_PLANNER contract: formatProfileId is derived from input.formatProfile.id and must not be emitted by the model. Emit the required elements array; an empty array is valid for this synthetic input. Keep templateId, usedAssetVersionIds, copyAssets, and rationale in the registered schema.",
-  },
-]);
+import {
+  classifyLiveSmokeFailure,
+  type LiveSmokeFailureEvidenceStore,
+} from "../../../../../packages/infrastructure/src/async/live-smoke-failure-evidence-store.js";
 
 function isAgentCode(value: string): value is AgentCode {
   return (AGENT_CODES as readonly string[]).includes(value);
@@ -103,6 +61,7 @@ export interface LiveSmokeInvocationContext {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly jobItemId: string;
+  readonly syntheticScenarioId?: string;
 }
 
 export type LiveSmokeRuntimeHandler = (
@@ -142,13 +101,37 @@ function evidenceRequestHash(result: ProviderResult): string | undefined {
   return result.evidence?.requestIdHash ?? result.providerRequestIdHash;
 }
 
+function assertInvocationScope(
+  payload: {
+    readonly workspaceId?: string;
+    readonly smokeRunId?: string;
+    readonly budgetEpochId: string;
+    readonly syntheticScenarioId?: string;
+  },
+  invocation: LiveSmokeInvocationContext | undefined,
+  scenarioId: string,
+): void {
+  if (payload.syntheticScenarioId !== scenarioId)
+    throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+  if (
+    invocation &&
+    ((payload.workspaceId && payload.workspaceId !== invocation.workspaceId) ||
+      (payload.smokeRunId && payload.smokeRunId !== invocation.smokeRunId) ||
+      payload.budgetEpochId !== invocation.budgetEpochId ||
+      (invocation.syntheticScenarioId && invocation.syntheticScenarioId !== scenarioId))
+  )
+    throw new Error("LIVE_SMOKE_SCOPE_MISMATCH");
+}
+
 export function createLiveSmokeHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
   options: {
     readonly providerMode?: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
     readonly lifecycleStore?: LiveSmokeLifecycleStore;
     readonly validationEvidenceStore?: LiveSmokeValidationEvidenceStore;
+    readonly failureEvidenceStore?: LiveSmokeFailureEvidenceStore;
     readonly onCoverageWrite?: (
       evidence: LiveSmokeCallEvidence | undefined,
       result: { readonly succeeded: boolean; readonly errorCode?: string },
@@ -165,267 +148,463 @@ export function createLiveSmokeHandler(
 ): LiveSmokeRuntimeHandler {
   const providerMode = options.providerMode ?? "live";
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
-    const payload = job.data as AiLiveSmokePayload & { readonly workspaceId?: string };
-    if (!isAgentCode(payload.agentCode)) throw new Error("AI_LIVE_SMOKE_AGENT_NOT_REGISTERED");
-    const workspaceId =
-      invocation?.workspaceId ?? payload.workspaceId ?? "00000000-0000-4000-8000-0000000002c0";
-    const smokeRunId =
-      invocation?.smokeRunId ?? payload.smokeRunId ?? String(job.id ?? workspaceId);
-    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
-    if (!budgetEpochId) throw budgetError("LIVE_SMOKE_BUDGET_EPOCH_REQUIRED");
-    const jobItemId = invocation?.jobItemId ?? String(job.id ?? `${payload.agentCode}-live-smoke`);
-    const verificationRunId = (payload as { readonly verificationRunId?: string })
-      .verificationRunId;
-    const prompt = promptRegistry.resolve(payload.agentCode);
-    const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
-    if (!schema) throw new Error(`AI_LIVE_SMOKE_SCHEMA_NOT_FOUND:${prompt.outputSchemaId}`);
-    const workflowCallBudget =
-      Number.isInteger(payload.workflowCallBudget) && payload.workflowCallBudget! > 0
-        ? payload.workflowCallBudget!
-        : Number.isInteger(payload.requestBudget) && payload.requestBudget! > 0
-          ? payload.requestBudget!
-          : 20;
-    if (workflowCallBudget > 20) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
-    const retryEnabled = payload.retryEnabled ?? true;
-    const repairEnabled = payload.repairEnabled ?? true;
-    const deliveryAttempt =
-      Number.isInteger(job.attemptsMade) && job.attemptsMade >= 0 ? job.attemptsMade : 0;
-    const reservationKey = (kind: ProviderCallKind): string =>
-      `${budgetEpochId}:${jobItemId}:delivery:${deliveryAttempt}:${kind}`;
-    let lastCallEvidence: LiveSmokeCallEvidence | undefined;
-    const recordEvidence = async (input: {
-      readonly evidenceStage: LiveSmokeValidationEvidenceStage;
-      readonly callKind: ProviderCallKind;
-      readonly providerResult?: ProviderResult;
-      readonly validation?: ValidationEvidence;
-      readonly sdkRequestAttempted?: boolean;
-      readonly providerResponseReceived?: boolean;
-      readonly coverageWriteAttempted?: boolean;
-      readonly coverageWriteSucceeded?: boolean;
-      readonly coverageWriteErrorCode?: string;
-    }) => {
-      if (providerMode !== "live" || !options.validationEvidenceStore) return;
-      const providerEvidence = input.providerResult?.evidence;
-      const validation = input.validation;
-      const providerRequestIdHash = input.providerResult
-        ? evidenceRequestHash(input.providerResult)
-        : undefined;
-      const resolvedModel = input.providerResult ? evidenceModel(input.providerResult) : undefined;
-      const record = {
-        evidenceKey: `${reservationKey(input.callKind)}:${input.evidenceStage}`,
-        evidenceStage: input.evidenceStage,
-        workspaceId,
-        smokeRunId,
-        budgetEpochId,
-        ...(verificationRunId ? { verificationRunId } : {}),
-        jobItemId,
-        agentCode: payload.agentCode,
-        callKind: input.callKind,
-        sdkRequestAttempted:
-          input.sdkRequestAttempted ?? providerEvidence?.requestAttempted ?? false,
-        providerResponseReceived:
-          input.providerResponseReceived ?? providerEvidence?.responseReceived ?? false,
-        ...(providerEvidence?.httpStatus === undefined
-          ? input.providerResult?.httpStatus === undefined
-            ? {}
-            : { providerHttpStatus: input.providerResult.httpStatus }
-          : { providerHttpStatus: providerEvidence.httpStatus }),
-        ...(providerRequestIdHash ? { providerRequestIdHash } : {}),
-        ...(resolvedModel ? { resolvedModel } : {}),
-        jsonParseStatus:
-          providerEvidence?.jsonParseStatus ?? validation?.jsonParseStatus ?? "NOT_REACHED",
-        transportValidationStatus: validation?.transportValidationStatus ?? "NOT_REACHED",
-        ...(validation?.transportErrorCode
-          ? { transportErrorCode: validation.transportErrorCode }
-          : {}),
-        transportErrorPaths: validation?.transportErrorPaths ?? [],
-        domainValidationStatus: validation?.domainValidationStatus ?? "NOT_REACHED",
-        ...(validation?.domainErrorCode ? { domainErrorCode: validation.domainErrorCode } : {}),
-        domainErrorPaths: validation?.domainErrorPaths ?? [],
-        repairEligible:
-          input.providerResult?.status === "COMPLETED" &&
-          (validation?.transportValidationStatus === "FAIL" ||
-            validation?.domainValidationStatus === "FAIL"),
-        retryEligible: input.providerResult?.error?.retryable === true,
-        coverageWriteAttempted: input.coverageWriteAttempted ?? false,
-        coverageWriteSucceeded: input.coverageWriteSucceeded ?? false,
-        ...(input.coverageWriteErrorCode
-          ? { coverageWriteErrorCode: input.coverageWriteErrorCode }
-          : {}),
-        ...(input.providerResult?.usage?.inputUnits === undefined
-          ? {}
-          : { inputUnits: input.providerResult.usage.inputUnits }),
-        ...(input.providerResult?.usage?.outputUnits === undefined
-          ? {}
-          : { outputUnits: input.providerResult.usage.outputUnits }),
-        ...(providerEvidence?.outputFingerprint
-          ? { outputFingerprint: providerEvidence.outputFingerprint }
-          : {}),
-        ...(providerEvidence?.outputLengthBytes === undefined
-          ? {}
-          : { outputLengthBytes: providerEvidence.outputLengthBytes }),
-      } as const;
-      await options.validationEvidenceStore.record(record);
+    const failureState = {
+      callKind: "initial" as ProviderCallKind,
+      reservationCreated: false,
+      dispatchStarted: false,
+      sdkAttempted: false,
+      providerResponseReceived: false,
+      usagePresent: false,
+      settlementState: undefined as string | undefined,
+      validationStage: undefined as string | undefined,
+      schemaErrorPaths: [] as readonly string[],
     };
-    const orchestrator = createAgentOrchestrator({
-      gateway,
-      retryEnabled,
-      repairEnabled,
-      beforeProviderCall: async (kind) => {
-        if (providerMode === "mock") return;
-        const key = reservationKey(kind);
-        let reserved = false;
-        let dispatchStarted = false;
-        try {
-          const reservation = await budgetStore.reserve({
-            workspaceId,
-            smokeRunId,
-            budgetEpochId,
-            reservationKey: key,
-            providerMode,
-            units: 1,
-            limit: workflowCallBudget,
-          });
-          if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
-          if (reservation.duplicate)
-            throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
-          reserved = true;
-          const base = {
-            workspaceId,
-            smokeRunId,
-            budgetEpochId,
-            reservationKey: key,
-            agentCode: payload.agentCode,
-            providerMode,
-          } as const;
-          await options.lifecycleStore?.record(
-            lifecycleInput(base, "RESERVED", {
-              providerRequestSent: false,
-              providerResponseReceived: false,
-              billableRequestCount: 0,
-            }),
-          );
-          await options.lifecycleStore?.record(
-            lifecycleInput(base, "DISPATCH_STARTED", {
-              providerRequestSent: true,
-              providerResponseReceived: false,
-              billableRequestCount: 1,
-            }),
-          );
-          dispatchStarted = true;
-        } catch (error) {
-          if (reserved && !dispatchStarted) {
-            await budgetStore.releasePreDispatch?.({
+    const rawPayload = job.data as Partial<AiLiveSmokePayload> & {
+      readonly verificationRunId?: string;
+    };
+    try {
+      const payload = job.data as AiLiveSmokePayload & { readonly workspaceId?: string };
+      if (!isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId))
+        throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+      const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+      assertInvocationScope(payload, invocation, scenario.id);
+      if (!isAgentCode(payload.agentCode)) throw new Error("AI_LIVE_SMOKE_AGENT_NOT_REGISTERED");
+      const workspaceId =
+        invocation?.workspaceId ?? payload.workspaceId ?? "00000000-0000-4000-8000-0000000002c0";
+      const smokeRunId =
+        invocation?.smokeRunId ?? payload.smokeRunId ?? String(job.id ?? workspaceId);
+      const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+      if (!budgetEpochId) throw budgetError("LIVE_SMOKE_BUDGET_EPOCH_REQUIRED");
+      const jobItemId =
+        invocation?.jobItemId ?? String(job.id ?? `${payload.agentCode}-live-smoke`);
+      const verificationRunId = (payload as { readonly verificationRunId?: string })
+        .verificationRunId;
+      const prompt = promptRegistry.resolve(payload.agentCode);
+      const modelPolicy = modelPolicyRegistry.forAgent(payload.agentCode);
+      const schema = (agentSchemas as Readonly<Record<string, unknown>>)[prompt.outputSchemaId];
+      if (!schema) throw new Error(`AI_LIVE_SMOKE_SCHEMA_NOT_FOUND:${prompt.outputSchemaId}`);
+      const requestMessages =
+        payload.agentCode === "LAYOUT_PLANNER" ? scenario.layoutMessages : scenario.messages;
+      const estimatedInputTokens = estimateLiveSmokeInputTokens({
+        messages: requestMessages,
+        outputSchema: schema,
+        metadata: { agentCode: payload.agentCode, model: options.pricingPolicy?.model },
+      });
+      if (providerMode === "live") {
+        if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+        assertLiveSmokeInputEstimate(options.pricingPolicy, estimatedInputTokens);
+      }
+      const workflowCallBudget =
+        Number.isInteger(payload.workflowCallBudget) && payload.workflowCallBudget! > 0
+          ? payload.workflowCallBudget!
+          : Number.isInteger(payload.requestBudget) && payload.requestBudget! > 0
+            ? payload.requestBudget!
+            : 20;
+      if (workflowCallBudget > LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)
+        throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_INVALID");
+      if (
+        providerMode === "live" &&
+        options.pricingPolicy?.absoluteProviderCallCap !== undefined &&
+        workflowCallBudget !== options.pricingPolicy.absoluteProviderCallCap
+      )
+        throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH");
+      const retryEnabled = payload.retryEnabled ?? true;
+      const repairEnabled = payload.repairEnabled ?? true;
+      const deliveryAttempt =
+        Number.isInteger(job.attemptsMade) && job.attemptsMade >= 0 ? job.attemptsMade : 0;
+      const reservationKey = (kind: ProviderCallKind): string =>
+        `${budgetEpochId}:${jobItemId}:delivery:${deliveryAttempt}:${kind}`;
+      let lastCallEvidence: LiveSmokeCallEvidence | undefined;
+      const recordEvidence = async (input: {
+        readonly evidenceStage: LiveSmokeValidationEvidenceStage;
+        readonly callKind: ProviderCallKind;
+        readonly providerResult?: ProviderResult;
+        readonly validation?: ValidationEvidence;
+        readonly sdkRequestAttempted?: boolean;
+        readonly providerResponseReceived?: boolean;
+        readonly coverageWriteAttempted?: boolean;
+        readonly coverageWriteSucceeded?: boolean;
+        readonly coverageWriteErrorCode?: string;
+      }) => {
+        if (providerMode !== "live" || !options.validationEvidenceStore) return;
+        const providerEvidence = input.providerResult?.evidence;
+        const validation = input.validation;
+        const providerRequestIdHash = input.providerResult
+          ? evidenceRequestHash(input.providerResult)
+          : undefined;
+        const resolvedModel = input.providerResult
+          ? evidenceModel(input.providerResult)
+          : undefined;
+        const record = {
+          evidenceKey: `${reservationKey(input.callKind)}:${input.evidenceStage}`,
+          evidenceStage: input.evidenceStage,
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          ...(verificationRunId ? { verificationRunId } : {}),
+          jobItemId,
+          agentCode: payload.agentCode,
+          callKind: input.callKind,
+          sdkRequestAttempted:
+            input.sdkRequestAttempted ?? providerEvidence?.requestAttempted ?? false,
+          providerResponseReceived:
+            input.providerResponseReceived ?? providerEvidence?.responseReceived ?? false,
+          ...(providerEvidence?.httpStatus === undefined
+            ? input.providerResult?.httpStatus === undefined
+              ? {}
+              : { providerHttpStatus: input.providerResult.httpStatus }
+            : { providerHttpStatus: providerEvidence.httpStatus }),
+          ...(providerRequestIdHash ? { providerRequestIdHash } : {}),
+          ...(resolvedModel ? { resolvedModel } : {}),
+          jsonParseStatus:
+            providerEvidence?.jsonParseStatus ?? validation?.jsonParseStatus ?? "NOT_REACHED",
+          transportValidationStatus: validation?.transportValidationStatus ?? "NOT_REACHED",
+          ...(validation?.transportErrorCode
+            ? { transportErrorCode: validation.transportErrorCode }
+            : {}),
+          transportErrorPaths: validation?.transportErrorPaths ?? [],
+          domainValidationStatus: validation?.domainValidationStatus ?? "NOT_REACHED",
+          ...(validation?.domainErrorCode ? { domainErrorCode: validation.domainErrorCode } : {}),
+          domainErrorPaths: validation?.domainErrorPaths ?? [],
+          repairEligible:
+            input.providerResult?.status === "COMPLETED" &&
+            (validation?.transportValidationStatus === "FAIL" ||
+              validation?.domainValidationStatus === "FAIL"),
+          retryEligible: input.providerResult?.error?.retryable === true,
+          coverageWriteAttempted: input.coverageWriteAttempted ?? false,
+          coverageWriteSucceeded: input.coverageWriteSucceeded ?? false,
+          ...(input.coverageWriteErrorCode
+            ? { coverageWriteErrorCode: input.coverageWriteErrorCode }
+            : {}),
+          ...(input.providerResult?.usage?.inputUnits === undefined
+            ? {}
+            : { inputUnits: input.providerResult.usage.inputUnits }),
+          ...(input.providerResult?.usage?.cachedInputUnits === undefined
+            ? {}
+            : { cachedInputUnits: input.providerResult.usage.cachedInputUnits }),
+          ...(input.providerResult?.usage?.outputUnits === undefined
+            ? {}
+            : { outputUnits: input.providerResult.usage.outputUnits }),
+          ...(providerEvidence?.outputFingerprint
+            ? { outputFingerprint: providerEvidence.outputFingerprint }
+            : {}),
+          ...(providerEvidence?.outputLengthBytes === undefined
+            ? {}
+            : { outputLengthBytes: providerEvidence.outputLengthBytes }),
+        } as const;
+        await options.validationEvidenceStore.record(record);
+      };
+      const orchestrator = createAgentOrchestrator({
+        gateway,
+        retryEnabled,
+        repairEnabled,
+        beforeProviderCall: async (kind) => {
+          if (providerMode === "mock") return;
+          if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+          const key = reservationKey(kind);
+          let reserved = false;
+          let dispatchStarted = false;
+          try {
+            const reservation = await budgetStore.reserve({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: key,
+              providerMode,
+              units: 1,
+              limit: workflowCallBudget,
+              reservedMicroUsd: calculateLiveSmokeReservationMicroUsd(
+                options.pricingPolicy,
+                modelPolicy.maxInputUnits,
+                modelPolicy.maxOutputUnits,
+              ),
+              estimatedInputTokens,
+              model: options.pricingPolicy.model,
+              pricingVersion: options.pricingPolicy.pricingVersion,
+            });
+            if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
+            if (reservation.duplicate)
+              throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
+            reserved = true;
+            failureState.callKind = kind;
+            failureState.reservationCreated = true;
+            const base = {
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: key,
+              agentCode: payload.agentCode,
+              providerMode,
+            } as const;
+            const reservedEvent = await options.lifecycleStore?.record(
+              lifecycleInput(base, "RESERVED", {
+                providerRequestSent: false,
+                providerResponseReceived: false,
+                billableRequestCount: 0,
+              }),
+            );
+            if (reservedEvent && !reservedEvent.inserted)
+              throw budgetError("LIVE_SMOKE_RESERVED_LIFECYCLE_WRITE_FAILED");
+            const dispatchEvent = await options.lifecycleStore?.record(
+              lifecycleInput(base, "DISPATCH_STARTED", {
+                providerRequestSent: false,
+                providerResponseReceived: false,
+                billableRequestCount: 0,
+              }),
+            );
+            if (dispatchEvent && !dispatchEvent.inserted)
+              throw budgetError("LIVE_SMOKE_DISPATCH_LIFECYCLE_WRITE_FAILED");
+            const dispatch = await budgetStore.markDispatchStarted({
               workspaceId,
               smokeRunId,
               budgetEpochId,
               reservationKey: key,
             });
-            await options.lifecycleStore?.record(
-              lifecycleInput(
-                {
-                  workspaceId,
-                  smokeRunId,
-                  budgetEpochId,
-                  reservationKey: key,
-                  agentCode: payload.agentCode,
-                  providerMode,
-                },
-                "RELEASED_PRE_DISPATCH",
-                {
-                  providerRequestSent: false,
-                  providerResponseReceived: false,
-                  billableRequestCount: 0,
-                },
-              ),
-            );
+            if (!dispatch.marked && dispatch.duplicate)
+              throw budgetError("LIVE_SMOKE_DISPATCH_ALREADY_STARTED");
+            dispatchStarted = true;
+            failureState.dispatchStarted = true;
+          } catch (error) {
+            if (reserved && !dispatchStarted) {
+              await budgetStore.releasePreDispatch?.({
+                workspaceId,
+                smokeRunId,
+                budgetEpochId,
+                reservationKey: key,
+              });
+              await options.lifecycleStore?.record(
+                lifecycleInput(
+                  {
+                    workspaceId,
+                    smokeRunId,
+                    budgetEpochId,
+                    reservationKey: key,
+                    agentCode: payload.agentCode,
+                    providerMode,
+                  },
+                  "RELEASED_PRE_DISPATCH",
+                  {
+                    providerRequestSent: false,
+                    providerResponseReceived: false,
+                    billableRequestCount: 0,
+                  },
+                ),
+              );
+            }
+            throw error;
           }
-          throw error;
-        }
-      },
-      afterProviderCall: async (kind, providerResult) => {
-        if (providerMode !== "live") return;
-        const providerFacts = {
+        },
+        afterProviderCall: async (kind, providerResult) => {
+          failureState.callKind = kind;
+          failureState.providerResponseReceived =
+            providerResult.evidence?.responseReceived === true;
+          failureState.usagePresent = providerResult.usage !== undefined;
+          failureState.settlementState = "PROVIDER_RESPONDED";
+          if (providerMode !== "live") return;
+          const providerEvidence = providerResult.evidence;
+          const requestAttempted = providerEvidence?.requestAttempted === true;
+          const responseReceived = providerEvidence?.responseReceived === true;
+          const providerFacts = {
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey: reservationKey(kind),
+            agentCode: payload.agentCode,
+            providerMode,
+            ...((providerResult.evidence?.requestIdHash ?? providerResult.providerRequestIdHash)
+              ? {
+                  providerRequestIdHash:
+                    providerResult.evidence?.requestIdHash ?? providerResult.providerRequestIdHash,
+                }
+              : {}),
+            ...(providerResult.usage?.inputUnits === undefined
+              ? {}
+              : { inputUnits: providerResult.usage.inputUnits }),
+            ...(providerResult.usage?.outputUnits === undefined
+              ? {}
+              : { outputUnits: providerResult.usage.outputUnits }),
+            ...(providerResult.error?.code ? { terminalErrorCode: providerResult.error.code } : {}),
+          } as const;
+          await options.lifecycleStore?.record(
+            lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
+              providerRequestSent: requestAttempted,
+              providerResponseReceived: responseReceived,
+              billableRequestCount: requestAttempted ? 1 : 0,
+            }),
+          );
+          const requestIdHash = evidenceRequestHash(providerResult);
+          const usage = providerResult.usage;
+          const unknownBillable =
+            !requestAttempted || !responseReceived || !requestIdHash || !usage;
+          await recordEvidence({
+            evidenceStage: "PROVIDER_RESPONSE",
+            callKind: kind,
+            providerResult,
+          });
+          if (unknownBillable) {
+            await budgetStore.markUnknownBillable({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: reservationKey(kind),
+            });
+            failureState.settlementState = "UNKNOWN_BILLABLE";
+            throw budgetError("LIVE_SMOKE_UNKNOWN_BILLABLE");
+          } else {
+            try {
+              await budgetStore.settle({
+                workspaceId,
+                smokeRunId,
+                budgetEpochId,
+                reservationKey: reservationKey(kind),
+                providerRequestIdHash: requestIdHash,
+                model: evidenceModel(providerResult) ?? options.pricingPolicy?.model ?? "",
+                pricingVersion: options.pricingPolicy?.pricingVersion ?? "",
+                inputUnits: usage.inputUnits,
+                cachedInputUnits: usage.cachedInputUnits ?? 0,
+                outputUnits: usage.outputUnits,
+                settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy!, usage),
+              });
+              failureState.settlementState = "SETTLED";
+            } catch {
+              await budgetStore.markUnknownBillable({
+                workspaceId,
+                smokeRunId,
+                budgetEpochId,
+                reservationKey: reservationKey(kind),
+              });
+              failureState.settlementState = "UNKNOWN_BILLABLE";
+              throw budgetError("LIVE_SMOKE_UNKNOWN_BILLABLE");
+            }
+          }
+        },
+        afterProviderValidation: async (kind, providerResult, validation) => {
+          failureState.callKind = kind;
+          failureState.validationStage =
+            validation?.domainValidationStatus === "FAIL"
+              ? "DOMAIN"
+              : validation?.transportValidationStatus === "FAIL"
+                ? "TRANSPORT"
+                : "PASS";
+          failureState.schemaErrorPaths = [
+            ...(validation?.transportErrorPaths ?? []),
+            ...(validation?.domainErrorPaths ?? []),
+          ];
+          lastCallEvidence = {
+            callKind: kind,
+            ...(providerResult.evidence ? { providerEvidence: providerResult.evidence } : {}),
+            ...(validation ? { validationEvidence: validation } : {}),
+          };
+          await recordEvidence({
+            evidenceStage: "VALIDATION",
+            callKind: kind,
+            providerResult,
+            ...(validation ? { validation } : {}),
+          });
+        },
+      });
+      const result = await orchestrator.run({
+        taskId: String(job.id ?? `${payload.agentCode}-live-smoke`),
+        agentCode: payload.agentCode,
+        correlationId: String(job.id ?? `${payload.agentCode}-live-smoke`),
+        workspaceId,
+        subjectType: "CAMPAIGN",
+        subjectId: (scenario.agentData.campaign as { readonly id: string }).id,
+        locale: scenario.locale,
+        data: scenario.agentData,
+        messages: requestMessages,
+        outputSchema: schema as unknown as JsonSchema,
+        syntheticScenarioId: scenario.id,
+        channelCode: scenario.channel.code,
+        formatProfileId: scenario.formatProfile.id as string,
+        profileVersion: scenario.formatProfile.version as string,
+        synthetic: true,
+        timeoutSeconds: 60,
+        onSdkRequestAttempt: async (kind) => {
+          failureState.callKind = kind;
+          if (providerMode === "live" && options.lifecycleStore) {
+            const updated = await options.lifecycleStore.markProviderRequestAttempt({
+              workspaceId,
+              smokeRunId,
+              budgetEpochId,
+              reservationKey: reservationKey(kind),
+            });
+            if (!updated.updated) throw budgetError("LIVE_SMOKE_SDK_ATTEMPT_BOUNDARY_FAILED");
+          }
+          failureState.sdkAttempted = true;
+          await recordEvidence({
+            evidenceStage: "SDK_ATTEMPT",
+            callKind: kind,
+            sdkRequestAttempted: true,
+            providerResponseReceived: false,
+          });
+        },
+      });
+      if (result.status !== "COMPLETED")
+        throw new Error(
+          `AI_LIVE_SMOKE_AGENT_FAILED:${payload.agentCode}:${result.errorCode ?? "UNKNOWN"}`,
+        );
+      return {
+        status: result.status,
+        agentCode: result.agentCode,
+        metadata: result.metadata,
+        output: result.output,
+        ...(lastCallEvidence ? { evidence: lastCallEvidence } : {}),
+      };
+    } catch (error) {
+      if (providerMode === "live" && options.failureEvidenceStore) {
+        const classification = classifyLiveSmokeFailure({
+          error,
+          reservationCreated: failureState.reservationCreated,
+          dispatchStarted: failureState.dispatchStarted,
+          sdkAttempted: failureState.sdkAttempted,
+          providerResponseReceived: failureState.providerResponseReceived,
+          usagePresent: failureState.usagePresent,
+          validationStage: failureState.validationStage,
+          schemaErrorPaths: failureState.schemaErrorPaths,
+        });
+        const workspaceId = invocation?.workspaceId ?? String(rawPayload.workspaceId ?? "unknown");
+        const smokeRunId = invocation?.smokeRunId ?? String(rawPayload.smokeRunId ?? "unknown");
+        const budgetEpochId =
+          invocation?.budgetEpochId ?? String(rawPayload.budgetEpochId ?? "unknown");
+        const jobItemId = invocation?.jobItemId ?? String(job.id ?? "unknown");
+        await options.failureEvidenceStore.record({
+          failureKey: `${budgetEpochId}:${jobItemId}:failure:${job.attemptsMade ?? 0}`.slice(
+            0,
+            360,
+          ),
           workspaceId,
           smokeRunId,
           budgetEpochId,
-          reservationKey: reservationKey(kind),
-          agentCode: payload.agentCode,
-          providerMode,
-          ...((providerResult.evidence?.requestIdHash ?? providerResult.providerRequestIdHash)
-            ? {
-                providerRequestIdHash:
-                  providerResult.evidence?.requestIdHash ?? providerResult.providerRequestIdHash,
-              }
+          ...(rawPayload.verificationRunId
+            ? { verificationRunId: rawPayload.verificationRunId }
             : {}),
-          ...(providerResult.usage?.inputUnits === undefined
-            ? {}
-            : { inputUnits: providerResult.usage.inputUnits }),
-          ...(providerResult.usage?.outputUnits === undefined
-            ? {}
-            : { outputUnits: providerResult.usage.outputUnits }),
-          ...(providerResult.error?.code ? { terminalErrorCode: providerResult.error.code } : {}),
-        } as const;
-        await options.lifecycleStore?.record(
-          lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
-            providerRequestSent: true,
-            providerResponseReceived: true,
-            billableRequestCount: 1,
-          }),
-        );
-        await recordEvidence({
-          evidenceStage: "PROVIDER_RESPONSE",
-          callKind: kind,
-          providerResult,
+          jobItemId,
+          agentCode: String(rawPayload.agentCode ?? "UNKNOWN")
+            .replace(/[^A-Z0-9_-]/gu, "_")
+            .slice(0, 80),
+          callKind: failureState.callKind,
+          failureClass: classification.failureClass,
+          stableErrorCode: classification.stableErrorCode,
+          retryable: classification.retryable,
+          stage: classification.stage,
+          syntheticScenarioId: String(rawPayload.syntheticScenarioId ?? "UNRESOLVED").slice(0, 120),
+          reservationCreated: failureState.reservationCreated,
+          dispatchStarted: failureState.dispatchStarted,
+          sdkAttempted: failureState.sdkAttempted,
+          providerResponseReceived: failureState.providerResponseReceived,
+          usagePresent: failureState.usagePresent,
+          ...(failureState.settlementState
+            ? { settlementState: failureState.settlementState }
+            : {}),
+          ...(failureState.validationStage
+            ? { validationStage: failureState.validationStage }
+            : {}),
+          schemaErrorPaths: failureState.schemaErrorPaths,
         });
-      },
-      afterProviderValidation: async (kind, providerResult, validation) => {
-        lastCallEvidence = {
-          callKind: kind,
-          ...(providerResult.evidence ? { providerEvidence: providerResult.evidence } : {}),
-          ...(validation ? { validationEvidence: validation } : {}),
-        };
-        await recordEvidence({
-          evidenceStage: "VALIDATION",
-          callKind: kind,
-          providerResult,
-          ...(validation ? { validation } : {}),
-        });
-      },
-    });
-    const result = await orchestrator.run({
-      taskId: String(job.id ?? `${payload.agentCode}-live-smoke`),
-      agentCode: payload.agentCode,
-      correlationId: String(job.id ?? `${payload.agentCode}-live-smoke`),
-      workspaceId,
-      subjectType: "CAMPAIGN",
-      subjectId: SYNTHETIC_IDS.campaign,
-      locale: "ko-KR",
-      data: SYNTHETIC_DATA,
-      messages:
-        payload.agentCode === "LAYOUT_PLANNER" ? LAYOUT_SYNTHETIC_MESSAGES : SYNTHETIC_MESSAGES,
-      outputSchema: schema as unknown as JsonSchema,
-      timeoutSeconds: 60,
-      onSdkRequestAttempt: async (kind) => {
-        await recordEvidence({
-          evidenceStage: "SDK_ATTEMPT",
-          callKind: kind,
-          sdkRequestAttempted: true,
-          providerResponseReceived: false,
-        });
-      },
-    });
-    if (result.status !== "COMPLETED")
-      throw new Error(
-        `AI_LIVE_SMOKE_AGENT_FAILED:${payload.agentCode}:${result.errorCode ?? "UNKNOWN"}`,
-      );
-    return {
-      status: result.status,
-      agentCode: result.agentCode,
-      metadata: result.metadata,
-      output: result.output,
-      ...(lastCallEvidence ? { evidence: lastCallEvidence } : {}),
-    };
+      }
+      throw error;
+    }
   };
 }
 
@@ -439,8 +618,10 @@ export function createLiveSmokeVerificationHandler(
   coverageStore: LiveSmokeCoverageStore,
   options: {
     readonly providerMode: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
     readonly lifecycleStore?: LiveSmokeLifecycleStore;
     readonly validationEvidenceStore?: LiveSmokeValidationEvidenceStore;
+    readonly failureEvidenceStore?: LiveSmokeFailureEvidenceStore;
   },
 ): LiveSmokeRuntimeHandler {
   const onCoverageWrite = options.validationEvidenceStore
@@ -497,6 +678,9 @@ export function createLiveSmokeVerificationHandler(
           ...(providerEvidence?.inputUnits === undefined
             ? {}
             : { inputUnits: providerEvidence.inputUnits }),
+          ...(providerEvidence?.cachedInputUnits === undefined
+            ? {}
+            : { cachedInputUnits: providerEvidence.cachedInputUnits }),
           ...(providerEvidence?.outputUnits === undefined
             ? {}
             : { outputUnits: providerEvidence.outputUnits }),
@@ -511,10 +695,12 @@ export function createLiveSmokeVerificationHandler(
     : undefined;
   const liveSmoke = createLiveSmokeHandler(gateway, budgetStore, {
     providerMode: "live",
+    ...(options.pricingPolicy ? { pricingPolicy: options.pricingPolicy } : {}),
     ...(options.lifecycleStore ? { lifecycleStore: options.lifecycleStore } : {}),
     ...(options.validationEvidenceStore
       ? { validationEvidenceStore: options.validationEvidenceStore }
       : {}),
+    ...(options.failureEvidenceStore ? { failureEvidenceStore: options.failureEvidenceStore } : {}),
     ...(onCoverageWrite ? { onCoverageWrite } : {}),
   });
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
@@ -526,11 +712,19 @@ export function createLiveSmokeVerificationHandler(
     }
     const payload = job.data as AiLiveSmokeVerificationPayload;
     if (payload.verificationOnly !== true) throw new Error("LIVE_SMOKE_VERIFICATION_FLAG_REQUIRED");
+    const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+    assertInvocationScope(payload, invocation, scenario.id);
+    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
+    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
+    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
+    const canaryVerificationRunId = payload.canaryVerificationRunId;
     if (
       options.lifecycleStore &&
-      (await options.lifecycleStore.getCanaryStatus(
-        payload.canaryVerificationRunId ?? payload.verificationRunId,
-      )) !== "PASS"
+      (await options.lifecycleStore.getCanaryStatus(canaryVerificationRunId, {
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+      })) !== "PASS"
     )
       throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_REQUIRED"), {
         code: "LIVE_SMOKE_PROVIDER_CANARY_REQUIRED",
@@ -561,9 +755,6 @@ export function createLiveSmokeVerificationHandler(
       validationEvidence?.domainValidationStatus !== "PASS"
     )
       throw new Error("LIVE_SMOKE_VERIFICATION_VALIDATION_INCOMPLETE");
-    const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
-    const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
-    const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
     const jobItemId = invocation?.jobItemId ?? String(job.id ?? payload.agentCode);
     try {
       const coverageResult = await coverageStore.recordCoverage({
@@ -657,7 +848,11 @@ export function createLiveSmokeProviderCanaryHandler(
   gateway: AgentProviderGateway,
   budgetStore: LiveSmokeBudgetStore,
   lifecycleStore: LiveSmokeLifecycleStore,
-  options: { readonly providerMode: LiveSmokeProviderMode },
+  options: {
+    readonly providerMode: LiveSmokeProviderMode;
+    readonly pricingPolicy?: LiveSmokePricingPolicy;
+    readonly failureEvidenceStore?: LiveSmokeFailureEvidenceStore;
+  },
 ): LiveSmokeRuntimeHandler {
   return async (job: Job<unknown>, invocation?: LiveSmokeInvocationContext) => {
     if (options.providerMode !== "live") {
@@ -668,12 +863,55 @@ export function createLiveSmokeProviderCanaryHandler(
     }
     const payload = job.data as AiLiveSmokeCanaryPayload;
     if (payload.canary !== true) throw new Error("LIVE_SMOKE_CANARY_FLAG_REQUIRED");
+    if (!isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId))
+      throw new Error("LIVE_SMOKE_SYNTHETIC_SCENARIO_REQUIRED");
+    const scenario = resolveLiveSmokeSyntheticScenario(payload.syntheticScenarioId);
+    assertInvocationScope(payload, invocation, scenario.id);
     const workspaceId = invocation?.workspaceId ?? payload.workspaceId;
     const smokeRunId = invocation?.smokeRunId ?? payload.smokeRunId;
     const budgetEpochId = invocation?.budgetEpochId ?? payload.budgetEpochId;
     const jobItemId = invocation?.jobItemId ?? String(job.id ?? "provider-canary");
     const deliveryAttempt = Number.isInteger(job.attemptsMade) ? job.attemptsMade : 0;
     const reservationKey = `${budgetEpochId}:${jobItemId}:delivery:${deliveryAttempt}:canary`;
+    const recordCanaryFailure = async (
+      error: unknown,
+      input: {
+        readonly sdkAttempted: boolean;
+        readonly providerResponseReceived: boolean;
+        readonly usagePresent: boolean;
+        readonly settlementState?: string;
+      },
+    ) => {
+      if (!options.failureEvidenceStore) return;
+      const classification = classifyLiveSmokeFailure({
+        error,
+        reservationCreated: true,
+        dispatchStarted: true,
+        sdkAttempted: input.sdkAttempted,
+        providerResponseReceived: input.providerResponseReceived,
+        usagePresent: input.usagePresent,
+      });
+      await options.failureEvidenceStore.record({
+        failureKey: `${budgetEpochId}:${jobItemId}:failure:${deliveryAttempt}:canary`.slice(0, 360),
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+        jobItemId,
+        agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
+        callKind: "canary",
+        failureClass: classification.failureClass,
+        stableErrorCode: classification.stableErrorCode,
+        retryable: classification.retryable,
+        stage: classification.stage,
+        syntheticScenarioId: scenario.id,
+        reservationCreated: true,
+        dispatchStarted: true,
+        sdkAttempted: input.sdkAttempted,
+        providerResponseReceived: input.providerResponseReceived,
+        usagePresent: input.usagePresent,
+        ...(input.settlementState ? { settlementState: input.settlementState } : {}),
+      });
+    };
     const base = {
       workspaceId,
       smokeRunId,
@@ -682,6 +920,35 @@ export function createLiveSmokeProviderCanaryHandler(
       agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
       providerMode: "live" as const,
     };
+    if (!options.pricingPolicy) throw budgetError("LIVE_SMOKE_PRICING_POLICY_REQUIRED");
+    if (
+      options.pricingPolicy.absoluteProviderCallCap !== undefined &&
+      payload.workflowCallBudget !== options.pricingPolicy.absoluteProviderCallCap
+    )
+      throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_POLICY_MISMATCH");
+    const canaryPolicy = modelPolicyRegistry.resolve("balanced-structured-v1");
+    const estimatedInputTokens = estimateLiveSmokeInputTokens({
+      messages: [...scenario.canaryMessages],
+      outputSchema: CANARY_SCHEMA,
+      metadata: { agentCode: "PROVIDER_ACCESSIBILITY_CANARY", model: options.pricingPolicy.model },
+    });
+    assertLiveSmokeInputEstimate(options.pricingPolicy, estimatedInputTokens);
+    const canary = await lifecycleStore.ensureCanary({
+      verificationRunId: payload.verificationRunId,
+      workspaceId,
+      smokeRunId,
+      budgetEpochId,
+    });
+    if (!canary.scopeMatches) throw budgetError("LIVE_SMOKE_CANARY_SCOPE_CONFLICT");
+    if (canary.status === "PASS") {
+      return {
+        status: "COMPLETED",
+        agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
+        metadata: { model: options.pricingPolicy.model },
+        replayed: true,
+      };
+    }
+    if (canary.status === "FAIL") throw budgetError("LIVE_SMOKE_CANARY_ALREADY_FAILED");
     const reservation = await budgetStore.reserve({
       workspaceId,
       smokeRunId,
@@ -690,25 +957,43 @@ export function createLiveSmokeProviderCanaryHandler(
       providerMode: "live",
       units: 1,
       limit: payload.workflowCallBudget,
+      reservedMicroUsd: calculateLiveSmokeReservationMicroUsd(
+        options.pricingPolicy,
+        canaryPolicy.maxInputUnits,
+        canaryPolicy.maxOutputUnits,
+      ),
+      estimatedInputTokens,
+      model: options.pricingPolicy.model,
+      pricingVersion: options.pricingPolicy.pricingVersion,
     });
     if (!reservation.allowed) throw budgetError("LIVE_SMOKE_REQUEST_BUDGET_REACHED");
     if (reservation.duplicate) throw budgetError("LIVE_SMOKE_DUPLICATE_PROVIDER_CALL_BLOCKED");
     let dispatchStarted = false;
     try {
-      await lifecycleStore.record(
+      const reservedEvent = await lifecycleStore.record(
         lifecycleInput(base, "RESERVED", {
           providerRequestSent: false,
           providerResponseReceived: false,
           billableRequestCount: 0,
         }),
       );
-      await lifecycleStore.record(
+      if (!reservedEvent.inserted) throw budgetError("LIVE_SMOKE_RESERVED_LIFECYCLE_WRITE_FAILED");
+      const dispatchEvent = await lifecycleStore.record(
         lifecycleInput(base, "DISPATCH_STARTED", {
-          providerRequestSent: true,
+          providerRequestSent: false,
           providerResponseReceived: false,
-          billableRequestCount: 1,
+          billableRequestCount: 0,
         }),
       );
+      if (!dispatchEvent.inserted) throw budgetError("LIVE_SMOKE_DISPATCH_LIFECYCLE_WRITE_FAILED");
+      const dispatch = await budgetStore.markDispatchStarted({
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+        reservationKey,
+      });
+      if (!dispatch.marked && dispatch.duplicate)
+        throw budgetError("LIVE_SMOKE_DISPATCH_ALREADY_STARTED");
       dispatchStarted = true;
     } catch (error) {
       if (!dispatchStarted) {
@@ -749,9 +1034,29 @@ export function createLiveSmokeProviderCanaryHandler(
           agentCode: "PROVIDER_ACCESSIBILITY_CANARY",
           promptVersion: "1.0.0",
           correlationId: `gate-h-2c7-canary-${jobItemId}`,
+          syntheticScenarioId: scenario.id,
+          channelCode: scenario.channel.code,
+          formatProfileId: scenario.formatProfile.id as string,
+          profileVersion: scenario.formatProfile.version as string,
+          synthetic: true,
+        },
+        onSdkRequestAttempt: async () => {
+          const updated = await lifecycleStore.markProviderRequestAttempt({
+            workspaceId,
+            smokeRunId,
+            budgetEpochId,
+            reservationKey,
+          });
+          if (!updated.updated) throw budgetError("LIVE_SMOKE_SDK_ATTEMPT_BOUNDARY_FAILED");
         },
       });
     } catch (error) {
+      await recordCanaryFailure(error, {
+        sdkAttempted: true,
+        providerResponseReceived: true,
+        usagePresent: false,
+        settlementState: "UNKNOWN_BILLABLE",
+      });
       await lifecycleStore.record(
         lifecycleInput(
           { ...base, terminalErrorCode: "PROVIDER_EXECUTION_THROWN" },
@@ -759,7 +1064,7 @@ export function createLiveSmokeProviderCanaryHandler(
           { providerRequestSent: true, providerResponseReceived: true, billableRequestCount: 1 },
         ),
       );
-      await lifecycleStore.recordCanary({
+      const canaryUpdate = await lifecycleStore.recordCanary({
         verificationRunId: payload.verificationRunId,
         providerRequestSent: true,
         providerResponseReceived: true,
@@ -772,6 +1077,7 @@ export function createLiveSmokeProviderCanaryHandler(
         passed: false,
         errorCode: "PROVIDER_EXECUTION_THROWN",
       });
+      if (!canaryUpdate.updated) throw budgetError("LIVE_SMOKE_CANARY_EVIDENCE_WRITE_FAILED");
       throw error;
     }
     const providerFacts = {
@@ -782,22 +1088,72 @@ export function createLiveSmokeProviderCanaryHandler(
           }
         : {}),
       ...(result.usage?.inputUnits === undefined ? {} : { inputUnits: result.usage.inputUnits }),
+      ...(result.usage?.cachedInputUnits === undefined
+        ? {}
+        : { cachedInputUnits: result.usage.cachedInputUnits }),
       ...(result.usage?.outputUnits === undefined ? {} : { outputUnits: result.usage.outputUnits }),
       ...(result.error?.code ? { terminalErrorCode: result.error.code } : {}),
     } as const;
     await lifecycleStore.record(
       lifecycleInput(providerFacts, "PROVIDER_RESPONDED", {
-        providerRequestSent: true,
-        providerResponseReceived: true,
-        billableRequestCount: 1,
+        providerRequestSent: result.evidence?.requestAttempted === true,
+        providerResponseReceived: result.evidence?.responseReceived === true,
+        billableRequestCount: result.evidence?.requestAttempted === true ? 1 : 0,
       }),
     );
+    const requestIdHash = evidenceRequestHash(result);
+    const usage = result.usage;
+    if (
+      !result.evidence?.requestAttempted ||
+      !result.evidence.responseReceived ||
+      !requestIdHash ||
+      !usage
+    ) {
+      await budgetStore.markUnknownBillable({
+        workspaceId,
+        smokeRunId,
+        budgetEpochId,
+        reservationKey,
+      });
+    } else {
+      try {
+        await budgetStore.settle({
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          reservationKey,
+          providerRequestIdHash: requestIdHash,
+          model: evidenceModel(result) ?? options.pricingPolicy.model,
+          pricingVersion: options.pricingPolicy.pricingVersion,
+          inputUnits: usage.inputUnits,
+          cachedInputUnits: usage.cachedInputUnits ?? 0,
+          outputUnits: usage.outputUnits,
+          settledMicroUsd: calculateLiveSmokeCostMicroUsd(options.pricingPolicy, usage),
+        });
+      } catch {
+        await budgetStore.markUnknownBillable({
+          workspaceId,
+          smokeRunId,
+          budgetEpochId,
+          reservationKey,
+        });
+      }
+    }
     const http200 = result.httpStatus === 200 || result.status === "COMPLETED";
     const strictOutputValid = result.status === "COMPLETED" && isCanaryOutput(result.outputJson);
     const domainValidationValid = strictOutputValid;
+    const dispatchEvidenceComplete =
+      result.evidence?.requestAttempted === true &&
+      result.evidence.responseReceived === true &&
+      evidenceRequestHash(result) !== undefined &&
+      result.usage !== undefined;
     const passed =
-      http200 && result.model === "gpt-5.6-luna" && strictOutputValid && domainValidationValid;
-    await lifecycleStore.recordCanary({
+      http200 &&
+      result.model === "gpt-5.6-luna" &&
+      strictOutputValid &&
+      domainValidationValid &&
+      dispatchEvidenceComplete;
+    const canaryUpdate = await lifecycleStore.recordCanary({
       verificationRunId: payload.verificationRunId,
       providerRequestSent: true,
       providerResponseReceived: true,
@@ -811,11 +1167,27 @@ export function createLiveSmokeProviderCanaryHandler(
       passed,
       ...(result.error?.code ? { errorCode: result.error.code } : {}),
     });
-    if (!passed)
+    if (!canaryUpdate.updated) throw budgetError("LIVE_SMOKE_CANARY_EVIDENCE_WRITE_FAILED");
+    if (!passed) {
+      await recordCanaryFailure(
+        new Error(result.error?.code ?? "LIVE_SMOKE_PROVIDER_CANARY_FAILED"),
+        {
+          sdkAttempted: result.evidence?.requestAttempted === true,
+          providerResponseReceived: result.evidence?.responseReceived === true,
+          usagePresent: result.usage !== undefined,
+          settlementState:
+            result.evidence?.requestAttempted === true &&
+            result.evidence?.responseReceived === true &&
+            result.usage
+              ? "SETTLED"
+              : "UNKNOWN_BILLABLE",
+        },
+      );
       throw Object.assign(new Error("LIVE_SMOKE_PROVIDER_CANARY_FAILED"), {
         code: "LIVE_SMOKE_PROVIDER_CANARY_FAILED",
         retryable: false as const,
       });
+    }
     return {
       status: "COMPLETED",
       canary: "PASS",

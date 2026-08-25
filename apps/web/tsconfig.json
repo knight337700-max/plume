@@ -4,8 +4,8 @@
     "composite": true,
     "jsx": "react-jsx",
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": "../.."
   },
   "files": ["./package.json"],
-  "include": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts", "../../packages/core/src/modules/media-catalog/canonical-catalog.ts"]
 }

@@ -33,4 +33,18 @@ describe("JACOMO export package", () => {
     const result = buildExportPackage({ exportJobId: "job-2", recipe: { includeManifest: false, includeValidationReport: false, includeCopyCsv: true }, items: [{ creativeVersionId: "v1", relativePath: "creative.png", bytes: png, copyCsv: "headline,hello" }] });
     expect(result.files.map((file) => file.role)).toEqual(["CREATIVE", "COPY_CSV", "PACKAGE"]);
   });
+
+  it("rejects a channel and format profile from different catalog branches", () => {
+    expect(() =>
+      buildExportPackage({
+        exportJobId: "job-mismatch",
+        recipe: { includeManifest: true },
+        items: [{ creativeVersionId: "v1", relativePath: "creative.png", bytes: png }],
+        manifest: {
+          channel: { code: "META" },
+          formatProfile: { id: "kakao-bizboard", channelCode: "KAKAO_MOMENT" },
+        },
+      }),
+    ).toThrow("EXPORT_CHANNEL_FORMAT_MISMATCH");
+  });
 });

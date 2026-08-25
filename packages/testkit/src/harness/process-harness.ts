@@ -14,6 +14,14 @@ import { createBullMqAdapter } from "../../../infrastructure/src/queue/bullmq.js
 import { DurableAsyncCommandPublisher } from "../../../infrastructure/src/async/durable-command-publisher.js";
 import { DurableJobQueryRepository } from "../../../infrastructure/src/db/durable-job-query-repository.js";
 import { S3ObjectStorage } from "../../../infrastructure/src/storage/s3-object-storage.js";
+import { createUploadUseCases } from "../../../core/src/modules/asset/upload-use-cases.js";
+import { createUploadVerifier } from "../../../infrastructure/src/files/verify-upload.js";
+import { PostgresUploadSessionRepository } from "../../../infrastructure/src/db/upload-session-repository.js";
+import { createInMemoryCampaignRepositories } from "../../../core/src/modules/campaign/repositories.js";
+import { createInMemoryAssetRepositories } from "../../../core/src/modules/asset/repositories.js";
+import { createInMemoryCreativeRepositories } from "../../../core/src/modules/creative/repositories.js";
+import type { ClientBrandRepositories } from "../../../core/src/modules/client-brand/repositories.js";
+import type { AgentProviderGateway } from "../../../core/src/agents/orchestrator.js";
 import { createJobUseCases } from "../../../core/src/modules/operations/job-use-cases.js";
 import {
   startMockOpenAIServer,
@@ -32,6 +40,9 @@ export interface ProcessHarnessOptions {
   readonly redisUrl?: string;
   readonly minioUrl?: string;
   readonly mockScenario?: MockOpenAIScenario;
+  readonly workerProviderGateway?: AgentProviderGateway;
+  readonly workerProviderMode?: "mock" | "live";
+  readonly clientBrandRepositories?: ClientBrandRepositories;
 }
 export interface ProcessHarness {
   readonly services: Readonly<Record<string, HarnessService>>;
@@ -110,18 +121,50 @@ export async function startProcessHarness(
       if (!response.ok) throw new Error(`MinIO ${response.status}`);
     });
     const queuePrefix = `plume-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+    const storageBucket = `plume-test-${randomUUID().replaceAll("-", "").slice(0, 20)}`;
     const storage = new S3ObjectStorage({
       endpoint: minioUrl,
-      bucket: `plume-test-${randomUUID().replaceAll("-", "").slice(0, 20)}`,
+      bucket: storageBucket,
       accessKeyId: process.env.S3_ACCESS_KEY_ID ?? process.env.MINIO_ROOT_USER ?? "plume",
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? process.env.MINIO_ROOT_PASSWORD ?? "plume_local_only",
+      secretAccessKey:
+        process.env.S3_SECRET_ACCESS_KEY ?? process.env.MINIO_ROOT_PASSWORD ?? "plume_local_only",
+    });
+    const campaignRepositories = createInMemoryCampaignRepositories();
+    const assetRepositories = createInMemoryAssetRepositories();
+    const creativeRepositories = createInMemoryCreativeRepositories();
+    const clientBrandRepositories = options.clientBrandRepositories;
+    const uploads = createUploadUseCases({
+      repository: new PostgresUploadSessionRepository(database),
+      storage,
+      verifier: createUploadVerifier({ read: (objectKey) => storage.get(objectKey) }),
+      bucket: storageBucket,
+      filePolicy: {
+        allowedMimeTypes: ["image/png", "image/jpeg", "text/plain", "text/csv"],
+        maxBytes: 100 * 1024 * 1024,
+        maxPixels: 100_000_000,
+      },
     });
     const readinessObjectKey = `temp/harness-readiness-${randomUUID()}`;
-    await storage.put({ body: new Uint8Array([1]), contentType: "application/octet-stream", objectKey: readinessObjectKey });
+    await storage.put({
+      body: new Uint8Array([1]),
+      contentType: "application/octet-stream",
+      objectKey: readinessObjectKey,
+    });
     await storage.deleteTemp(readinessObjectKey);
 
     const adapter = createBullMqAdapter({ redisUrl: redisUrl.toString(), prefix: queuePrefix });
-    workerComposition = createWorkerRuntimeComposition({ sql: database, adapter, storage });
+    workerComposition = createWorkerRuntimeComposition({
+      sql: database,
+      adapter,
+      storage,
+      campaignRepositories,
+      assetRepositories,
+      creativeRepositories,
+      ...(clientBrandRepositories ? { clientBrandRepositories } : {}),
+      ...(options.workerProviderGateway ? { providerGateway: options.workerProviderGateway } : {}),
+      ...(options.workerProviderMode ? { providerMode: options.workerProviderMode } : {}),
+      fileObjectReader: new PostgresUploadSessionRepository(database),
+    });
     const runtime = createRuntimeHandlerRegistry(
       workerComposition.handlers,
       workerComposition.enabledJobTypes,
@@ -135,7 +178,9 @@ export async function startProcessHarness(
     });
     const workerHealth = await workerBootstrap.start();
     if (workerHealth.status !== "ready") {
-      throw new Error(`worker readiness failed: ${workerHealth.failedChecks.join(",") || workerHealth.missingHandlerTypes.join(",")}`);
+      throw new Error(
+        `worker readiness failed: ${workerHealth.failedChecks.join(",") || workerHealth.missingHandlerTypes.join(",")}`,
+      );
     }
     await workerComposition.outboxDispatcher.start();
 
@@ -152,6 +197,11 @@ export async function startProcessHarness(
     api = await buildApp({
       asyncCommandPublisher: publisher,
       jobs: createJobUseCases(new DurableJobQueryRepository(database)),
+      uploads,
+      campaignRepositories,
+      assetRepositories,
+      creativeRepositories,
+      ...(clientBrandRepositories ? { clientBrandRepositories } : {}),
     });
     const apiUrl = await api.listen({ host: "127.0.0.1", port: 0 });
     const parsedApiUrl = new URL(apiUrl);
@@ -159,7 +209,9 @@ export async function startProcessHarness(
       const response = await fetch(`${apiUrl}/api/v1/health`);
       if (!response.ok) throw new Error(`API ${response.status}`);
     });
-    logs.push(redact(`api=${apiUrl} worker=process://${queuePrefix} scheduler=process://${queuePrefix}`));
+    logs.push(
+      redact(`api=${apiUrl} worker=process://${queuePrefix} scheduler=process://${queuePrefix}`),
+    );
     const services = {
       postgres: {
         name: "postgres",
@@ -186,8 +238,18 @@ export async function startProcessHarness(
         status: "ready" as const,
       },
       api: { name: "api", url: apiUrl, port: Number(parsedApiUrl.port), status: "ready" as const },
-      worker: { name: "worker", url: `process://${queuePrefix}`, port: 0, status: "ready" as const },
-      scheduler: { name: "scheduler", url: `process://${queuePrefix}`, port: 0, status: "ready" as const },
+      worker: {
+        name: "worker",
+        url: `process://${queuePrefix}`,
+        port: 0,
+        status: "ready" as const,
+      },
+      scheduler: {
+        name: "scheduler",
+        url: `process://${queuePrefix}`,
+        port: 0,
+        status: "ready" as const,
+      },
     };
     return {
       services,
@@ -219,7 +281,9 @@ export async function startProcessHarness(
           attemptCount: Number(message.attempt_count),
           ...(message.last_error ? { lastError: String(message.last_error) } : {}),
           createdAt: new Date(String(message.created_at)),
-          ...(message.lease_expires_at ? { leaseExpiresAt: new Date(String(message.lease_expires_at)) } : {}),
+          ...(message.lease_expires_at
+            ? { leaseExpiresAt: new Date(String(message.lease_expires_at)) }
+            : {}),
         });
         await adapter.enqueue(String(message.topic), {
           name: String(message.message_type),
@@ -236,7 +300,9 @@ export async function startProcessHarness(
         });
         let deadLettered = false;
         await waitFor(async () => {
-          const jobs = await adapter.getQueue("dead-letter").getJobs(["waiting", "active", "completed"]);
+          const jobs = await adapter
+            .getQueue("dead-letter")
+            .getJobs(["waiting", "active", "completed"]);
           deadLettered = jobs.some((job) => {
             const payload = job.data as { sourceJobId?: string };
             return payload.sourceJobId === poisonJobId;

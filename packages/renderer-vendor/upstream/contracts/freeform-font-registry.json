@@ -1,0 +1,26 @@
+{
+  "registryVersion": "1.0.0",
+  "fallbackAllowed": false,
+  "entries": [
+    {
+      "fontId": "SPOQA_HAN_SANS_REGULAR",
+      "familyName": "SpoqaHanSans",
+      "weight": 400,
+      "style": "NORMAL",
+      "assetPath": "assets/fonts/SpoqaHanSansRegular.ttf",
+      "sha256": "1f56c8535b6592672ea7f540a67bb5792c34558d72875fc504166a3e2b28b4b1",
+      "licenseId": "OFL-1.1",
+      "status": "RESOLVED_ASSET"
+    },
+    {
+      "fontId": "SPOQA_HAN_SANS_BOLD",
+      "familyName": "SpoqaHanSans",
+      "weight": 700,
+      "style": "NORMAL",
+      "assetPath": "assets/fonts/SpoqaHanSansBold.ttf",
+      "sha256": "5a6b9b258145e243dfd5f70cc869119c6af708843658e380304bdfe3d4f4eaef",
+      "licenseId": "OFL-1.1",
+      "status": "RESOLVED_ASSET"
+    }
+  ]
+}

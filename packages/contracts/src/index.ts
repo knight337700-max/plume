@@ -23,6 +23,7 @@ export {
   JACOMO_EXTERNAL_COMMANDS,
   JACOMO_INTERNAL_COMMANDS,
   JACOMO_OPTIONAL_COMMANDS,
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
   getAsyncCommandDefinition,
   validateCommandEnvelope,
   AsyncContractError,
@@ -36,3 +37,4 @@ export {
   type ExportPackagePayload,
   type ValidationRunPayload,
 } from "./async.js";
+export { LIVE_SMOKE_FAILURE_CLASSES, type LiveSmokeFailureClass } from "./async.js";

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "contractVersion": "1.0.0",
+  "status": "FROZEN",
+  "contractName": "PlacementProvenanceEnvelope",
+  "coreInputBoundary": "OUTSIDE_CORE_PLACEMENT_PLAN",
+  "sourceClassifications": [
+    "MANUAL",
+    "AGENT",
+    "EXTERNAL_AUTHORING",
+    "DETERMINISTIC",
+    "SAVED_CREATIVE"
+  ],
+  "producerIsAdvisory": true,
+  "plumeEnumRequired": false,
+  "digestScope": [
+    "sourceAssetSha256",
+    "capabilitySnapshotSha256",
+    "candidateSha256",
+    "acceptedPlanSha256"
+  ],
+  "timestampExcludedFromPlanDigest": true,
+  "offlineReplay": true,
+  "schemaRef": "packages/renderer-contract/schema/placement-provenance-envelope-v1.schema.json",
+  "neutral": true
+}

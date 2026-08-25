@@ -30,6 +30,7 @@ export class DrizzleCampaignRepositories implements CampaignRepositories {
   listChannelSelections(...args: Parameters<CampaignRepositories["listChannelSelections"]>) { return this.delegate.listChannelSelections(...args); }
   upsertChannelSelection(...args: Parameters<CampaignRepositories["upsertChannelSelection"]>) { return this.delegate.upsertChannelSelection(...args); }
   listFormatSelections(...args: Parameters<CampaignRepositories["listFormatSelections"]>) { return this.delegate.listFormatSelections(...args); }
+  clearFormatSelections(...args: Parameters<CampaignRepositories["clearFormatSelections"]>) { return this.delegate.clearFormatSelections(...args); }
   upsertFormatSelection(...args: Parameters<CampaignRepositories["upsertFormatSelection"]>) { return this.delegate.upsertFormatSelection(...args); }
   createGenerationAggregate(...args: Parameters<CampaignRepositories["createGenerationAggregate"]>) { return this.delegate.createGenerationAggregate(...args); }
   getGenerationRequest(...args: Parameters<CampaignRepositories["getGenerationRequest"]>) { return this.delegate.getGenerationRequest(...args); }

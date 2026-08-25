@@ -10,6 +10,7 @@
     "@plume/db": "workspace:*",
     "@plume/infrastructure": "workspace:*",
     "@plume/observability": "workspace:*",
+    "@plume/renderer-vendor": "workspace:*",
     "bullmq": "5.52.2",
     "drizzle-orm": "0.44.5",
     "openai": "7.3.0",

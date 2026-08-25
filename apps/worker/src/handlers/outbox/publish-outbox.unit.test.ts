@@ -6,6 +6,7 @@ import type {
   OutboxRepository,
 } from "../../../../../packages/core/src/modules/operations/outbox-repository.js";
 import type { BullMqAdapter } from "../../../../../packages/infrastructure/src/queue/bullmq.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const id = "00000000-0000-4000-8000-000000000001";
 const message: OutboxMessage = {
@@ -97,6 +98,8 @@ describe("outbox command publishing", () => {
         smokeRunId: id,
         budgetEpochId: id,
         workflowCallBudget: 3,
+        syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+        canaryVerificationRunId: id,
         verificationOnly: true,
         retryEnabled: false,
         repairEnabled: false,

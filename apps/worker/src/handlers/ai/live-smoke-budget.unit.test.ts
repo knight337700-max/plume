@@ -7,6 +7,7 @@ import type {
 } from "../../../../../packages/infrastructure/src/async/live-smoke-budget-store.js";
 import { createLiveSmokeHandler } from "./live-smoke.js";
 import type { JsonSchema } from "../../../../../packages/core/src/agents/result-validator.js";
+import { LIVE_SMOKE_SYNTHETIC_SCENARIO_ID } from "../../../../../packages/core/src/agents/live-smoke-synthetic-scenarios.js";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-0000000002c0";
 const SMOKE_RUN_ID = "00000000-0000-4000-8000-0000000002d0";
@@ -68,11 +69,24 @@ class SharedTestBudgetStore implements LiveSmokeBudgetStore {
       this.ledger.reservations.add(key);
       const next = used + input.units;
       this.ledger.used.set(scope, next);
-      if (next >= epoch.limit) this.ledger.epochs.set(scope, { ...epoch, status: "CLOSED_EXHAUSTED" });
+      if (next >= epoch.limit)
+        this.ledger.epochs.set(scope, { ...epoch, status: "CLOSED_EXHAUSTED" });
       return { allowed: true, duplicate: false, used: next, remaining: input.limit - next };
     } finally {
       release();
     }
+  }
+
+  async markDispatchStarted() {
+    return { marked: true, duplicate: false };
+  }
+
+  async settle() {
+    return { settled: true, duplicate: false };
+  }
+
+  async markUnknownBillable() {
+    return { marked: true, duplicate: false };
   }
 }
 
@@ -105,11 +119,18 @@ function fakeJob(
   itemNumber: number,
   workflowCallBudget: number,
   attemptsMade = 0,
+  scope: { readonly smokeRunId?: string; readonly budgetEpochId?: string } = {},
 ) {
   return {
     id: `message-${itemNumber}`,
     attemptsMade,
-    data: { agentCode, budgetEpochId: BUDGET_EPOCH_ID, workflowCallBudget },
+    data: {
+      agentCode,
+      syntheticScenarioId: LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+      ...(scope.smokeRunId ? { smokeRunId: scope.smokeRunId } : {}),
+      budgetEpochId: scope.budgetEpochId ?? BUDGET_EPOCH_ID,
+      workflowCallBudget,
+    },
   } as never;
 }
 
@@ -166,9 +187,7 @@ describe("live smoke workflow budget", () => {
 
   it("keeps the exhausted Phase 2C.4 epoch immutable and isolates a new epoch", async () => {
     const ledger: TestLedger = {
-      used: new Map([
-        [`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`, 20],
-      ]),
+      used: new Map([[`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`, 20]]),
       reservations: new Set(),
       epochs: new Map([
         [
@@ -225,7 +244,9 @@ describe("live smoke workflow budget", () => {
         limit: 12,
       }),
     ).resolves.toMatchObject({ allowed: false, used: 12, remaining: 0 });
-    expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`)).toBe(20);
+    expect(
+      ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:00000000-0000-4000-8000-0000000002e4`),
+    ).toBe(20);
     expect(ledger.used.get(`${WORKSPACE_ID}:${SMOKE_RUN_ID}:${newEpochId}`)).toBe(12);
   });
 
@@ -247,24 +268,75 @@ describe("live smoke workflow budget", () => {
           return {
             status: "FAILED" as const,
             latencyMs: 1,
+            model: "gpt-5.6-luna",
+            usage: { inputUnits: 1, outputUnits: 1 },
+            providerRequestIdHash: "1".repeat(64),
+            evidence: {
+              requestAttempted: true,
+              responseReceived: true,
+              httpStatus: 429,
+              requestIdHash: "1".repeat(64),
+              resolvedModel: "gpt-5.6-luna",
+              jsonParseStatus: "NOT_REACHED" as const,
+            },
             error: { code: "RATE_LIMIT", message: "synthetic", retryable: true },
           };
         if (providerCall === 2)
-          return { status: "COMPLETED" as const, outputJson: { invalid: true }, latencyMs: 1 };
+          return {
+            status: "COMPLETED" as const,
+            model: "gpt-5.6-luna",
+            outputJson: { invalid: true },
+            latencyMs: 1,
+            usage: { inputUnits: 1, outputUnits: 1 },
+            providerRequestIdHash: "2".repeat(64),
+            evidence: {
+              requestAttempted: true,
+              responseReceived: true,
+              httpStatus: 200,
+              requestIdHash: "2".repeat(64),
+              resolvedModel: "gpt-5.6-luna",
+              jsonParseStatus: "PASS" as const,
+            },
+          };
         return {
           status: "COMPLETED" as const,
+          model: "gpt-5.6-luna",
           outputJson: sampleForSchema(request.outputSchema),
           latencyMs: 1,
+          usage: { inputUnits: 1, outputUnits: 1 },
+          providerRequestIdHash: "3".repeat(64),
+          evidence: {
+            requestAttempted: true,
+            responseReceived: true,
+            httpStatus: 200,
+            requestIdHash: "3".repeat(64),
+            resolvedModel: "gpt-5.6-luna",
+            jsonParseStatus: "PASS" as const,
+          },
         };
       },
     };
-    const handler = createLiveSmokeHandler(gateway, store);
-    const result = await handler(fakeJob("COPY_GENERATOR", 99, 3), {
-      workspaceId: WORKSPACE_ID,
-      smokeRunId: "00000000-0000-4000-8000-0000000002d1",
-      budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
-      jobItemId: "00000000-0000-4000-8000-000000000399",
+    const handler = createLiveSmokeHandler(gateway, store, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+      },
     });
+    const result = await handler(
+      fakeJob("COPY_GENERATOR", 99, 3, 0, {
+        smokeRunId: "00000000-0000-4000-8000-0000000002d1",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
+      }),
+      {
+        workspaceId: WORKSPACE_ID,
+        smokeRunId: "00000000-0000-4000-8000-0000000002d1",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e1",
+        jobItemId: "00000000-0000-4000-8000-000000000399",
+      },
+    );
     expect(result).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
     expect(calls).toHaveLength(3);
 
@@ -296,21 +368,54 @@ describe("live smoke workflow budget", () => {
         if (providerCall <= 2) {
           return {
             status: "FAILED" as const,
+            model: "gpt-5.6-luna",
             latencyMs: 1,
+            usage: { inputUnits: 1, outputUnits: 1 },
+            providerRequestIdHash: `${providerCall}`.repeat(64),
+            evidence: {
+              requestAttempted: true,
+              responseReceived: true,
+              httpStatus: 503,
+              requestIdHash: `${providerCall}`.repeat(64),
+              resolvedModel: "gpt-5.6-luna",
+              jsonParseStatus: "NOT_REACHED" as const,
+            },
             error: { code: "TRANSIENT_PROVIDER_ERROR", message: "synthetic", retryable: true },
           };
         }
         return {
           status: "COMPLETED" as const,
+          model: "gpt-5.6-luna",
           outputJson: sampleForSchema(request.outputSchema),
           latencyMs: 1,
+          usage: { inputUnits: 1, outputUnits: 1 },
+          providerRequestIdHash: "3".repeat(64),
+          evidence: {
+            requestAttempted: true,
+            responseReceived: true,
+            httpStatus: 200,
+            requestIdHash: "3".repeat(64),
+            resolvedModel: "gpt-5.6-luna",
+            jsonParseStatus: "PASS" as const,
+          },
         };
       },
     };
-    const handler = createLiveSmokeHandler(gateway, store);
+    const handler = createLiveSmokeHandler(gateway, store, {
+      providerMode: "live",
+      pricingPolicy: {
+        model: "gpt-5.6-luna",
+        pricingVersion: "test",
+        inputMicroUsdPerMillionTokens: 1,
+        outputMicroUsdPerMillionTokens: 1,
+      },
+    });
     await expect(
       handler(
-        fakeJob("COPY_GENERATOR", 100, 3, 0),
+        fakeJob("COPY_GENERATOR", 100, 3, 0, {
+          smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+          budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
+        }),
         {
           workspaceId: WORKSPACE_ID,
           smokeRunId: "00000000-0000-4000-8000-0000000002d3",
@@ -320,7 +425,10 @@ describe("live smoke workflow budget", () => {
       ),
     ).rejects.toThrow("AI_LIVE_SMOKE_AGENT_FAILED");
     const resumed = await handler(
-      fakeJob("COPY_GENERATOR", 100, 3, 1),
+      fakeJob("COPY_GENERATOR", 100, 3, 1, {
+        smokeRunId: "00000000-0000-4000-8000-0000000002d3",
+        budgetEpochId: "00000000-0000-4000-8000-0000000002e3",
+      }),
       {
         workspaceId: WORKSPACE_ID,
         smokeRunId: "00000000-0000-4000-8000-0000000002d3",
@@ -330,7 +438,11 @@ describe("live smoke workflow budget", () => {
     );
     expect(resumed).toMatchObject({ status: "COMPLETED", agentCode: "COPY_GENERATOR" });
     expect(providerCall).toBe(3);
-    expect(ledger.used.get(`${WORKSPACE_ID}:00000000-0000-4000-8000-0000000002d3:00000000-0000-4000-8000-0000000002e3`)).toBe(3);
+    expect(
+      ledger.used.get(
+        `${WORKSPACE_ID}:00000000-0000-4000-8000-0000000002d3:00000000-0000-4000-8000-0000000002e3`,
+      ),
+    ).toBe(3);
   });
 
   it("keeps workflow scopes isolated and replays only failed items", async () => {

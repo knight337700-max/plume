@@ -1,0 +1,75 @@
+{
+  "registryVersion": "1.0.0",
+  "source": "JSON Schema Draft 2020-12 validator with AJV-compatible keyword output",
+  "externalMessagePolicy": "AJV native English messages are diagnostic only and must never be returned as the stable external message",
+  "defaultCode": "KBR-INPUT-002",
+  "keywordMappings": [
+    {
+      "keyword": "required",
+      "defaultCode": "KBR-INPUT-002",
+      "pathOverrides": [
+        {
+          "pointers": [
+            "/advertiser/text",
+            "/copy/headline",
+            "/copy/subcopy",
+            "/assets/product/path",
+            "/output/directory",
+            "/output/baseName"
+          ],
+          "code": "KBR-INPUT-007"
+        }
+      ]
+    },
+    { "keyword": "type", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "enum", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    {
+      "keyword": "const",
+      "defaultCode": "KBR-INPUT-002",
+      "pathOverrides": [
+        { "pointers": ["/channel"], "code": "KBR-INPUT-003" },
+        { "pointers": ["/placement"], "code": "KBR-INPUT-004" },
+        { "pointers": ["/template"], "code": "KBR-INPUT-005" },
+        { "pointers": ["/canvas/width", "/canvas/height"], "code": "KBR-INPUT-006" },
+        { "pointers": ["/cta/mode"], "code": "KBR-CTA-001" }
+      ]
+    },
+    { "keyword": "additionalProperties", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "minLength", "defaultCode": "KBR-INPUT-007", "pathOverrides": [] },
+    { "keyword": "maxLength", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "minimum", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "maximum", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "pattern", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "oneOf", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] },
+    { "keyword": "anyOf", "defaultCode": "KBR-INPUT-002", "pathOverrides": [] }
+  ],
+  "deduplicationKey": [
+    "severity",
+    "inputJsonPointer",
+    "code",
+    "messageKey"
+  ],
+  "sortOrder": [
+    {
+      "field": "severity",
+      "direction": "ascending",
+      "rank": {
+        "ERROR": 0,
+        "WARNING": 1,
+        "INFO": 2
+      }
+    },
+    {
+      "field": "inputJsonPointer",
+      "direction": "lexicographic-ascending"
+    },
+    {
+      "field": "code",
+      "direction": "lexicographic-ascending"
+    },
+    {
+      "field": "messageKey",
+      "direction": "lexicographic-ascending"
+    }
+  ]
+}

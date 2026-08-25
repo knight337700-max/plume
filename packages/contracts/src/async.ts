@@ -3,6 +3,11 @@ import {
   type AsyncCommand,
 } from "../../../packages/core/src/async/queue-routing.js";
 import type { CommandEnvelope } from "../../../packages/core/src/async/message-envelope.js";
+import {
+  LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX,
+  isApprovedLiveSmokeSyntheticScenarioId,
+  type LiveSmokeSyntheticScenarioId,
+} from "../../../packages/core/src/public.js";
 
 export type JacomoExternalCommand = "creative.generate";
 export type JacomoInternalCommand =
@@ -28,14 +33,18 @@ export const JACOMO_OPTIONAL_COMMANDS = Object.freeze(
 
 export interface CreativeGeneratePayload {
   readonly campaignId: string;
+  /** Exact confirmed brief version selected by the Product Workflow. */
+  readonly briefVersionId?: string;
   readonly productIds: readonly string[];
   readonly formatProfileIds: readonly string[];
   readonly variantCountPerProduct: number;
-  readonly generationMode?: "MOCK_AI";
+  readonly generationMode?: "MOCK_AI" | "CANONICAL_RENDERER";
 }
 
 export interface AiLiveSmokePayload {
   readonly agentCode: string;
+  /** Versioned synthetic scope resolved from the canonical media catalog. */
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   /** Immutable budget epoch for this durable workflow attempt. */
   readonly budgetEpochId: string;
   /** Durable workflow scope. v1 payloads derive this from the root job id. */
@@ -58,8 +67,9 @@ export interface AiLiveSmokeVerificationPayload {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
-  /** Reuse a previously attested provider canary when the gateway stack is unchanged. */
-  readonly canaryVerificationRunId?: string;
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
+  /** Verification must reference the exact durable canary scope used by this run. */
+  readonly canaryVerificationRunId: string;
   readonly retryEnabled?: boolean;
   readonly repairEnabled?: boolean;
   readonly verificationOnly: true;
@@ -72,8 +82,42 @@ export interface AiLiveSmokeCanaryPayload {
   readonly smokeRunId: string;
   readonly budgetEpochId: string;
   readonly workflowCallBudget: number;
+  readonly syntheticScenarioId: LiveSmokeSyntheticScenarioId;
   readonly canary: true;
 }
+
+export type LiveSmokeFailureClass =
+  | "PRE_DISPATCH_VALIDATION"
+  | "BUDGET_RESERVATION"
+  | "DISPATCH_EVIDENCE"
+  | "PROVIDER_TRANSPORT"
+  | "PROVIDER_REJECTED"
+  | "PROVIDER_RESPONSE_PARSE"
+  | "STRUCTURED_OUTPUT_SCHEMA"
+  | "DOMAIN_VALIDATION"
+  | "USAGE_MISSING"
+  | "USAGE_INVALID"
+  | "SETTLEMENT"
+  | "EVIDENCE_WRITE"
+  | "UNKNOWN_BILLABLE"
+  | "INTERNAL_UNKNOWN";
+
+export const LIVE_SMOKE_FAILURE_CLASSES = Object.freeze([
+  "PRE_DISPATCH_VALIDATION",
+  "BUDGET_RESERVATION",
+  "DISPATCH_EVIDENCE",
+  "PROVIDER_TRANSPORT",
+  "PROVIDER_REJECTED",
+  "PROVIDER_RESPONSE_PARSE",
+  "STRUCTURED_OUTPUT_SCHEMA",
+  "DOMAIN_VALIDATION",
+  "USAGE_MISSING",
+  "USAGE_INVALID",
+  "SETTLEMENT",
+  "EVIDENCE_WRITE",
+  "UNKNOWN_BILLABLE",
+  "INTERNAL_UNKNOWN",
+] as const satisfies readonly LiveSmokeFailureClass[]);
 
 export interface CreativeRenderPayload {
   readonly creativeVersionId: string;
@@ -103,6 +147,7 @@ export interface ExportPackagePayload {
   readonly creativeVersionIds: readonly string[];
   readonly renderObjectKeys: readonly string[];
   readonly packageName: string;
+  readonly renderChecksumsSha256?: readonly string[];
 }
 
 export type AsyncCommandPayload =
@@ -145,18 +190,39 @@ const isUuidLike = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 
+const FREEFORM_SCOPE_KEYS = new Set([
+  "channel",
+  "channelCode",
+  "product",
+  "productCode",
+  "format",
+  "formatId",
+  "formatProfile",
+  "formatProfileId",
+  "profileVersion",
+]);
+
+function hasForbiddenFreeformScope(payload: Record<string, unknown>): boolean {
+  return [...FREEFORM_SCOPE_KEYS].some((key) => key in payload);
+}
+
 function validateCreativeGenerate(payload: unknown): payload is CreativeGeneratePayload {
   if (!isRecord(payload)) return false;
   return (
     isString(payload.campaignId) &&
+    (payload.briefVersionId === undefined || isString(payload.briefVersionId)) &&
     isStringArray(payload.productIds) &&
     payload.productIds.length > 0 &&
     isStringArray(payload.formatProfileIds) &&
     payload.formatProfileIds.length > 0 &&
     isPositiveInteger(payload.variantCountPerProduct) &&
-    (payload.generationMode === undefined || payload.generationMode === "MOCK_AI")
+    (payload.generationMode === undefined ||
+      payload.generationMode === "MOCK_AI" ||
+      payload.generationMode === "CANONICAL_RENDERER")
   );
 }
+
+export { LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX };
 
 const LIVE_SMOKE_AGENT_CODES = new Set([
   "CAMPAIGN_ANALYST",
@@ -174,12 +240,16 @@ function validateAiLiveSmoke(payload: unknown): payload is AiLiveSmokePayload {
     isRecord(payload) &&
     isString(payload.agentCode) &&
     LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.budgetEpochId) &&
     (payload.smokeRunId === undefined || isUuidLike(payload.smokeRunId)) &&
     (payload.workflowCallBudget === undefined ||
-      (isPositiveInteger(payload.workflowCallBudget) && payload.workflowCallBudget <= 20)) &&
+      (isPositiveInteger(payload.workflowCallBudget) &&
+        payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)) &&
     (payload.requestBudget === undefined ||
-      (isPositiveInteger(payload.requestBudget) && payload.requestBudget <= 20)) &&
+      (isPositiveInteger(payload.requestBudget) &&
+        payload.requestBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX)) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
     (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean")
   );
@@ -194,13 +264,14 @@ function validateAiLiveSmokeVerification(
     isUuidLike(payload.parentWorkflowJobId) &&
     isString(payload.agentCode) &&
     LIVE_SMOKE_AGENT_CODES.has(payload.agentCode) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.workspaceId) &&
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
-    payload.workflowCallBudget <= 20 &&
-    (payload.canaryVerificationRunId === undefined ||
-      isUuidLike(payload.canaryVerificationRunId)) &&
+    payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX &&
+    isUuidLike(payload.canaryVerificationRunId) &&
     (payload.retryEnabled === undefined || typeof payload.retryEnabled === "boolean") &&
     (payload.repairEnabled === undefined || typeof payload.repairEnabled === "boolean") &&
     payload.verificationOnly === true
@@ -210,13 +281,15 @@ function validateAiLiveSmokeVerification(
 function validateAiLiveSmokeCanary(payload: unknown): payload is AiLiveSmokeCanaryPayload {
   return (
     isRecord(payload) &&
+    isApprovedLiveSmokeSyntheticScenarioId(payload.syntheticScenarioId) &&
+    !hasForbiddenFreeformScope(payload) &&
     isUuidLike(payload.verificationRunId) &&
     isUuidLike(payload.parentWorkflowJobId) &&
     isUuidLike(payload.workspaceId) &&
     isUuidLike(payload.smokeRunId) &&
     isUuidLike(payload.budgetEpochId) &&
     isPositiveInteger(payload.workflowCallBudget) &&
-    payload.workflowCallBudget <= 7 &&
+    payload.workflowCallBudget <= LIVE_SMOKE_WORKFLOW_CALL_BUDGET_MAX &&
     payload.canary === true
   );
 }
@@ -256,7 +329,10 @@ function validateExport(payload: unknown): payload is ExportPackagePayload {
     isString(payload.exportJobId) &&
     isStringArray(payload.creativeVersionIds) &&
     isStringArray(payload.renderObjectKeys) &&
-    isString(payload.packageName)
+    isString(payload.packageName) &&
+    (payload.renderChecksumsSha256 === undefined ||
+      (isStringArray(payload.renderChecksumsSha256) &&
+        payload.renderChecksumsSha256.length === payload.renderObjectKeys.length))
   );
 }
 

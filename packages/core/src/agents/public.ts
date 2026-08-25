@@ -7,12 +7,29 @@ export {
   type ProviderCallKind,
   type ProviderEvidence,
   createAgentOrchestrator,
+  type AgentTaskInput,
 } from "./orchestrator.js";
+export {
+  AgentImageInputError,
+  validateAgentImageInputs,
+  type AgentImageDetail,
+  type AgentImageInput,
+  type AgentImageInputErrorCode,
+  type AgentImageMimeType,
+} from "./image-input.js";
 export {
   buildStrictTransportSchemaForLinter,
   createStrictOutputAdapter,
   type StrictOutputAdapter,
 } from "./strict-output-adapter.js";
+export {
+  LIVE_SMOKE_SYNTHETIC_SCENARIO_ID,
+  isApprovedLiveSmokeSyntheticScenarioId,
+  resolveLiveSmokeSyntheticScenario,
+  resolveLiveSmokeSyntheticScenarioFromCatalog,
+  type ApprovedLiveSmokeSyntheticScenario,
+  type LiveSmokeSyntheticScenarioId,
+} from "./live-smoke-synthetic-scenarios.js";
 export type {
   JsonSchema,
   SchemaError,

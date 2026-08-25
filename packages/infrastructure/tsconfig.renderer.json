@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2024",
+    "types": ["node"]
+  },
+  "include": [
+    "src/render/canonical-renderer-*.ts",
+    "src/render/object-right-input-builder.ts",
+    "src/render/renderer-asset-resolver.ts",
+    "src/render/renderer-bindings.ts"
+  ],
+  "exclude": ["src/**/*.test.ts"]
+}

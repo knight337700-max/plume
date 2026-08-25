@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/contracts/p0-plume-architecture-freeze-v1.0.0.json",
+  "registryVersion": "1.0.0",
+  "status": "FROZEN",
+  "phase": "P0_PLUME_INTEGRATION_CONTRACT_AND_ARCHITECTURE_FREEZE_FINAL_RERUN",
+  "mode": "CONTRACT_AND_ARCHITECTURE_ONLY",
+  "dependencyDirection": "PLUME_TO_RENDERER_ONLY",
+  "rendererDependsOnPlume": false,
+  "livePlumeCallDuringRender": false,
+  "manualAndAgentShareCanonicalContract": true,
+  "candidateSeparatedFromAcceptedPlan": true,
+  "capabilityAuthority": "FROZEN_PROFILE_CONTRACT_AND_VALIDATOR",
+  "runtimeNetworkAccess": "PROHIBITED",
+  "plumeRuntimeDependencies": [],
+  "flow": [
+    "asset-bytes+target-profile+capability-hints",
+    "external-authoring",
+    "crop-candidate-or-equivalent",
+    "selection",
+    "schema-validation",
+    "capability-validation",
+    "immutable-image-placement-plan+provenance",
+    "standalone-renderer",
+    "validator",
+    "publish-only-error-zero"
+  ],
+  "reusedContracts": [
+    {
+      "path": "packages/renderer-contract/schema/image-placement-plan-v1.schema.json",
+      "version": "1.8.0",
+      "sha256": "4d0de339bc62095b99735914dde14f936a33bcedd0ca03db573c57a89681898a",
+      "evidenceClass": "PROJECT_PRESET"
+    },
+    {
+      "path": "packages/renderer-contract/schema/crop-candidate-v1.schema.json",
+      "version": "1.8.0",
+      "sha256": "65fc5aa17eb87f38ebe369aa3b4902b512a06cf2710f6b0f6e70b3015f3ec788",
+      "evidenceClass": "PROJECT_PRESET"
+    }
+  ],
+  "neutralContracts": [
+    {
+      "path": "packages/renderer-contract/schema/placement-capability-hints-v1.schema.json",
+      "version": "1.0.0",
+      "sha256": "7cd0ae80b0da17fa2d6b15bd8f36366225d9230408be93f399457ed8966c815a",
+      "evidenceClass": "PROJECT_PRESET"
+    },
+    {
+      "path": "packages/renderer-contract/schema/placement-provenance-envelope-v1.schema.json",
+      "version": "1.0.0",
+      "sha256": "07c7ba31f8fe69de8b975f422365ab5841168101c9df86147202006b71b172cc",
+      "evidenceClass": "PROJECT_PRESET"
+    }
+  ],
+  "capabilityMatrix": {
+    "path": "contracts/p0-plume-capability-matrix.json",
+    "version": "1.0.0",
+    "sha256": "1b5b49acc4fe631e23d8f44fe36bbabc88dd385f5c07b0683b65afec937e3d3e",
+    "evidenceClass": "PROJECT_PRESET"
+  },
+  "profileCounts": {
+    "KAKAO": 21,
+    "NAVER": 132,
+    "META_STATIC": 3,
+    "GOOGLE": 14
+  },
+  "totalProfiles": 170,
+  "failClosedRules": [
+    {
+      "id": "UNKNOWN_SCHEMA_VERSION",
+      "errorCode": "KBR-PLUME-001"
+    },
+    {
+      "id": "UNKNOWN_POLICY",
+      "errorCode": "KBR-PLUME-002"
+    },
+    {
+      "id": "PROFILE_POLICY_MISMATCH",
+      "errorCode": "KBR-PLUME-003"
+    },
+    {
+      "id": "TARGET_PROFILE_MISMATCH",
+      "errorCode": "KBR-PLUME-004"
+    },
+    {
+      "id": "REQUIRED_GEOMETRY_MISSING",
+      "errorCode": "KBR-PLUME-005"
+    },
+    {
+      "id": "NON_FINITE_GEOMETRY",
+      "errorCode": "KBR-PLUME-006"
+    },
+    {
+      "id": "OUT_OF_RANGE_GEOMETRY",
+      "errorCode": "KBR-PLUME-007"
+    },
+    {
+      "id": "DEGENERATE_GEOMETRY",
+      "errorCode": "KBR-PLUME-008"
+    },
+    {
+      "id": "ASSET_DIGEST_MISMATCH",
+      "errorCode": "KBR-PLUME-009"
+    },
+    {
+      "id": "CAPABILITY_DIGEST_MISMATCH",
+      "errorCode": "KBR-PLUME-010"
+    },
+    {
+      "id": "PLAN_DIGEST_MISMATCH",
+      "errorCode": "KBR-PLUME-011"
+    },
+    {
+      "id": "LOCKED_PROFILE_TRANSFORM",
+      "errorCode": "KBR-PLUME-012"
+    },
+    {
+      "id": "PLATFORM_OWNERSHIP_MISMATCH",
+      "errorCode": "KBR-PLUME-013"
+    },
+    {
+      "id": "CARDINALITY_MISMATCH",
+      "errorCode": "KBR-PLUME-014"
+    },
+    {
+      "id": "FIT_CROP_CONTRADICTION",
+      "errorCode": "KBR-PLUME-015"
+    },
+    {
+      "id": "MISSING_CONTRACT_REFERENCE",
+      "errorCode": "KBR-PLUME-016"
+    }
+  ],
+  "fixtures": {
+    "valid": [
+      "fixtures/p0-plume/valid/minimal-placement-plan.json",
+      "fixtures/p0-plume/valid/capability-hint.json",
+      "fixtures/p0-plume/valid/provenance-envelope.json"
+    ],
+    "invalidDirectory": "fixtures/p0-plume/invalid",
+    "evidence": "EXPECTED_FAIL_CONFIRMED"
+  },
+  "nextPhase": "AWAIT_P1_INSTRUCTION",
+  "p1Started": false
+}

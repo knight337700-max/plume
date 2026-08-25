@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/freeform-text-element-v1.schema.json",
+  "title": "FREEFORM Text Element v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "bounds", "zIndex", "text", "fontId", "fontSizePx", "color", "lineHeightPx", "textAlign", "verticalAlign", "wrapMode", "overflowMode"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 }, "type": { "const": "TEXT" }, "bounds": { "$ref": "#/$defs/normalizedRect" }, "zIndex": { "type": "integer" }, "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }, "role": { "$ref": "#/$defs/semanticRole" }, "safeZoneImportance": { "$ref": "#/$defs/safeZoneImportance" },
+    "text": { "type": "string" }, "fontId": { "type": "string", "minLength": 1 }, "fontSizePx": { "type": "number", "exclusiveMinimum": 0 }, "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" }, "lineHeightPx": { "type": "number", "exclusiveMinimum": 0 },
+    "textAlign": { "enum": ["LEFT", "CENTER", "RIGHT"] }, "verticalAlign": { "enum": ["TOP", "CENTER", "BOTTOM"] }, "wrapMode": { "enum": ["NO_WRAP", "EXPLICIT_NEWLINES", "WORD_WRAP"] }, "overflowMode": { "enum": ["ERROR", "CLIP"] }, "letterSpacingPx": { "type": "number", "default": 0 }
+  },
+  "$defs": {
+    "normalizedRect": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 }, "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } },
+    "semanticRole": { "enum": ["HEADLINE", "SUBCOPY", "ADVERTISER", "DISCLAIMER", "CTA", "LOGO", "PRIMARY_IMAGE", "DECORATION", "OTHER"] },
+    "safeZoneImportance": { "enum": ["KEY_CREATIVE", "DECORATIVE", "IGNORE"] }
+  }
+}

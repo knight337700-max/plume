@@ -38,7 +38,8 @@ test("captures the deterministic Jacomo representative views", async ({ page }) 
   for (const [name, stepNumber, label] of workflowViews) {
     await openWorkflowStep(page, stepNumber, label);
     if (name === "channel" || name === "format") {
-      await page.getByRole("combobox", { name: "Channel" }).selectOption("Kakao");
+      await page.getByRole("combobox", { name: "Channel" }).selectOption("KAKAO_MOMENT");
+      await page.getByRole("combobox", { name: "Format" }).selectOption("kakao-moment-bizboard-1029x258");
     }
     await capture(page, name);
   }

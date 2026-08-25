@@ -1,0 +1,8 @@
+services:
+  postgres:
+    volumes:
+      - live_qa_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  live_qa_postgres_data:
+    name: plume_live_qa_ledger

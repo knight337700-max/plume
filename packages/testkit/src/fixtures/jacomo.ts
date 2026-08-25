@@ -646,20 +646,39 @@ async function seed(sql: Sql, fixture: JacomoFixture): Promise<void> {
       );
     }
 
-    await upsert(
-      transaction,
-      "channel",
-      ["id", "code", "name", "status", "metadata_json", "created_at", "updated_at"],
-      [
-        fixture.catalog.channelId,
-        "KAKAO_MOMENT",
-        "카카오모먼트",
-        "ACTIVE",
-        json({ provider: "kakao", fixture: "jacomo" }),
-        now,
-        now,
-      ],
-    );
+    for (const channel of [
+      {
+        id: JACOMO_IDS.channelNaver,
+        code: "NAVER_GFA",
+        name: "네이버 GFA",
+        metadata: { catalogStatus: "CATALOG_NOT_READY", fixture: "jacomo" },
+      },
+      {
+        id: fixture.catalog.channelId,
+        code: "KAKAO_MOMENT",
+        name: "카카오모먼트",
+        metadata: { provider: "kakao", fixture: "jacomo" },
+      },
+      {
+        id: JACOMO_IDS.channelMeta,
+        code: "META",
+        name: "Meta",
+        metadata: { catalogStatus: "CATALOG_NOT_READY", fixture: "jacomo" },
+      },
+      {
+        id: JACOMO_IDS.channelGoogle,
+        code: "GOOGLE_ADS",
+        name: "Google Ads",
+        metadata: { catalogStatus: "CATALOG_NOT_READY", fixture: "jacomo" },
+      },
+    ] as const) {
+      await upsert(
+        transaction,
+        "channel",
+        ["id", "code", "name", "status", "metadata_json", "created_at", "updated_at"],
+        [channel.id, channel.code, channel.name, "ACTIVE", json(channel.metadata), now, now],
+      );
+    }
     await upsert(
       transaction,
       "product_family",

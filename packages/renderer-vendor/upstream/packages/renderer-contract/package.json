@@ -1,0 +1,20 @@
+{
+  "name": "@kbr/renderer-contract",
+  "version": "1.8.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent-independent serializable integration contract for the local Renderer",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "canonicalize": "3.0.0"
+  }
+}

@@ -42,6 +42,7 @@ describe("asset curator handler", () => {
       workspaceId: "workspace-1",
       campaignId: campaign.id,
       productId: "product-1",
+      channel: { code: "KAKAO_MOMENT" },
       formatProfile: { id: "kakao" },
       brief: { objective: "sales" },
       assets: [{ assetVersionId: "asset-version-1", licenseStatus: "EXPIRED" }],

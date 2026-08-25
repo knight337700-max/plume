@@ -1,0 +1,74 @@
+{
+  "registryVersion": "1.1.0",
+  "status": "REGISTRY_ONLY",
+  "sourceResolutionStatus": "SOURCE_RESOLVED_RENDERER_OWNED_PSD_EXACT",
+  "sourceBacked": true,
+  "readiness": {
+    "ready": true,
+    "blockers": [],
+    "runtimeFontMode": "PSD_EXACT_RENDERER_OWNED",
+    "exportContributingSfFonts": []
+  },
+  "candidates": [
+    {
+      "id": "N2-REP-001",
+      "height": 160,
+      "family": "BASIC",
+      "objectKind": "STANDARD",
+      "side": "LEFT",
+      "textVariant": "MAIN_SUB",
+      "affordance": "NONE",
+      "sourceSelection": "registry lookup only"
+    },
+    {
+      "id": "N2-REP-002",
+      "height": 200,
+      "family": "EMPHASIS",
+      "objectKind": "THUMBNAIL",
+      "side": "RIGHT",
+      "textVariant": "THREE_LINE",
+      "affordance": "NONE",
+      "sourceSelection": "registry lookup only"
+    },
+    {
+      "id": "N2-REP-003",
+      "height": 280,
+      "family": "BASIC",
+      "objectKind": "STANDARD",
+      "side": "LEFT",
+      "textVariant": "ONE_LINE",
+      "affordance": "LANDING_ICON",
+      "sourceSelection": "registry lookup only"
+    },
+    {
+      "id": "N2-REP-004",
+      "height": 280,
+      "family": "EMPHASIS",
+      "objectKind": "THUMBNAIL",
+      "side": "LEFT",
+      "textVariant": "THREE_LINE",
+      "affordance": "APP_CTA",
+      "sourceSelection": "registry lookup only"
+    },
+    {
+      "id": "N2-REP-005",
+      "height": 280,
+      "family": "EMPHASIS",
+      "objectKind": "PERSON_MOVIE",
+      "side": "RIGHT",
+      "textVariant": "FOUR_LINE",
+      "affordance": "NONE",
+      "sourceSelection": "registry lookup only"
+    },
+    {
+      "id": "N2-REP-006",
+      "height": 280,
+      "family": "BOTTOM_DISCLOSURE",
+      "objectKind": "STANDARD",
+      "side": "LEFT",
+      "textVariant": "MAIN2_DISCLOSURE_2LINE",
+      "affordance": "NONE",
+      "sourceSelection": "registry lookup only"
+    }
+  ]
+}

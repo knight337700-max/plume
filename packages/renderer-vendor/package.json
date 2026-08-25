@@ -1,0 +1,29 @@
+{
+  "name": "@plume/renderer-vendor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SHA-pinned plume-renderer runtime closure for Plume",
+  "exports": {
+    ".": {
+      "types": "./dist/src/public.d.ts",
+      "import": "./dist/src/public.js"
+    }
+  },
+  "dependencies": {
+    "@kbr/renderer-contract": "workspace:1.8.0",
+    "@napi-rs/canvas": "1.0.3",
+    "ajv": "8.20.0",
+    "canonicalize": "3.0.0",
+    "sharp": "0.35.3"
+  },
+  "optionalDependencies": {
+    "@img/sharp-libvips-win32-x64": "1.3.2",
+    "@img/sharp-win32-x64": "0.35.3",
+    "@napi-rs/canvas-win32-x64-msvc": "1.0.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

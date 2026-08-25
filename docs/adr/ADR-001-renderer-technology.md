@@ -1,5 +1,10 @@
 # ADR-001: Renderer technology for the MVP
 
+> Clarification (2026-08-20): This historical MVP decision is superseded for
+> `CANONICAL_RENDERER` product rendering by [ADR-002](./ADR-002-canonical-renderer-integration.md).
+> ADR-001 remains in force only for the legacy `MOCK_AI` regression path and is
+> retained unchanged as historical context.
+
 - Status: Accepted
 - Date: 2026-07-28
 - Scope: Creative preview, validation, and final-export renderer adapter

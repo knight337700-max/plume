@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbr.local/schema/renderer-integration-input-v1.schema.json",
+  "title": "Renderer Integration Input v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "formatProfileId", "output"],
+  "allOf": [
+    {
+      "if": { "properties": { "layoutMode": { "const": "FREEFORM" } }, "required": ["layoutMode"] },
+      "then": {
+        "properties": { "creativeLayoutPlan": {} },
+        "required": ["creativeLayoutPlan"],
+        "not": { "anyOf": [{ "properties": { "templateId": {} }, "required": ["templateId"] }, { "properties": { "imagePlacementPlans": {} }, "required": ["imagePlacementPlans"] }, { "properties": { "cropCandidates": {} }, "required": ["cropCandidates"] }] }
+      },
+      "else": { "properties": { "templateId": {}, "copy": {}, "assets": {}, "imagePlacementPlans": {} }, "required": ["templateId", "copy", "assets", "imagePlacementPlans"] }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "enum": ["1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0"] },
+    "layoutMode": { "enum": ["TEMPLATE_LOCKED", "FREEFORM"], "default": "TEMPLATE_LOCKED" },
+    "creativeLayoutPlan": { "$ref": "https://kbr.local/schema/creative-layout-plan-v1.schema.json" },
+    "formatProfileId": { "type": "string", "minLength": 1 },
+    "assetProfileId": { "type": "string", "minLength": 1 },
+    "placementContext": { "$ref": "#/$defs/placementContext" },
+    "platformCopy": { "$ref": "#/$defs/platformCopy" },
+    "metaStatic": { "$ref": "#/$defs/metaStatic" },
+    "placementSet": { "$ref": "#/$defs/placementSet" },
+    "templateId": { "type": "string", "minLength": 1 },
+    "copy": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "advertiser": { "type": "string" },
+        "headline": { "type": "string" },
+        "subcopy": { "type": "string" },
+        "cta": { "type": "string" },
+        "slots": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
+    "imagePlacementPlans": { "type": "array", "items": { "$ref": "#/$defs/placementPlan" } },
+    "cropCandidates": { "type": "array", "items": { "$ref": "#/$defs/cropCandidate" } },
+    "output": {
+      "type": "object", "additionalProperties": false, "required": ["mimeType"],
+      "properties": { "mimeType": { "enum": ["image/png", "image/jpeg"] }, "format": { "enum": ["PNG", "JPEG"] }, "quality": { "oneOf": [{ "type": "number", "minimum": 0, "maximum": 100 }, { "const": "AUTO_FIT" }] } }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assetId", "mimeType", "assetRef"],
+      "properties": {
+        "assetId": { "type": "string", "minLength": 1 },
+        "mimeType": { "enum": ["image/png", "image/jpeg"] },
+        "declaredWidth": { "type": "integer", "minimum": 1 },
+        "declaredHeight": { "type": "integer", "minimum": 1 },
+        "checksumSha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "assetRef": {
+          "type": "object", "additionalProperties": false, "required": ["type", "value"],
+          "properties": { "type": { "enum": ["DESKTOP_ASSET_TOKEN", "INTEGRATION_ASSET_TOKEN", "FIXTURE_ASSET_ID"] }, "value": { "type": "string", "minLength": 1 } }
+        },
+        "analysis": { "$ref": "#/$defs/assetAnalysis" }
+      }
+    },
+    "placementPlan": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "imageSlotId", "assetId", "policy", "source", "fitMode", "anchor", "subjectProtection"],
+      "properties": {
+        "schemaVersion": { "enum": ["1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0"] },
+        "imageSlotId": { "type": "string", "minLength": 1 },
+        "assetId": { "type": "string", "minLength": 1 },
+        "policy": { "enum": ["ALPHA_TRIM_CONTAIN", "CENTER_CONTAIN", "SEMANTIC_CROP_COVER", "MANUAL_CROP"] },
+        "source": { "enum": ["DETERMINISTIC", "MANUAL", "AGENT", "SAVED_CREATIVE"] },
+        "fitMode": { "enum": ["CONTAIN", "COVER"] },
+        "cropRect": { "$ref": "#/$defs/rect" },
+        "focalPoint": { "$ref": "#/$defs/point" },
+        "anchor": { "enum": ["CENTER", "CENTER_LEFT", "CENTER_RIGHT", "TOP_CENTER", "TOP_LEFT", "TOP_RIGHT", "BOTTOM_CENTER", "BOTTOM_LEFT", "BOTTOM_RIGHT"] },
+        "subjectProtection": { "enum": ["REQUIRED", "PREFERRED", "NONE"] },
+        "cropCandidateId": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "protectedSubjects": { "type": "array", "items": { "$ref": "#/$defs/protectedSubject" } },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "cropCandidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "candidateId", "assetId", "imageSlotId", "cropRect", "preservedSubjectIds", "clippedSubjectIds", "fillRatio", "subjectCoverageRatio", "warnings"],
+      "properties": {
+        "schemaVersion": { "enum": ["1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0"] },
+        "candidateId": { "type": "string", "minLength": 1 }, "assetId": { "type": "string", "minLength": 1 }, "imageSlotId": { "type": "string", "minLength": 1 },
+        "cropRect": { "$ref": "#/$defs/rect" }, "focalPoint": { "$ref": "#/$defs/point" },
+        "preservedSubjectIds": { "type": "array", "items": { "type": "string", "minLength": 1 } }, "clippedSubjectIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "fillRatio": { "type": "number", "minimum": 0, "maximum": 1 }, "subjectCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 }, "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "point": { "type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 } } },
+    "rect": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 }, "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } },
+    "protectedSubject": { "type": "object", "additionalProperties": false, "required": ["subjectId", "subjectType", "bounds"], "properties": { "subjectId": { "type": "string", "minLength": 1 }, "subjectType": { "enum": ["PRODUCT", "PERSON", "FACE", "LOGO", "TEXT", "OTHER"] }, "bounds": { "$ref": "#/$defs/rect" } } },
+    "assetAnalysis": { "type": "object", "additionalProperties": false, "properties": { "alphaChannel": { "type": "boolean" }, "alphaBounds": { "$ref": "#/$defs/rect" }, "focalPoint": { "$ref": "#/$defs/point" }, "protectedSubjects": { "type": "array", "items": { "$ref": "#/$defs/protectedSubject" } } } }
+    ,"platformCopy": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "primaryText": { "type": "string" },
+        "headline": { "type": "string" },
+        "description": { "type": "string" },
+        "callToAction": { "type": "string" },
+        "destinationUrl": { "type": "string" }
+      }
+    },
+    "metaStatic": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["SINGLE", "PLACEMENT_SET"] },
+        "placementContext": { "$ref": "#/$defs/placementContext" },
+        "conceptId": { "type": "string", "minLength": 1 },
+        "variantId": { "type": "string", "minLength": 1 },
+        "projectPixelPresetId": { "type": "string", "minLength": 1 },
+        "platformCopy": { "$ref": "#/$defs/platformCopy" },
+        "variants": { "type": "object", "additionalProperties": { "$ref": "#/$defs/metaVariant" } }
+      }
+    },
+    "metaVariant": {
+      "oneOf": [
+        { "$ref": "https://kbr.local/schema/creative-layout-plan-v1.schema.json" },
+        { "type": "object", "additionalProperties": false, "required": ["creativeLayoutPlan"], "properties": { "formatProfileId": { "type": "string", "minLength": 1 }, "placementContext": { "$ref": "#/$defs/placementContext" }, "creativeLayoutPlan": { "$ref": "https://kbr.local/schema/creative-layout-plan-v1.schema.json" } } }
+      ]
+    },
+    "placementContext": { "enum": ["FACEBOOK_FEED", "INSTAGRAM_FEED", "FACEBOOK_STORIES", "INSTAGRAM_STORIES", "FACEBOOK_REELS", "INSTAGRAM_REELS", "INSTAGRAM_EXPLORE", "FEED", "STORIES", "REELS"] },
+    "placementSet": {
+      "type": "object", "additionalProperties": false, "required": ["variants"],
+      "properties": {
+        "conceptId": { "type": "string", "minLength": 1 },
+        "sharedLayerIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "variants": { "type": "object", "additionalProperties": { "$ref": "#/$defs/metaVariant" } }
+      }
+    }
+  }
+}

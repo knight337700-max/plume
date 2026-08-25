@@ -26,6 +26,18 @@ function schemaTypes(schema: JsonSchema): readonly string[] {
   return typeof schema.type === "string" ? [schema.type] : [];
 }
 
+type ComposedSchema = JsonSchema &
+  Readonly<{
+    readonly $ref?: string;
+    readonly oneOf?: readonly JsonSchema[];
+    readonly pattern?: string;
+    readonly format?: string;
+  }>;
+
+function composedSchema(schema: JsonSchema): ComposedSchema {
+  return schema as ComposedSchema;
+}
+
 function nullable(schema: JsonSchema): JsonSchema {
   const types = schemaTypes(schema);
   if (types.includes("null")) return schema;
@@ -48,9 +60,7 @@ function isDynamicObject(schema: JsonSchema): boolean {
   );
 }
 
-function scalarKeywords(
-  schema: JsonSchema,
-): Pick<
+function scalarKeywords(schema: JsonSchema): Pick<
   JsonSchema,
   | "description"
   | "enum"
@@ -61,10 +71,16 @@ function scalarKeywords(
   | "maximum"
   | "exclusiveMinimum"
   | "uniqueItems"
-> {
+> &
+  Readonly<{
+    readonly format?: string;
+    readonly pattern?: string;
+  }> {
+  const enumValues = hasOwn(schema, "const") ? [schema.const] : schema.enum;
+  const composed = composedSchema(schema);
   return {
     ...(schema.description === undefined ? {} : { description: schema.description }),
-    ...(schema.enum === undefined ? {} : { enum: schema.enum }),
+    ...(enumValues === undefined ? {} : { enum: enumValues }),
     ...(schema.minLength === undefined ? {} : { minLength: schema.minLength }),
     ...(schema.minItems === undefined ? {} : { minItems: schema.minItems }),
     ...(schema.maxItems === undefined ? {} : { maxItems: schema.maxItems }),
@@ -72,18 +88,75 @@ function scalarKeywords(
     ...(schema.maximum === undefined ? {} : { maximum: schema.maximum }),
     ...(schema.exclusiveMinimum === undefined ? {} : { exclusiveMinimum: schema.exclusiveMinimum }),
     ...(schema.uniqueItems === undefined ? {} : { uniqueItems: schema.uniqueItems }),
+    ...(composed.format === undefined ? {} : { format: composed.format }),
+    ...(composed.pattern === undefined ? {} : { pattern: composed.pattern }),
   };
 }
 
-function buildTransportSchema(
+function typeSetsOverlap(left: readonly string[], right: readonly string[]): boolean {
+  return left.some((leftType) =>
+    right.some(
+      (rightType) =>
+        leftType === rightType ||
+        (leftType === "integer" && rightType === "number") ||
+        (leftType === "number" && rightType === "integer"),
+    ),
+  );
+}
+
+function literalConstraint(schema: JsonSchema): { readonly value: unknown } | undefined {
+  if (hasOwn(schema, "const")) return { value: schema.const };
+  if (schema.enum?.length === 1) return { value: schema.enum[0] };
+  return undefined;
+}
+
+function provablyDisjointOneOf(branches: readonly JsonSchema[]): boolean {
+  if (branches.length < 2) return true;
+  const branchTypes = branches.map(schemaTypes);
+  if (
+    branchTypes.every((types) => types.length > 0) &&
+    branches.every((_, index) =>
+      branches.slice(index + 1).every((__, otherIndex) => {
+        const rightTypes = branchTypes[index + otherIndex + 1]!;
+        return !typeSetsOverlap(branchTypes[index]!, rightTypes);
+      }),
+    )
+  )
+    return true;
+
+  const commonRequired = branches.reduce<Set<string> | undefined>((common, branch) => {
+    const required = new Set(branch.required ?? []);
+    if (!common) return required;
+    return new Set([...common].filter((key) => required.has(key)));
+  }, undefined);
+  if (!commonRequired?.size) return false;
+  for (const key of commonRequired) {
+    const values = branches.map((branch) =>
+      literalConstraint(branch.properties?.[key] ?? ({} as JsonSchema)),
+    );
+    if (values.some((value) => !value)) continue;
+    const serialized = values.map((value) => JSON.stringify(value!.value));
+    if (new Set(serialized).size === serialized.length) return true;
+  }
+  return false;
+}
+
+function withoutComposition(schema: ComposedSchema): JsonSchema {
+  const copy = { ...schema } as Record<string, unknown>;
+  delete copy.oneOf;
+  delete copy.anyOf;
+  return copy as JsonSchema;
+}
+
+function buildTransportStructure(
   schema: JsonSchema,
-  derivedProperties: readonly string[] = [],
+  derivedProperties: readonly string[],
 ): JsonSchema {
   if (isDynamicObject(schema)) {
     const valueSchema = dynamicValueSchema(schema);
-    const valueProperty = valueSchema
+    const valueProperty: Readonly<Record<string, JsonSchema>> = valueSchema
       ? { value: buildTransportSchema(valueSchema) }
-      : { valueJson: { type: "string" } as JsonSchema };
+      : { valueJson: { type: "string" } };
     return {
       type: "array",
       ...scalarKeywords(schema),
@@ -131,6 +204,35 @@ function buildTransportSchema(
   return schema.type === undefined
     ? scalarKeywords(schema)
     : { type: schema.type, ...scalarKeywords(schema) };
+}
+
+function buildTransportSchema(
+  schema: JsonSchema,
+  derivedProperties: readonly string[] = [],
+): JsonSchema {
+  const composed = composedSchema(schema);
+  if (composed.$ref !== undefined) throw new Error("STRICT_OUTPUT_UNRESOLVED_REF");
+  const hasOneOf = composed.oneOf !== undefined;
+  const hasAnyOf = composed.anyOf !== undefined;
+  if (hasOneOf && hasAnyOf) throw new Error("STRICT_OUTPUT_MULTIPLE_COMPOSITION_UNSUPPORTED");
+  if (hasOneOf) {
+    const branches = composed.oneOf;
+    if (!Array.isArray(branches) || !provablyDisjointOneOf(branches))
+      throw new Error("STRICT_OUTPUT_ONE_OF_NOT_PROVABLY_DISJOINT");
+    return {
+      ...buildTransportStructure(withoutComposition(composed), derivedProperties),
+      anyOf: branches.map((branch) => buildTransportSchema(branch, derivedProperties)),
+    };
+  }
+  if (hasAnyOf) {
+    if (!Array.isArray(composed.anyOf))
+      throw new Error("STRICT_OUTPUT_MULTIPLE_COMPOSITION_UNSUPPORTED");
+    return {
+      ...buildTransportStructure(withoutComposition(composed), derivedProperties),
+      anyOf: composed.anyOf.map((branch) => buildTransportSchema(branch, derivedProperties)),
+    };
+  }
+  return buildTransportStructure(schema, derivedProperties);
 }
 
 const copyTransportSchema: JsonSchema = {
@@ -437,7 +539,11 @@ export function createStrictOutputAdapter<TDomain = unknown>(input: {
     transportSchema,
     decode(value) {
       if (input.schemaId === "layout-plan.schema.json")
-        return decodeLayoutPlan(value, input.domainSchema, input.context) as ValidationResult<TDomain>;
+        return decodeLayoutPlan(
+          value,
+          input.domainSchema,
+          input.context,
+        ) as ValidationResult<TDomain>;
       return decodeWithSchema<TDomain>(
         value,
         transportSchema,

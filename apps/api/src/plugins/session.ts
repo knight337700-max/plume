@@ -5,6 +5,8 @@ import type { FastifyPluginAsync } from "fastify";
 export interface SessionPluginOptions {
   readonly secret?: string;
   readonly environment?: "development" | "test" | "production";
+  readonly cookieSecure?: boolean;
+  readonly cookieSameSite?: "lax" | "strict" | "none";
 }
 
 export const sessionPlugin: FastifyPluginAsync<SessionPluginOptions> = async (app, options) => {
@@ -12,10 +14,17 @@ export const sessionPlugin: FastifyPluginAsync<SessionPluginOptions> = async (ap
     options.environment ??
     (process.env.NODE_ENV as SessionPluginOptions["environment"]) ??
     "development";
+  const configuredSecret = options.secret ?? process.env.SESSION_SECRET;
   const secret =
-    options.secret ??
-    process.env.SESSION_SECRET ??
-    "plume-development-session-secret-change-me-32-chars";
+    configuredSecret ??
+    (environment === "production" ? "" : "plume-development-session-secret-change-me-32-chars");
+  if (
+    environment === "production" &&
+    (!configuredSecret || /development|change-me|local/iu.test(configuredSecret))
+  )
+    throw new Error(
+      "SESSION_SECRET is required and must not use a development fallback in Production",
+    );
   if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters");
 
   await app.register(cookie);
@@ -23,8 +32,8 @@ export const sessionPlugin: FastifyPluginAsync<SessionPluginOptions> = async (ap
     secret,
     cookie: {
       httpOnly: true,
-      secure: environment === "production",
-      sameSite: "lax",
+      secure: options.cookieSecure ?? environment === "production",
+      sameSite: options.cookieSameSite ?? "lax",
       path: "/",
       maxAge: 8 * 60 * 60,
     },

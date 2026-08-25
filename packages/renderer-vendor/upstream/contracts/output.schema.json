@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.renderer/contracts/kakao-bizboard-output-2.0.0.schema.json",
+  "title": "Kakao Bizboard Published Output Contract 2.0.0",
+  "description": "Machine-readable contract for one published PNG, one persisted manifest, and one non-persisted response envelope. This document is not an additional output artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "pngCount",
+    "manifestCount",
+    "responseEnvelopeCount",
+    "png",
+    "manifest",
+    "responseEnvelope"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2.0.0"
+    },
+    "pngCount": {
+      "const": 1
+    },
+    "manifestCount": {
+      "const": 1
+    },
+    "responseEnvelopeCount": {
+      "const": 1
+    },
+    "png": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fileName",
+        "format",
+        "colorType",
+        "bitDepth",
+        "hasAlpha",
+        "width",
+        "height",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "fileName": {
+          "const": "output.png"
+        },
+        "format": {
+          "const": "PNG"
+        },
+        "colorType": {
+          "const": "RGBA"
+        },
+        "bitDepth": {
+          "const": 8
+        },
+        "hasAlpha": {
+          "const": true
+        },
+        "width": {
+          "const": 1029
+        },
+        "height": {
+          "const": 258
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fileName",
+        "schemaVersion"
+      ],
+      "properties": {
+        "fileName": {
+          "const": "render-manifest.json"
+        },
+        "schemaVersion": {
+          "const": "1.0.0"
+        }
+      }
+    },
+    "responseEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "persisted"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "persisted": {
+          "const": false
+        }
+      }
+    }
+  }
+}

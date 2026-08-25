@@ -46,6 +46,20 @@ for (const text of ["MIGRATION_BACKUP_CONFIRMED", "pg_advisory_lock", "destructi
   requireText(migrationSource, text, "staging migration safety");
 }
 
+const evidenceExporter = read("packages/infrastructure/src/async/live-smoke-evidence-exporter.ts");
+for (const text of [
+  "manifest.sha256",
+  "EXPORT_COMPLETE",
+  "rename",
+  "live_smoke_evidence_exports",
+]) {
+  requireText(evidenceExporter, text, "live evidence retention");
+}
+const liveQaCompose = read("infra/compose/docker-compose.live-qa.yml");
+requireText(liveQaCompose, "plume_live_qa_ledger", "durable local Live QA volume");
+if (liveQaCompose.includes("down -v") || liveQaCompose.includes("docker volume rm"))
+  throw new Error("Live QA compose must not delete the durable Postgres volume");
+
 const healthSource = read("apps/api/src/routes/system/health.ts");
 for (const text of [
   "/api/v1/health/live",
