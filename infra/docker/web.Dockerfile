@@ -25,8 +25,9 @@ ENV PORT=8080
 WORKDIR /app
 RUN addgroup -S plume && adduser -S -G plume plume
 COPY --from=build --chown=plume:plume /workspace/apps/web/dist ./dist
+COPY --chown=plume:plume infra/docker/web-runtime-server.mjs ./web-runtime-server.mjs
 USER plume
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node --input-type=module -e "const response = await fetch('http://127.0.0.1:' + (process.env.PORT ?? '8080')); if (!response.ok) process.exit(1)"
 ENTRYPOINT ["node"]
-CMD ["--input-type=module", "-e", "import { createServer } from 'node:http'; import { readFile } from 'node:fs/promises'; import { extname, join, normalize } from 'node:path'; const root = '/app/dist'; const types = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' }; const server = createServer(async (request, response) => { const requestPath = normalize(new URL(request.url ?? '/', 'http://localhost').pathname); const filePath = join(root, requestPath === '/' ? 'index.html' : requestPath.slice(1)); try { const body = await readFile(filePath); response.writeHead(200, { 'content-type': types[extname(filePath)] ?? 'application/octet-stream' }); response.end(body); } catch { const body = await readFile(join(root, 'index.html')); response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); response.end(body); } }); server.listen(Number(process.env.PORT ?? '8080'), '0.0.0.0');"]
+CMD ["web-runtime-server.mjs"]
