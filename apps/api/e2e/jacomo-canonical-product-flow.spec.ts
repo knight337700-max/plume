@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -73,6 +74,7 @@ describe("PI-1B canonical Kakao Product E2E", () => {
   it("uploads a Product, renders it with confirmed copy, validates, exports, and replays idempotently", async () => {
     const fixture = createJacomoFixture();
     const harness = await startProcessHarness();
+    let reviewRoot: string | undefined;
     try {
       await seedJacomoFixture(harness.database, fixture);
       const bytes = new Uint8Array(
@@ -365,8 +367,9 @@ describe("PI-1B canonical Kakao Product E2E", () => {
         expect(replayItems.every((item) => item.status === "COMPLETED")).toBe(true);
       }
 
-      const reviewDir = path.join("C:\\Users\\Lenovo\\Desktop", "PI-1B-Kakao-Review-Pack-files");
-      const reviewZip = path.join("C:\\Users\\Lenovo\\Desktop", "PI-1B-Kakao-Review-Pack.zip");
+      reviewRoot = await mkdtemp(path.join(os.tmpdir(), "plume-pi-1b-review-"));
+      const reviewDir = path.join(reviewRoot, "PI-1B-Kakao-Review-Pack-files");
+      const reviewZip = path.join(reviewRoot, "PI-1B-Kakao-Review-Pack.zip");
       const evidence = {
         workspace: fixture.workspace.id,
         creativeVersionId,
@@ -396,7 +399,11 @@ describe("PI-1B canonical Kakao Product E2E", () => {
       await writeFile(reviewZip, reviewPack);
       expect((await harness.request(`/api/v1/workspaces/${fixture.workspace.id}/jobs/${generationJob.id}`)).status).toBe(200);
     } finally {
-      await harness.close();
+      try {
+        await harness.close();
+      } finally {
+        if (reviewRoot) await rm(reviewRoot, { recursive: true, force: true });
+      }
     }
   }, 60_000);
 });
