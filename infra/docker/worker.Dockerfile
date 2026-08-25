@@ -7,6 +7,7 @@ WORKDIR /workspace
 RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
 COPY . .
 RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm build:renderer-vendor
 RUN pnpm exec tsc -p apps/worker/tsconfig.typecheck.json --outDir /opt/compiled --declaration false --declarationMap false --sourceMap false
 RUN pnpm deploy --legacy --filter @plume/worker --prod --ignore-scripts /opt/runtime
 
