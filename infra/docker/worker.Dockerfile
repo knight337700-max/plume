@@ -10,6 +10,13 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm build:renderer-vendor
 RUN pnpm exec tsc -p apps/worker/tsconfig.typecheck.json --outDir /opt/compiled --declaration false --declarationMap false --sourceMap false
 RUN pnpm deploy --legacy --filter @plume/worker --prod --ignore-scripts /opt/runtime
+# The compiled runtime keeps internal @plume deep imports. Hydrate their emitted
+# package directories into the production dependency tree so Node ESM resolves
+# the same paths as it did in the workspace.
+RUN for package in /opt/compiled/packages/*; do name="$(basename "$package")"; mkdir -p "/opt/runtime/node_modules/@plume/$name"; cp -R "$package"/* "/opt/runtime/node_modules/@plume/$name/"; done
+# Worker source retains a relative renderer-vendor runtime import. Its production
+# dependencies must therefore be resolvable from the emitted /opt/compiled tree.
+RUN renderer_vendor="$(find /opt/runtime/node_modules/.pnpm -maxdepth 1 -type d -name '@plume+renderer-vendor@*' -print -quit)" && test -n "$renderer_vendor" && for dependency in @napi-rs/canvas @kbr/renderer-contract ajv canonicalize sharp; do target="$(readlink -f "$renderer_vendor/node_modules/$dependency")"; destination="/opt/runtime/node_modules/$dependency"; mkdir -p "$(dirname "$destination")"; case "$dependency" in @*/*) link_prefix="../" ;; *) link_prefix="" ;; esac; ln -s "${link_prefix}${target#/opt/runtime/node_modules/}" "$destination"; done
 
 FROM node:24.15.0-alpine AS runtime
 
