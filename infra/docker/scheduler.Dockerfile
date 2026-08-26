@@ -9,6 +9,7 @@ COPY . .
 RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm exec tsc -p apps/scheduler/tsconfig.json --outDir /opt/compiled
 RUN pnpm deploy --legacy --filter @plume/scheduler --prod --ignore-scripts /opt/runtime
+RUN if [ -d /opt/compiled/packages ]; then for package in /opt/compiled/packages/*; do [ -d "$package" ] || continue; name="$(basename "$package")"; mkdir -p "/opt/runtime/node_modules/@plume/$name"; cp -R "$package"/* "/opt/runtime/node_modules/@plume/$name/"; done; fi
 
 FROM node:24.15.0-alpine AS runtime
 

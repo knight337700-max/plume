@@ -10,6 +10,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 # Compile production API sources only; repository E2E harness files are not runtime artifacts.
 RUN find apps/api/src -type f -name '*.ts' ! -name '*.test.ts' ! -name '*.integration.test.ts' -print0 | xargs -0 pnpm exec tsc --target ES2022 --module ESNext --moduleResolution Bundler --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --noImplicitOverride --noImplicitReturns --noFallthroughCasesInSwitch --forceConsistentCasingInFileNames --isolatedModules --verbatimModuleSyntax --resolveJsonModule --skipLibCheck --rootDir . --outDir /opt/compiled --declaration false --declarationMap false --sourceMap false
 RUN pnpm deploy --legacy --filter @plume/api --prod --ignore-scripts /opt/runtime
+RUN for package in /opt/compiled/packages/*; do name="$(basename "$package")"; mkdir -p "/opt/runtime/node_modules/@plume/$name"; cp -R "$package"/* "/opt/runtime/node_modules/@plume/$name/"; done
 
 FROM node:24.15.0-alpine AS runtime
 
