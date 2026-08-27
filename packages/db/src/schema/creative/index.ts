@@ -20,6 +20,7 @@ export const creativeSet = pgTable("creative_set", {
   ...mutableColumns,
   workspaceId: uuid("workspace_id").notNull(),
   campaignId: uuid("campaign_id").notNull(),
+  projectId: uuid("project_id"),
   name: varchar("name", { length: 300 }).notNull(),
   generationRequestId: uuid("generation_request_id"),
   status: creativeSetStatusEnum("status").notNull().default("DRAFT"),

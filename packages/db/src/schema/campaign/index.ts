@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, auditColumns, identityColumns, softDeleteColumns } from "../common.js";
 import {
+  assetRoleCodeEnum,
   campaignAssetStatusEnum,
   campaignBriefStatusEnum,
   campaignBriefVersionStatusEnum,
@@ -152,6 +153,7 @@ export const campaignAsset = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     campaignId: uuid("campaign_id").notNull(),
     designAssetId: uuid("design_asset_id").notNull(),
+    roleCode: assetRoleCodeEnum("role_code"),
     productId: uuid("product_id"),
     recommendationScore: numeric("recommendation_score", { precision: 7, scale: 4 }),
     recommendationJson: jsonb("recommendation_json")
@@ -227,11 +229,13 @@ export const generationRequest = pgTable("generation_request", {
   ...identityColumns,
   workspaceId: uuid("workspace_id").notNull(),
   campaignId: uuid("campaign_id").notNull(),
+  projectId: uuid("project_id"),
   briefVersionId: uuid("brief_version_id").notNull(),
   creativeSetId: uuid("creative_set_id"),
   asyncJobId: uuid("async_job_id"),
   generationMode: varchar("generation_mode", { length: 50 }).notNull(),
   configJson: jsonb("config_json").$type<Record<string, unknown>>().notNull().default({}),
+  assetPoolSnapshotJson: jsonb("asset_pool_snapshot_json").$type<unknown[]>(),
   status: generationRequestStatusEnum("status").notNull().default("QUEUED"),
   requestedBy: uuid("requested_by"),
   requestedAt: timestamp("requested_at", { withTimezone: true, mode: "date" })

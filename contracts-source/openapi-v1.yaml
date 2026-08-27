@@ -28,6 +28,7 @@ tags:
 - name: Media Catalog
 - name: Notification
 - name: Product
+- name: Project
 - name: System
 - name: Validation
 - name: Workspace
@@ -9095,6 +9096,90 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/workspaces/{workspaceId}/campaigns/{campaignId}/projects:
+    get:
+      operationId: listCampaignProjects
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+    post:
+      operationId: createProject
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '201': { description: Created } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+    patch:
+      operationId: updateProject
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+    delete:
+      operationId: archiveProject
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '204': { description: Archived } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/creative-sets:
+    get:
+      operationId: listProjectCreativeSets
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/assets:
+    get:
+      operationId: listProjectAssets
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+    post:
+      operationId: addProjectAsset
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '201': { description: Created } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/assets/{referenceId}:
+    delete:
+      operationId: removeProjectAsset
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '204': { description: Removed } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/assets/effective:
+    get:
+      operationId: getEffectiveProjectAssets
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
+  /api/v1/workspaces/{workspaceId}/projects/{projectId}/asset-usages:
+    get:
+      operationId: listProjectAssetUsages
+      tags: [Project]
+      x-roles: [OWNER, ADMIN, EDITOR, REVIEWER, VIEWER]
+      x-module: PROJECT
+      x-execution: SYNC
+      responses: { '200': { description: Success } }
 components:
   securitySchemes:
     SessionCookie:

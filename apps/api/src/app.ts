@@ -6,6 +6,7 @@ import { clientBrandRoutes } from "./routes/client-brand/index.js";
 import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
 import { assetFileRoutes, assetRoutesGroup } from "./routes/asset/index.js";
 import { campaignRouteGroup } from "./routes/campaign/index.js";
+import { projectRouteGroup } from "./routes/project/index.js";
 import { creativeRouteGroup } from "./routes/creative/index.js";
 import { validationRouteGroup } from "./routes/validation/index.js";
 import { approvalRouteGroup } from "./routes/approval/index.js";
@@ -19,9 +20,22 @@ import type { JobUseCases } from "../../../packages/core/src/modules/operations/
 import type { SessionUseCases } from "../../../packages/core/src/modules/iam/session-use-cases.js";
 import type { MembershipStore } from "./auth/workspace-membership.js";
 import type { UploadUseCases } from "../../../packages/core/src/modules/asset/upload-use-cases.js";
-import type { AssetRepositories } from "../../../packages/core/src/modules/asset/repositories.js";
-import type { CampaignRepositories } from "../../../packages/core/src/modules/campaign/repositories.js";
-import type { CreativeRepositories } from "../../../packages/core/src/modules/creative/repositories.js";
+import {
+  createInMemoryAssetRepositories,
+  type AssetRepositories,
+} from "../../../packages/core/src/modules/asset/repositories.js";
+import {
+  createInMemoryCampaignRepositories,
+  type CampaignRepositories,
+} from "../../../packages/core/src/modules/campaign/repositories.js";
+import {
+  createInMemoryCreativeRepositories,
+  type CreativeRepositories,
+} from "../../../packages/core/src/modules/creative/repositories.js";
+import {
+  createInMemoryProjectRepositories,
+  type ProjectRepositories,
+} from "../../../packages/core/src/modules/project/repositories.js";
 import type { ClientBrandRepositories } from "../../../packages/core/src/modules/client-brand/repositories.js";
 import { sessionPlugin } from "./plugins/session.js";
 import { csrfPlugin } from "./plugins/csrf.js";
@@ -41,6 +55,7 @@ export interface BuildAppOptions extends FastifyServerOptions {
   readonly campaignRepositories?: CampaignRepositories;
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
+  readonly projectRepositories?: ProjectRepositories;
   readonly clientBrandRepositories?: ClientBrandRepositories;
   readonly sessionSecret?: string;
   readonly cookieSecure?: boolean;
@@ -61,6 +76,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     campaignRepositories,
     assetRepositories,
     creativeRepositories,
+    projectRepositories,
     clientBrandRepositories,
     sessionSecret,
     cookieSecure,
@@ -85,6 +101,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     rewriteUrl: (request) => (request.url ?? "/").replace(/:([a-z][a-z-]*)(?=\/|$)/g, ".$1"),
     ...fastifyOptions,
   });
+  const resolvedCampaignRepositories = campaignRepositories ?? createInMemoryCampaignRepositories();
+  const resolvedAssetRepositories = assetRepositories ?? createInMemoryAssetRepositories();
+  const resolvedCreativeRepositories = creativeRepositories ?? createInMemoryCreativeRepositories();
+  const resolvedProjectRepositories = projectRepositories ?? createInMemoryProjectRepositories();
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);
   });
@@ -101,16 +121,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     );
     await router.register(mediaCatalogRoutes);
     await router.register(assetFileRoutes, uploads ? { uploads } : {});
-    await router.register(
-      assetRoutesGroup,
-      assetRepositories ? { repositories: assetRepositories } : {},
-    );
+    await router.register(assetRoutesGroup, { repositories: resolvedAssetRepositories });
     await router.register(campaignRouteGroup, {
-      ...(campaignRepositories ? { repositories: campaignRepositories } : {}),
+      repositories: resolvedCampaignRepositories,
+      projectRepositories: resolvedProjectRepositories,
+      assetRepositories: resolvedAssetRepositories,
+      creativeRepositories: resolvedCreativeRepositories,
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
+    await router.register(projectRouteGroup, {
+      projects: resolvedProjectRepositories,
+      campaigns: resolvedCampaignRepositories,
+      assets: resolvedAssetRepositories,
+      creatives: resolvedCreativeRepositories,
+    });
     await router.register(creativeRouteGroup, {
-      ...(creativeRepositories ? { repositories: creativeRepositories } : {}),
+      repositories: resolvedCreativeRepositories,
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(validationRouteGroup, {

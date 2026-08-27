@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { hashContractText } from "../codegen/contract-text.ts";
 
 type TableOwner = { table: string; module: string; file: string };
+const implementationOwnerExtensions = new Map([
+  ["project", "PROJECT"],
+  ["project_asset_reference", "PROJECT"],
+]);
 
 const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const designRoot =
@@ -91,13 +95,14 @@ function checkEntityOwnership() {
 
   const tableOwners = parseTableOwners();
   const tableNames = tableOwners.map(({ table }) => table);
-  assertEqual(tableOwners.length, 63, "implemented DB table count");
+  assertEqual(tableOwners.length, 65, "implemented DB table count");
   assertUnique(tableNames, "implemented DB table names");
 
   const serviceCatalog = readDesign("08_architecture/service-catalog.yaml");
   if (serviceCatalog) {
     const owners = parseServiceOwners(serviceCatalog);
-    assertEqual(owners.size, 63, "service-catalog write-owner count");
+    for (const [entity, owner] of implementationOwnerExtensions) owners.set(entity, owner);
+    assertEqual(owners.size, 65, "service-catalog plus implementation write-owner count");
     for (const table of tableNames) {
       if (!owners.has(table)) failures.push(`DB table has no write owner: ${table}`);
     }
@@ -119,7 +124,7 @@ function checkContractCounts() {
   const openapiIds = [...openapiSource.matchAll(/^\s+operationId:\s*([A-Za-z0-9_.-]+)\s*$/gm)]
     .map((match) => match[1])
     .filter((value): value is string => value !== undefined);
-  assertEqual(openapiIds.length, 140, "OpenAPI operation count");
+  assertEqual(openapiIds.length, 151, "OpenAPI operation count");
   assertUnique(openapiIds, "OpenAPI operation IDs");
   const generatedOpenapi = readRepository("packages/contracts/src/generated/openapi.ts");
   const generatedOpenapiIds = quotedArray(generatedOpenapi, "openApiOperationIds");
@@ -257,8 +262,8 @@ if (failures.length > 0) {
       {
         status: "PASS",
         counts: {
-          entityWriteOwners: 63,
-          openApiOperations: 140,
+          entityWriteOwners: 65,
+          openApiOperations: 151,
           screens: 29,
           agents: 8,
           agentSchemas: 23,

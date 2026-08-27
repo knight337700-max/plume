@@ -16,6 +16,11 @@ export class DrizzleCreativeRepositories implements CreativeRepositories {
   listCreativeSets(...args: Parameters<CreativeRepositories["listCreativeSets"]>) {
     return this.delegate.listCreativeSets(...args);
   }
+  listCreativeSetsByProject(
+    ...args: Parameters<CreativeRepositories["listCreativeSetsByProject"]>
+  ) {
+    return this.delegate.listCreativeSetsByProject(...args);
+  }
   getCreativeSet(...args: Parameters<CreativeRepositories["getCreativeSet"]>) {
     return this.delegate.getCreativeSet(...args);
   }
@@ -60,6 +65,9 @@ export class DrizzleCreativeRepositories implements CreativeRepositories {
   }
   listAssetUsages(...args: Parameters<CreativeRepositories["listAssetUsages"]>) {
     return this.delegate.listAssetUsages(...args);
+  }
+  listAssetUsageGraph(...args: Parameters<CreativeRepositories["listAssetUsageGraph"]>) {
+    return this.delegate.listAssetUsageGraph(...args);
   }
   appendEditOperations(...args: Parameters<CreativeRepositories["appendEditOperations"]>) {
     return this.delegate.appendEditOperations(...args);
