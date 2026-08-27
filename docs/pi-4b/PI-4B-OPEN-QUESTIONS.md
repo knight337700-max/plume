@@ -23,9 +23,12 @@ Policy: target visuals may be specified, but unsupported backend/runtime behavio
 | VQ-13 | Activity             | Define durable Campaign/Project activity projection and retention.                              | No recent-activity module is specified as live.                                                    | Product + Platform/API                      |
 | VQ-14 | Editor operations    | Confirm undo/redo, guide/grid/snap, layer reorder, and geometry operation contracts.            | Undo/Redo/Guide/Grid/Snap deferred; Layout disabled unless capability proven.                      | Creative document + Renderer boundary       |
 | VQ-15 | Creative history     | Define superseded/archived defaults, filtering, pagination, and ordering.                       | Project Creatives target does not claim a default; current/final states remain explicit.           | Product + Creative API                      |
-| VQ-16 | Theme                | Decide whether a dark appearance is a product requirement.                                      | Light complete; semantic aliases future-compatible; no partial dark theme.                         | Product/Design before dark-theme Gate       |
+| VQ-16 | Theme                | RESOLVED: Product Owner requires Light/Dark parity.                                             | Both themes are complete specifications; runtime switching belongs to PI-4C.                       | Closed by Brand/Dark Mode supplement        |
 | VQ-17 | Fonts                | Decide whether Figtree/Pretendard are packaged or system fallback only.                         | No remote font dependency; Korean-safe fallback stack is required.                                 | Design + Web performance                    |
 | VQ-18 | Browser support      | Freeze product browser tiers against Astryx platform requirements.                              | PI-4C validates actual support; no unsupported polyfill/change in PI-4B.                           | Web platform before release                 |
+| VQ-19 | Compact brand mark   | Approve a favicon, square app icon, compact monogram, or collapsed-rail mark.                   | Do not crop the G, fabricate a symbol, or squeeze the wordmark; preserve accessible Gobanos text.  | Product/Brand before compact icon release   |
+| VQ-20 | Trademark clearance  | Complete authoritative name/logo clearance for intended markets and goods/services.             | Legal status stays pending; no ® or default ™; does not block internal PI-4C.                    | Legal before public commercial brand launch |
+| VQ-21 | Theme persistence    | Choose storage, startup application order, system-preference listener, and no-flash strategy.   | Target is System/Light/Dark with persistence and OS preference; exact implementation is PI-4C.     | PI-4C Web implementation                    |
 
 ## 2. PI-4C implementation blockers versus non-blockers
 
@@ -39,8 +42,11 @@ The following are blockers only for the named feature, not for starting core UI 
 - VQ-12 blocks selecting non-Kakao formats.
 - VQ-14 blocks active history/assistance/unsupported geometry controls.
 - VQ-15 blocks claiming a Project Creative history default.
+- VQ-19 blocks final favicon/compact brand icon only; it does not block wordmark use at sufficient width.
+- VQ-20 blocks public commercial brand launch, not PI-4B or an internal PI-4C build.
+- VQ-21 is a PI-4C runtime task and does not block the dual-theme design freeze.
 
-PI-4C can still implement shells, tokens, supported Campaign views, the four-step flow, the three active Kakao selection cards, job-level generation status, and contract-driven Editor preview/validation surfaces.
+PI-4C can still implement shells, dual-theme tokens, supplied wordmarks, supported Campaign views, the four-step flow, the three active Kakao selection cards, job-level generation status, and contract-driven Editor preview/validation surfaces.
 
 ## 3. Status labels
 
@@ -58,4 +64,30 @@ These labels are documentation/review semantics. They are not new persisted back
 
 Any decision that changes the Account → Campaign → Project → Creative hierarchy, four-step AI Creative workflow, multi-format principle, lack of a separate AI Draft page, or three-column Editor requires reopening PI-4A rather than being resolved as a PI-4C implementation detail.
 
-An Astryx upgrade, dark theme, per-item retry, or new format activation requires separate verification and must not be smuggled into the core implementation.
+An Astryx upgrade, deviation from the frozen Light/Dark semantics, per-item retry, or new format activation requires separate verification and must not be smuggled into the core implementation.
+
+## 5. Named follow-ups
+
+```yaml
+GOBANOS_COMPACT_MARK:
+  blocking_PI_4B: false
+  required_before:
+    - favicon_finalization
+    - compact_brand_icon_finalization
+  current_rule: DO_NOT_FABRICATE
+
+GOBANOS_TRADEMARK_CLEARANCE:
+  blocking_PI_4B: false
+  blocking_internal_PI_4C: false
+  required_before: PUBLIC_COMMERCIAL_BRAND_LAUNCH
+  legal_status: PENDING_SEPARATE_VERIFICATION
+
+THEME_RUNTIME_PERSISTENCE:
+  owner: PI_4C
+  blocking_PI_4B: false
+  target:
+    options: [system, light, dark]
+    persistence: required
+    OS_preference: supported
+    no_flash_on_load: target
+```

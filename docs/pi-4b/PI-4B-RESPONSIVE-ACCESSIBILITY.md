@@ -135,7 +135,7 @@ The font stack supports Korean and English. Layouts must tolerate at least 30% l
 
 - Automated axe checks on all ten routes/states implemented.
 - Keyboard-only walkthrough of four-step flow and Editor regions.
-- Contrast measurement on resolved light-theme tokens.
+- Contrast measurement on resolved Light and Dark semantic token pairs.
 - 1600, 1440, 1280, 1024, and below-1024 limited-mode visual checks.
 - 200% zoom/reflow check for management screens.
 - Reduced-motion check.
@@ -144,3 +144,33 @@ The font stack supports Korean and English. Layouts must tolerate at least 30% l
 - No focus loss after drawer/dialog close or async refresh.
 
 These tests belong to PI-4C; this document freezes their visual/accessibility target.
+
+## 15. Light/Dark responsive parity
+
+Theme selection does not create a second responsive system. Both themes use the same functional width classes, DOM/task order, panel budgets, drawer/tab transitions, target sizes, keyboard model, and limited-mode capability.
+
+| Width class        | Light                                                   | Dark                                     | Required invariant            |
+| ------------------ | ------------------------------------------------------- | ---------------------------------------- | ----------------------------- |
+| Expanded ≥1600     | Full shell and three-column Editor                      | Same regions with dark semantic surfaces | Canvas absorbs surplus        |
+| Standard 1280–1599 | Persistent navigation/list/inspector                    | Same region budgets                      | No behavior change            |
+| Compact 1024–1279  | Collapsed navigation; list/inspector drawers/tabs       | Same recomposition with dark layers      | Canvas remains primary        |
+| Limited <1024      | One-column management; Editor preview/review/validation | Same capability and disclosure           | Advanced geometry unavailable |
+
+Actual window resize must trigger responsive recomposition independent of the selected theme. PI-4C E2E must exercise transitions across 1600, 1280, 1024, and below 1024 in Light and Dark, verify focus return after drawers, and confirm that theme switching neither resets context nor changes contract-driven enablement.
+
+## 16. Dark contrast and focus requirements
+
+- Dark primary, secondary, muted, disabled, inverse, link/action, border, and focus pairs come from the frozen semantic token table.
+- Normal text and consequential metadata target WCAG 2.2 AA against their resolved dark surfaces.
+- `#9DB2FF` is the Dark focus target; focus remains 2 px with 3 px offset and at least 3:1 non-text contrast.
+- Disabled text may be lower emphasis, but the explanatory reason uses readable secondary text.
+- Selected, inherited/local, validation, lifecycle, and availability states retain non-color cues.
+- Heavy shadow is not a substitute for Dark surface boundaries; borders and tonal steps provide separation.
+
+## 17. Runtime theme accessibility target
+
+The PI-4C setting offers `System`, `Light`, and `Dark` as an accessible single-choice control. It persists the user selection, respects `prefers-color-scheme` when System is selected, targets no theme flash on initial load, and announces no unnecessary live-region message for a purely visual theme change. Forced-colors and reduced-motion behavior must remain usable. This is a target contract, not runtime implementation in PI-4B.
+
+## 18. Brand responsiveness and accessibility
+
+The wordmark image has accessible name `Gobanos` when it conveys product identity. Decorative duplicate occurrences use empty alternative text. Its original aspect ratio is preserved and it is never compressed to fit a narrow rail. Below the minimum readable width, the artwork is hidden and the shell/menu retains a textual or programmatic `Gobanos` name; no unapproved `G` crop or compact symbol is created.

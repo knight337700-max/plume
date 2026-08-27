@@ -8,13 +8,13 @@ Authoritative parent SHA: `9a6e6e3fe322e09b32b40b285b4b8fc4f8dcd966`
 
 ## 1. Purpose and authority
 
-This document translates the frozen PI-4A information architecture into a coherent visual language. It does not change navigation, hierarchy, contracts, persistence, rendering, or product behavior. The product principle remains **AI First Draft + Human Final Control**.
+This document translates the frozen PI-4A information architecture into a coherent visual language. The public product identity is **Gobanos**; PLUME remains an allowed internal technical codename. This supplement does not change navigation, hierarchy, contracts, persistence, rendering, or product behavior. The product principle remains **AI First Draft + Human Final Control**.
 
 PI-4C may implement this specification only through the existing `@plume/ui` boundary. Literal values in this document are design targets; verified Astryx semantic variables are the preferred implementation source. When this document and a runtime contract differ, the runtime contract remains authoritative and unsupported controls stay disabled or absent.
 
 ## 2. Visual character
 
-PLUME is a calm, precise creative workspace. It should feel professional and premium without luxury ornament, AI spectacle, or generic admin-dashboard card grids.
+Gobanos is a calm, precise creative workspace. It should feel professional and premium without luxury ornament, AI spectacle, or generic admin-dashboard card grids. References to PLUME in code-oriented notes identify the internal technical system, not the user-facing service name.
 
 | Attribute          | Frozen expression                                                                     |
 | ------------------ | ------------------------------------------------------------------------------------- |
@@ -45,43 +45,46 @@ In the Editor, `Canvas > Properties > Navigation chrome`. The canvas-stage is th
 
 ```yaml
 appearance:
-  PI_4B_primary_theme: LIGHT
+  PI_4B_themes:
+    light: REQUIRED
+    dark: REQUIRED
+    design_system_parity: REQUIRED
   source: "@astryxdesign/theme-neutral@0.1.9"
-  dark_mode:
-    complete_design_required: false
-    future_compatible: true
+  runtime_switch_implementation: PI_4C
 ```
 
-The repository declares `color-scheme: light`, imports Astryx Neutral, and has no frozen multi-theme product requirement. PI-4B therefore completes one light appearance. Semantic aliases must not encode light-only meanings so a separately reviewed future dark theme can replace values without changing components.
+The repository currently declares `color-scheme: light` and imports Astryx Neutral. Product Owner direction now requires complete Light and Dark semantic designs. PI-4B freezes both appearances; PI-4C must implement theme selection without guessing undocumented Astryx props. Theme changes alter application chrome, stage, and semantic surfaces, never Renderer output pixels.
 
 ## 5. Color system
 
-All application colors must resolve through the semantic token names in `PI-4B-DESIGN-TOKENS.md`. The visual targets below clarify intent and contrast; Astryx aliases remain the implementation source where available.
+All application colors must resolve through the semantic Light/Dark token pairs in `PI-4B-DESIGN-TOKENS.md`. The Light targets below remain valid; the Dark targets are semantic counterparts rather than inversions. Astryx aliases remain the implementation source where available.
 
-| Role                |    Target | Use                                                    |
-| ------------------- | --------: | ------------------------------------------------------ |
-| Brand / accent      | `#3157C8` | PLUME identity, selected navigation mark, focus family |
-| App background      | `#F1F1F1` | Shell and management-page body                         |
-| Primary surface     | `#FFFFFF` | Main content and panels                                |
-| Subtle surface      | `#F6F6F6` | Grouping, rows on hover, inset regions                 |
-| Elevated surface    | `#FFFFFF` | Dialog, popover, floating toolbar                      |
-| Selected surface    | `#EEF3FF` | Selected creative, format, navigation item             |
-| Text primary        | `#171717` | Titles and main content                                |
-| Text secondary      | `#525252` | Explanations and secondary values                      |
-| Text muted          | `#737373` | Metadata and timestamps                                |
-| Text disabled       | `#A3A3A3` | Unavailable controls; never sole signal                |
-| Border default      | `#D4D4D4` | Surface separation and control outline                 |
-| Border strong       | `#A3A3A3` | Artboard, selected boundaries, dense panel separators  |
-| Focus               | `#3157C8` | Two-pixel visible focus ring with three-pixel offset   |
-| Primary interactive | `#3157C8` | One primary CTA                                        |
-| Primary hover       | `#2747A6` | Hover only                                             |
-| Primary active      | `#1F3985` | Pressed only                                           |
-| Success / PASS      | `#007A3D` | Completed and validated success                        |
-| Warning             | `#8A5B00` | Acknowledgement or review needed                       |
-| Error / FAIL        | `#A50C25` | Blocking validation or failed operation                |
-| Info / processing   | `#2457C5` | Queued, running, explanatory status                    |
+| Role                |    Target | Use                                                   |
+| ------------------- | --------: | ----------------------------------------------------- |
+| Brand / accent      | `#3157C8` | Gobanos application identity, selection and focus     |
+| App background      | `#F1F1F1` | Shell and management-page body                        |
+| Primary surface     | `#FFFFFF` | Main content and panels                               |
+| Subtle surface      | `#F6F6F6` | Grouping, rows on hover, inset regions                |
+| Elevated surface    | `#FFFFFF` | Dialog, popover, floating toolbar                     |
+| Selected surface    | `#EEF3FF` | Selected creative, format, navigation item            |
+| Text primary        | `#171717` | Titles and main content                               |
+| Text secondary      | `#525252` | Explanations and secondary values                     |
+| Text muted          | `#737373` | Metadata and timestamps                               |
+| Text disabled       | `#A3A3A3` | Unavailable controls; never sole signal               |
+| Border default      | `#D4D4D4` | Surface separation and control outline                |
+| Border strong       | `#A3A3A3` | Artboard, selected boundaries, dense panel separators |
+| Focus               | `#3157C8` | Two-pixel visible focus ring with three-pixel offset  |
+| Primary interactive | `#3157C8` | One primary CTA                                       |
+| Primary hover       | `#2747A6` | Hover only                                            |
+| Primary active      | `#1F3985` | Pressed only                                          |
+| Success / PASS      | `#007A3D` | Completed and validated success                       |
+| Warning             | `#8A5B00` | Acknowledgement or review needed                      |
+| Error / FAIL        | `#A50C25` | Blocking validation or failed operation               |
+| Info / processing   | `#2457C5` | Queued, running, explanatory status                   |
 
 Validation and lifecycle use icon, text, semantic surface, and border together. `PASS`, `WARNING`, and `FAIL` must remain understandable in monochrome. Domain validation execution `FAILED` is labelled “Validation could not run” and is not styled as a rule failure.
+
+Dark mode uses `#121418` app background, `#1B1E24` primary surfaces, `#0B0D10` Editor stage, `#F5F7FA` primary text, `#343A45` default borders, and `#8EA8FF` accent/focus family. The Renderer-owned artboard remains faithful to the creative artifact, normally white when the artifact is white. Status colors use brighter dark-theme foregrounds plus muted semantic surfaces and borders; hue is never the sole cue.
 
 ## 6. Typography
 
@@ -132,14 +135,14 @@ Density must communicate function. Management surfaces support scanning and expl
 
 | Surface          | Treatment                                                                                |
 | ---------------- | ---------------------------------------------------------------------------------------- |
-| App background   | Neutral body; no elevation                                                               |
-| Sidebar          | Primary surface with a single divider; selected item uses surface + indicator            |
+| App background   | Light neutral or Dark `#121418`; no elevation                                            |
+| Sidebar          | Theme-primary surface with a single divider; selected item uses surface + indicator      |
 | Topbar           | Primary surface or merged with page surface; one bottom divider                          |
 | Main workspace   | Primary or body surface according to task; no decorative container                       |
 | Card             | Border-first grouping, low or no shadow                                                  |
 | List row         | Flat; divider or spacing, hover surface only when interactive                            |
 | Editor panels    | Primary surface and strong dividers; resize boundaries remain visible                    |
-| Canvas stage     | Dark-neutral or mid-neutral work surface distinct from app body                          |
+| Canvas stage     | Light `#333741`; Dark `#0B0D10`; always distinct from app body                           |
 | Artboard         | White/content surface, strong one-pixel boundary, low shadow only to separate from stage |
 | Floating toolbar | Elevated surface, medium shadow, compact radius                                          |
 | Dialog / popover | Elevated surface and high/medium shadow respectively                                     |
@@ -164,7 +167,7 @@ Layout separation is preferred to nested cards. A card is used only when the gro
 | Elevation medium         | Popover and floating toolbar                                                         |
 | Elevation high           | Dialog and blocking overlay                                                          |
 
-No component may introduce an additional named radius or shadow without a system-level review.
+No component may introduce an additional named radius or shadow without a system-level review. Dark hierarchy prefers tonal separation and borders; it must not compensate with heavier shadows.
 
 ## 10. Iconography
 
@@ -215,3 +218,31 @@ Motion is functional and restrained: 100–150 ms for micro state changes, 180�
 ## 15. PI-4C implementation boundary
 
 PI-4C should apply this system by extending existing tokens, wrappers, composites, and shells in `packages/ui`, then consuming only `@plume/ui` from screens. This Gate does not add CSS, components, routes, APIs, state, or production behavior.
+
+## 16. Gobanos identity and logo use
+
+- Normal textual UI uses `Gobanos`; only the supplied artwork visually reads `GobanOS`.
+- The provided wordmark is never redrawn, recolored, stretched, filtered, or case-normalized.
+- Light surfaces use `assets/brand/GobanOS_bk.svg`; Dark surfaces use `assets/brand/GobanOS_wh.svg`. PNG is fallback/review only.
+- The wordmark appears in the global shell and loading/splash surfaces when width permits. It is visible but subordinate to the Canvas in the Editor.
+- It is not repeated in every card/panel, watermarked onto creatives, or injected into Renderer output.
+- No compact mark, favicon, or monogram has been approved. Narrow shells hide the artwork while preserving an accessible `Gobanos` name and record `FUTURE_BRAND_ASSET_REQUIRED: COMPACT_MARK`.
+
+Detailed use and legal guardrails are frozen in `PI-4B-GOBANOS-BRAND-IDENTITY-AND-TRADEMARK-GUARDRAIL.md`.
+
+## 17. Runtime theme target for PI-4C
+
+```yaml
+runtime_theme_target:
+  options: [system, light, dark]
+  default: system
+  persistence: required
+  prefers_color_scheme: supported
+  no_flash_on_load: target
+```
+
+This is a target implementation contract, not runtime code. Both themes preserve identical responsive capability, contract gating, focus, selection, validation, and Canvas priority. The exact installed Astryx `0.1.9` API must be inspected during PI-4C; absent theme capability is a `PI_4C_IMPLEMENTATION_GAP`, not permission to fabricate a prop.
+
+## 18. Trademark guardrail
+
+Product Owner approval establishes the Gobanos design identity but does not establish trademark registration or exclusive legal rights. Legal clearance remains `PENDING_SEPARATE_VERIFICATION`. Do not add `®` or `™` by default. `GOBANOS_TRADEMARK_CLEARANCE` is required before public commercial brand launch and does not block PI-4B or an internal PI-4C build.

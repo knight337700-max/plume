@@ -38,7 +38,7 @@ Lifecycle and validation remain distinct. For example, `EDITED · WARNING` is va
 
 ### Stage and artboard
 
-- Stage: quiet dark/mid-neutral continuous surface; no decorative grid by default.
+- Stage: Light uses quiet mid-neutral `#333741`; Dark uses near-black `#0B0D10`; no decorative grid by default.
 - Artboard: canonical aspect ratio, white/content surface, one-pixel strong border, low shadow.
 - Renderer preview: contain-fit without browser-side crop or layout correction.
 - Empty/loading: artboard ratio remains reserved; skeleton does not pulse under reduced motion.
@@ -177,3 +177,54 @@ No step is visually skipped. Export may remain disabled after FINAL when eligibi
 | < 1024 px    | Limited preview/review: select creative, inspect status/validation, Fit/Zoom; full geometry editing not promised |
 
 The application must disclose limited mode. It must not render three unusably narrow columns or silently hide finalization state.
+
+## 12. Dark Editor specification
+
+Dark mode is a semantic treatment of Editor chrome, never an alteration of creative content.
+
+| Editor region/state     | Light                                   | Dark                                               | Invariant                                |
+| ----------------------- | --------------------------------------- | -------------------------------------------------- | ---------------------------------------- |
+| Editor background       | `#E7E9EE`                               | `#0F1115`                                          | Full-height tool frame                   |
+| Creative List panel     | White/primary surface                   | `#1B1E24`                                          | 232 px default and same item anatomy     |
+| Canvas stage            | `#333741`                               | `#0B0D10`                                          | Largest continuous region                |
+| Artboard edge           | Strong gray border + low shadow         | `#586170` edge + restrained neutral separation     | Renderer artifact ratio/pixels unchanged |
+| Inspector               | White/primary surface                   | `#1B1E24` with `#343A45` dividers                  | 380 px default and same groups           |
+| Toolbar/status          | Primary/elevated surfaces               | `#22262D`/`#2B3038`                                | Same actions and classifications         |
+| Selected creative/layer | Light blue selected surface + indicator | `#26365F` + light accent indicator                 | Selected semantics and synchronization   |
+| Read-only field         | Light subtle row + lock text            | `#272B33` row + readable lock text                 | `Renderer-controlled` reason             |
+| Focus visible           | `#3157C8` ring                          | `#9DB2FF` ring                                     | 2 px ring + 3 px offset                  |
+| Transparency            | Low-contrast checkerboard when relevant | Dark-theme checkerboard with distinguishable tiles | Never applied to opaque output           |
+
+The Dark artboard may remain visually light because it presents theme-independent Renderer output. Contrast is created at the edge/stage boundary rather than by filtering, dimming, or recoloring the artifact.
+
+### 12.1 Canvas and Renderer theme boundary
+
+```yaml
+renderer_theme_boundary:
+  renderer_pixels_change_with_app_theme: false
+  app_chrome_change_with_theme: true
+  canvas_stage_change_with_theme: true
+  artboard_content_authority: RENDERER
+```
+
+No CSS `filter`, blend mode, opacity adjustment, forced darkening, or export recoloring may be applied to preview/output pixels. Selection boxes and validation pins are separate UI overlays and use theme-aware tokens.
+
+### 12.2 Dark Layers and Properties
+
+Layer rows use tonal surfaces, default dark borders, primary/secondary text, and visible lock/visibility/validation icons. Selected layers use a check/indicator or synchronized canvas outline beyond color. Property groups are separated by spacing and dividers, not stacked heavy shadows. Inputs use readable borders and focus rings; read-only values retain primary readability rather than disabled-gray contrast.
+
+### 12.3 Dark validation and lifecycle
+
+- PASS uses bright success foreground, check icon, literal `PASS`, muted success surface, and border.
+- WARNING uses bright warning foreground, warning icon, literal `WARNING`, muted warning surface, and border.
+- FAIL uses bright error foreground, error icon, literal `FAIL`, muted error surface, and border.
+- Execution failure retains the system-error treatment and “Validation could not run.”
+- AI_DRAFT, EDITED, VALIDATED, and FINAL badges retain text and icon/lock cues in addition to theme color.
+
+### 12.4 Gobanos presence
+
+The Gobanos wordmark may appear in the Editor shell/header only when there is sufficient width and must remain subordinate to Canvas content. Dark uses the exact white asset. The logo is never placed on the artboard or user creative unless the user explicitly supplies it as creative content.
+
+## 13. Theme/responsive parity
+
+Light and Dark use the same ≥1600 Expanded, 1280–1599 Standard, 1024–1279 Compact, and <1024 Limited mode rules. Theme selection cannot change panel budgets or unlock advanced geometry editing. PI-4C E2E must resize the actual browser in both themes and verify list/inspector drawer/tab transitions, Canvas priority, focus visibility, and limited-mode disclosure.

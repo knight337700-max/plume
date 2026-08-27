@@ -31,7 +31,7 @@ Status: `FROZEN_FOR_PI_4C`
 ### GlobalAppShell
 
 - Standard width budget: side navigation 256 px, main content flexible.
-- PLUME identity appears once at the top of navigation and remains quieter than the page title.
+- Gobanos identity appears once at the top of navigation and remains quieter than the page title. Use the supplied black wordmark on Light and white wordmark on Dark when width permits; never squeeze or crop it into a compact symbol.
 - Destinations are `AI Creative`, `Campaign / Project`, and `Settings` only.
 - Selected destination uses a filled selected surface, leading indicator or strong border, icon, and semibold label.
 - Account/workspace context appears in the lower navigation region or top context region, never as a competing primary nav group.
@@ -159,3 +159,56 @@ The toolbar groups History, Viewport, Editing, Assistance, AI, and Finalization.
 - Do not use success language for queued work.
 - Counts and dimensions are always explicit.
 - Avoid exposing raw backend enum names except in diagnostic/admin contexts.
+
+## 10. Light/Dark component parity
+
+Theme changes presentation, never component anatomy, capability, contract state, responsive behavior, or action hierarchy.
+
+| Pattern/state               | Light treatment                               | Dark treatment                                           | Invariant cue                                         |
+| --------------------------- | --------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+| Global shell                | White nav over light app body; black wordmark | `#1B1E24` nav over `#121418`; white wordmark             | Selected indicator + label; accessible name `Gobanos` |
+| Card/list default           | White/neutral surface, default border         | Tonal surface `#1B1E24`/`#22262D`, `#343A45` border      | Same hierarchy and row geometry                       |
+| Hover                       | Light subtle overlay                          | Dark lighter tonal overlay                               | No layout movement                                    |
+| Selected                    | `#EEF3FF`, accent border/check                | `#26365F`, light accent border/check                     | Check/indicator + selected semantics                  |
+| Disabled                    | Muted surface/text                            | Dark muted surface/text with reason at readable contrast | Disabled attribute + reason                           |
+| Unavailable                 | Subtle surface and availability badge         | Dark subtle surface and availability badge               | Literal contract/catalog reason                       |
+| Focus visible               | `#3157C8` 2 px ring                           | `#9DB2FF` 2 px ring                                      | 3 px offset and keyboard visibility                   |
+| Dialog/popover/toast        | Elevated white, restrained shadow             | Elevated tonal surface, border-first separation          | Layer semantics and focus behavior                    |
+| Validation PASS             | Green muted surface/border/icon/text          | Dark green-muted surface + bright green icon/text        | `PASS` label and check icon                           |
+| Validation WARNING          | Amber muted surface/border/icon/text          | Dark amber-muted surface + bright amber icon/text        | `WARNING` label and warning icon                      |
+| Validation FAIL             | Red muted surface/border/icon/text            | Dark red-muted surface + bright red icon/text            | `FAIL` label and error icon                           |
+| Validation execution failed | Error system surface                          | Dark error system surface                                | “Validation could not run”; never rule FAIL           |
+
+### 10.1 Asset state parity
+
+| Asset state              | Light treatment                      | Dark treatment                                   | Invariant cue                                                      |
+| ------------------------ | ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------ |
+| Campaign Asset           | Light card/row + thumbnail           | Dark primary/secondary row + thumbnail           | Current reference/source text + eligibility                        |
+| Inherited Campaign Asset | Light source section/badge           | Dark tonal source section/badge                  | Link/source icon + `Inherited from Campaign` + Campaign metadata   |
+| Project Asset target     | Light unavailable target section     | Dark unavailable target section                  | Folder/project icon + `FUTURE_CONTRACT_REQUIRED`; no active upload |
+| Selected                 | Light selected surface/accent border | `#26365F` + light accent border                  | Check + selected semantics                                         |
+| Unavailable              | Muted light surface/content          | Muted dark surface/content                       | Exact disabled/unavailable reason                                  |
+| Invalid                  | Light error-muted surface/border     | Dark error-muted surface + bright error border   | Error icon + textual blocker + retained metadata                   |
+| Uploading                | Light progress surface               | Dark info/progress surface                       | Progress + filename/state; only with supported upload contract     |
+| Processing               | Light info status                    | Dark info-muted surface + bright info foreground | Progress/spinner + persistent source metadata                      |
+
+Inherited versus local never relies on color and inherited assets are not visually duplicated.
+
+### 10.2 Channel and format parity
+
+| Format state      | Light treatment                         | Dark treatment                               | Contract cue                                |
+| ----------------- | --------------------------------------- | -------------------------------------------- | ------------------------------------------- |
+| Default           | White card + default border             | `#1B1E24` card + `#343A45` border            | Name, dimension, capability/status          |
+| Hover             | Light hover surface                     | `#252A34` tonal hover                        | No selection implied                        |
+| Selected          | `#EEF3FF` + accent border/check         | `#26365F` + light accent border/check        | Multi-select semantics and count            |
+| Disabled          | Muted light content                     | Muted dark content with controlled contrast  | Prerequisite reason                         |
+| Catalog Not Ready | Subtle card/channel + unavailable badge | Dark subtle card/channel + unavailable badge | Literal `Catalog not ready`; not selectable |
+| Unavailable       | Disabled surface + reason               | Dark disabled surface + reason               | No enabled action                           |
+
+Only the three active Kakao profiles are selectable; Naver, Meta, and Google remain at zero active profiles.
+
+Dark mode must not increase contrast on disabled cards until they resemble active cards.
+
+### 10.3 Theme setting control target
+
+PI-4C may compose verified Selector, RadioList, or SegmentedControl primitives for `System`, `Light`, and `Dark`. The control requires selected semantics, accessible naming, persistence, OS preference handling, and a no-flash startup strategy. This section does not claim an installed Astryx theme prop.

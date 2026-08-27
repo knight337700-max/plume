@@ -133,3 +133,23 @@ The repository currently aliases Astryx background, text, icon, border, blue acc
 - Public examples for components absent from the adapter are references only.
 - If `0.1.9` lacks a required visual state, implement a PLUME wrapper/composition using verified primitives, record the gap, and keep direct Astryx imports inside `packages/ui`.
 - Do not fabricate component props. Read installed types or CLI output for `0.1.9` before implementation.
+
+## 9. Gobanos identity and theme mapping supplement
+
+Gobanos is the user-facing product identity; `@plume/ui`, PLUME token aliases, and adapter names remain authorized technical identifiers. The supplied horizontal wordmark is a design-source asset, not an Astryx component. It belongs in the `GlobalAppShell` brand slot or an equivalent composed shell region without changing the AppShell API.
+
+| Gobanos requirement          | Verified Astryx/PLUME basis                                     | Ownership       | PI-4C rule                                                |
+| ---------------------------- | --------------------------------------------------------------- | --------------- | --------------------------------------------------------- |
+| Light/Dark semantic surfaces | Neutral theme semantic CSS variables and existing PLUME aliases | ASTRYX_COMPOSED | Extend verified aliases; do not hardcode screens          |
+| Theme-aware wordmark         | AppShell/layout region + native image/SVG                       | PLUME_CUSTOM    | Black source on Light, white source on Dark               |
+| Theme setting control        | SegmentedControl/RadioList/Selector basis                       | ASTRYX_COMPOSED | Options System/Light/Dark; persistence is app behavior    |
+| OS preference                | Native `prefers-color-scheme` behavior                          | NATIVE_BROWSER  | PI-4C implementation; no invented Astryx prop             |
+| Initial no-flash target      | Document/head startup behavior                                  | PLUME_CUSTOM    | `PI_4C_IMPLEMENTATION_GAP` until runtime design is chosen |
+| Dark validation states       | Badge/Banner/StatusDot + semantic status families               | ASTRYX_COMPOSED | Preserve icon/text/border/surface semantics               |
+| Dark Editor panels           | AppShell/LayoutPanel/Toolbar/TreeList/input primitives          | ASTRYX_COMPOSED | Canvas priority and Renderer boundary unchanged           |
+
+The repository currently loads one neutral theme and declares Light color scheme. Installed `0.1.9` has not been proven here to expose a particular runtime theme-provider prop, persistence API, or startup script. PI-4C must inspect installed types and CSS behavior. Any missing capability is recorded as `PI_4C_IMPLEMENTATION_GAP`; this specification does not fabricate APIs.
+
+## 10. Theme-invariant component ownership
+
+The counts remain unchanged: 51 verified direct component aliases, 15 existing composed patterns/shells, and 9 target PLUME custom patterns. Light/Dark support is state coverage of the same components, not a second component library. Astryx is not upgraded, package versions and lockfiles remain unchanged, and application screens continue to prefer `@plume/ui`.

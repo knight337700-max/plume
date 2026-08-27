@@ -22,9 +22,9 @@ Common frame unless explicitly replaced by the Editor:
 
 ### Layout and hierarchy
 
-`Sidebar 256 | Main workspace flexible`. Sidebar order: PLUME identity, primary navigation, contextual account/workspace switcher, utility/profile area. Main order: breadcrumb/context, page title and primary action, content.
+`Sidebar 256 | Main workspace flexible`. Sidebar order: Gobanos identity, primary navigation, contextual account/workspace switcher, utility/profile area. Main order: breadcrumb/context, page title and primary action, content.
 
-The PLUME mark uses brand accent sparingly and occupies no more visual weight than a 24 px page title. Navigation labels are `AI Creative`, `Campaign / Project`, and `Settings`. The selected item has selected surface, 3 px leading indicator, icon, semibold label, and current-page semantics.
+The supplied GobanOS wordmark occupies no more visual weight than a 24 px page title. Use the black source asset on Light and white source asset on Dark. Navigation labels are `AI Creative`, `Campaign / Project`, and `Settings`. The selected item has selected surface, 3 px leading indicator, icon, semibold label, and current-page semantics.
 
 ### Components and tokens
 
@@ -40,6 +40,8 @@ The PLUME mark uses brand accent sparingly and occupies no more visual weight th
 ### Responsive
 
 At compact widths, navigation swaps to an explicit menu/drawer. At small widths the header stacks title/actions, maintaining one visible primary action. No icon-only unknown destinations.
+
+No compact Gobanos mark exists. When the wordmark cannot fit at its minimum width, hide the artwork without cropping it, preserve the accessible product name in the menu control/navigation landmark, and record `FUTURE_BRAND_ASSET_REQUIRED: COMPACT_MARK`.
 
 ## Screen 2 — AI Creative / Step 1 Creative Setup
 
@@ -268,3 +270,46 @@ Empty explains whether no current mapping exists or filters exclude results. Loa
 |  10 | Project Creatives | Complete                | Complete          | Complete | Complete   | CreativeSet partial     |
 
 Total: **10 / 10 complete**.
+
+## Light/Dark treatment matrix
+
+Theme never changes route behavior, contract availability, workflow step, responsive breakpoint, or action enablement.
+
+|   # | Screen            | Light behavior                                        | Dark behavior                                                 | Gobanos presence                  | Behavior difference                       |
+| --: | ----------------- | ----------------------------------------------------- | ------------------------------------------------------------- | --------------------------------- | ----------------------------------------- |
+|   1 | Global Shell      | Light app body, white nav, black wordmark             | `#121418` body, dark nav, white wordmark                      | Persistent when width permits     | None                                      |
+|   2 | Creative Setup    | Light form/summaries and asset cards                  | Tonal dark groups with readable form borders                  | Shell only                        | None; Project/copy gaps unchanged         |
+|   3 | Channel / Format  | Light selectable cards and muted unavailable channels | Dark cards use tonal borders; disabled never resembles active | Shell only                        | None; Kakao 3 only                        |
+|   4 | AI Generate       | Light progress/status surfaces                        | Dark semantic progress/status surfaces                        | Shell only                        | None; retry remains job-level             |
+|   5 | Creative Editor   | Mid-neutral stage, light panels, renderer artboard    | Near-black stage, dark panels, renderer artboard unchanged    | Subordinate shell/header presence | None; three-column/capabilities unchanged |
+|   6 | Campaign Overview | Light content sections/table/list                     | Dark tonal sections with border-first separation              | Shell only                        | None; Project gap unchanged               |
+|   7 | Campaign Assets   | Light asset grid and source badges                    | Dark asset grid with identical source/icon labels             | Shell only                        | None                                      |
+|   8 | Project Overview  | Light unavailable/target disclosure                   | Dark unavailable/target disclosure at readable contrast       | Shell only                        | None; contract remains absent             |
+|   9 | Project Assets    | Light inherited/local sections                        | Dark inherited/local sections with same labels/icons          | Shell only                        | None; local target unavailable            |
+|  10 | Project Creatives | Light previews, lifecycle, validation                 | Dark chrome around unchanged previews                         | Shell only                        | None; Project binding remains guarded     |
+
+## High-risk theme detail
+
+### Global Shell
+
+Light uses the exact black SVG wordmark; Dark uses the exact white SVG. The wordmark has no accent recolor, filter, symbol, or animation. Selected navigation and focus use theme accent tokens. On compact layouts the brand region collapses before the wordmark is distorted.
+
+### Channel / Format
+
+Light and Dark preserve the same full-card focus, checkbox state, name, dimensions, and availability reason. Dark selected cards use light accent border/check plus `color.surface.selected`; unavailable channels use lower emphasis, an unavailable badge, and `Catalog not ready`. Only Kakao Moment Bizboard, Bizboard Thumbnail Box Right, and Display Native 2:1 can be selected.
+
+### Creative Editor
+
+Dark changes application chrome, panel surfaces, toolbar, stage, selection/focus outlines, and semantic validation surfaces. It never filters or recolors Renderer pixels. The artboard edge uses a strong dark-theme border and low neutral separation; Canvas remains larger and more visually dominant than panels.
+
+### Campaign / Project Assets
+
+Light and Dark both separate `Inherited from Campaign` and `Project-local assets` through section, source text, badge, icon, and metadata. Dark mode does not replace those cues with color. Project-local upload remains unavailable until the contract exists.
+
+### Validation surfaces
+
+PASS, WARNING, FAIL, and execution failure each use literal text, icon, theme semantic color, muted surface, and border. Layer/canvas indicators retain accessible contrast in both themes. Execution failure remains “Validation could not run,” not domain rule FAIL.
+
+## Responsive/theme invariant
+
+Expanded (≥1600), Standard (1280–1599), Compact (1024–1279), and Limited (<1024) behaviors are identical in Light and Dark. Window resizing must recompose sidebar/panels to drawer/tab/overlay states while preserving Canvas priority. PI-4C requires an actual browser-resize E2E check for both themes.
