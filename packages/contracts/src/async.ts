@@ -39,6 +39,14 @@ export interface CreativeGeneratePayload {
   readonly formatProfileIds: readonly string[];
   readonly variantCountPerProduct: number;
   readonly generationMode?: "MOCK_AI" | "CANONICAL_RENDERER";
+  /** Optional durable Project context, frozen by the API before enqueue. */
+  readonly projectId?: string;
+  readonly assetPoolSnapshot?: readonly {
+    readonly assetVersionId: string;
+    readonly productId: string | null;
+    readonly roleCode: string;
+    readonly source: "CAMPAIGN" | "PROJECT" | "BOTH";
+  }[];
 }
 
 export interface AiLiveSmokePayload {
@@ -208,6 +216,19 @@ function hasForbiddenFreeformScope(payload: Record<string, unknown>): boolean {
 
 function validateCreativeGenerate(payload: unknown): payload is CreativeGeneratePayload {
   if (!isRecord(payload)) return false;
+  const projectContextValid =
+    payload.projectId === undefined
+      ? payload.assetPoolSnapshot === undefined
+      : isString(payload.projectId) &&
+        Array.isArray(payload.assetPoolSnapshot) &&
+        payload.assetPoolSnapshot.every(
+          (item) =>
+            isRecord(item) &&
+            isString(item.assetVersionId) &&
+            (item.productId === null || isString(item.productId)) &&
+            isString(item.roleCode) &&
+            (item.source === "CAMPAIGN" || item.source === "PROJECT" || item.source === "BOTH"),
+        );
   return (
     isString(payload.campaignId) &&
     (payload.briefVersionId === undefined || isString(payload.briefVersionId)) &&
@@ -216,6 +237,7 @@ function validateCreativeGenerate(payload: unknown): payload is CreativeGenerate
     isStringArray(payload.formatProfileIds) &&
     payload.formatProfileIds.length > 0 &&
     isPositiveInteger(payload.variantCountPerProduct) &&
+    projectContextValid &&
     (payload.generationMode === undefined ||
       payload.generationMode === "MOCK_AI" ||
       payload.generationMode === "CANONICAL_RENDERER")

@@ -4,6 +4,11 @@ import {
   type ProjectRepositories,
 } from "../../../../../packages/core/src/modules/project/repositories.js";
 import { createProjectUseCases } from "../../../../../packages/core/src/modules/project/project-use-cases.js";
+import type {
+  ProjectAssetContext,
+  ProjectCampaignContext,
+  ProjectUseCases,
+} from "../../../../../packages/core/src/modules/project/project-use-cases.js";
 import {
   createInMemoryCampaignRepositories,
   type CampaignRepositories,
@@ -18,18 +23,22 @@ import {
 } from "../../../../../packages/core/src/modules/creative/repositories.js";
 import { projectRoutes } from "./projects.js";
 interface Options {
+  projectsUseCases?: ProjectUseCases;
   projects?: ProjectRepositories;
   campaigns?: CampaignRepositories;
   assets?: AssetRepositories;
-  creatives?: CreativeRepositories;
+  campaignContext?: ProjectCampaignContext;
+  assetContext?: ProjectAssetContext;
+  creatives?: Pick<CreativeRepositories, "listCreativeSetsByProject" | "listAssetUsageGraph">;
 }
 export const projectRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
   const projects = options.projects ?? createInMemoryProjectRepositories();
-  const campaigns = options.campaigns ?? createInMemoryCampaignRepositories();
-  const assets = options.assets ?? createInMemoryAssetRepositories();
+  const campaigns =
+    options.campaignContext ?? options.campaigns ?? createInMemoryCampaignRepositories();
+  const assets = options.assetContext ?? options.assets ?? createInMemoryAssetRepositories();
   const creatives = options.creatives ?? createInMemoryCreativeRepositories();
   await app.register(projectRoutes, {
-    projects: createProjectUseCases({ projects, campaigns, assets }),
+    projects: options.projectsUseCases ?? createProjectUseCases({ projects, campaigns, assets }),
     creatives,
   });
 };

@@ -53,6 +53,36 @@ describe("async command contracts", () => {
     ).toThrow("PAYLOAD_INVALID");
   });
 
+  it("accepts only a complete immutable Project context on creative.generate", () => {
+    const envelope = {
+      messageId: id,
+      schemaVersion: 1,
+      workspaceId: id,
+      correlationId: id,
+      jobId: id,
+      createdAt: new Date().toISOString(),
+      command: "creative.generate",
+      payload: {
+        campaignId: id,
+        briefVersionId: id,
+        productIds: [id],
+        formatProfileIds: [id],
+        variantCountPerProduct: 1,
+        projectId: id,
+        assetPoolSnapshot: [
+          { assetVersionId: id, productId: null, roleCode: "LOGO", source: "PROJECT" },
+        ],
+      },
+    };
+    expect(() => validateCommandEnvelope(envelope)).not.toThrow();
+    expect(() =>
+      validateCommandEnvelope({
+        ...envelope,
+        payload: { ...envelope.payload, assetPoolSnapshot: undefined },
+      }),
+    ).toThrow("PAYLOAD_INVALID");
+  });
+
   it("accepts a durable live smoke scope and bounds its workflow budget", () => {
     expect(() =>
       validateCommandEnvelope({

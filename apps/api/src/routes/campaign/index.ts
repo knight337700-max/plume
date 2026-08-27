@@ -42,6 +42,7 @@ import type { ProjectRepositories } from "../../../../../packages/core/src/modul
 import type { AssetRepositories } from "../../../../../packages/core/src/modules/asset/repositories.js";
 import type { CreativeRepositories } from "../../../../../packages/core/src/modules/creative/repositories.js";
 import { createProjectUseCases } from "../../../../../packages/core/src/modules/project/project-use-cases.js";
+import type { PreparedProjectGeneration } from "../../../../../packages/core/src/modules/project/project-generation-preparer.js";
 
 interface Options {
   readonly campaigns?: CampaignUseCases;
@@ -56,6 +57,14 @@ interface Options {
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
   readonly asyncCommands?: AsyncCommandPublisher;
+  readonly projectGenerationPreparer?: {
+    prepare(input: {
+      workspaceId: string;
+      campaignId: string;
+      projectId: string;
+      briefVersionId?: string;
+    }): Promise<PreparedProjectGeneration>;
+  };
 }
 export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
   const repositories = options.repositories ?? createInMemoryCampaignRepositories();
@@ -104,6 +113,9 @@ export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, optio
   await app.register(mediaSelectionRoutes, { selection, repositories });
   await app.register(generationRoutes, {
     generation,
+    ...(options.projectGenerationPreparer
+      ? { projectGenerationPreparer: options.projectGenerationPreparer }
+      : {}),
     ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}),
   });
 };

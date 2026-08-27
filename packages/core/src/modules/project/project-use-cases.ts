@@ -3,6 +3,12 @@ import type { CampaignRepositories } from "../campaign/repositories.js";
 import type { AssetRoleCode } from "./asset-role.js";
 import type { ProjectRepositories, ProjectRecord } from "./repositories.js";
 
+export type ProjectCampaignContext = Pick<
+  CampaignRepositories,
+  "getCampaign" | "listCampaignProducts" | "listAssetPoolSelections"
+>;
+export type ProjectAssetContext = Pick<AssetRepositories, "getVersion" | "getAsset">;
+
 export interface EffectiveProjectAsset {
   readonly assetId?: string;
   readonly assetVersionId: string;
@@ -61,8 +67,8 @@ function missing(kind: string): Error {
 
 export function createProjectUseCases(deps: {
   projects: ProjectRepositories;
-  campaigns: CampaignRepositories;
-  assets: AssetRepositories;
+  campaigns: ProjectCampaignContext;
+  assets: ProjectAssetContext;
 }): ProjectUseCases {
   const project = async (workspaceId: string, id: string) => {
     const value = await deps.projects.getProject(workspaceId, id);

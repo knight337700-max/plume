@@ -2,9 +2,18 @@ import type { FastifyPluginAsync } from "fastify";
 import type { GenerationUseCases } from "../../../../../packages/core/src/modules/campaign/generation-use-cases.js";
 import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
 import { actorReference, headerValue } from "../../async/route-policy.js";
+import type { PreparedProjectGeneration } from "../../../../../packages/core/src/modules/project/project-generation-preparer.js";
 interface Options {
   readonly generation: GenerationUseCases;
   readonly asyncCommands?: AsyncCommandPublisher;
+  readonly projectGenerationPreparer?: {
+    prepare(input: {
+      workspaceId: string;
+      campaignId: string;
+      projectId: string;
+      briefVersionId?: string;
+    }): Promise<PreparedProjectGeneration>;
+  };
 }
 interface Params {
   readonly workspaceId: string;
@@ -31,7 +40,20 @@ export const generationRoutes: FastifyPluginAsync<Options> = async (app, options
         value.generationMode === "CANONICAL_RENDERER" ? "CANONICAL_RENDERER" : "MOCK_AI";
       const briefVersionId = value.briefVersionId ? String(value.briefVersionId) : undefined;
       const projectId = value.projectId ? String(value.projectId) : undefined;
-      if (options.asyncCommands && !projectId) {
+      if (options.asyncCommands) {
+        const prepared = projectId
+          ? await options.projectGenerationPreparer?.prepare({
+              workspaceId: input.workspaceId,
+              campaignId: input.campaignId,
+              projectId,
+              ...(briefVersionId ? { briefVersionId } : {}),
+            })
+          : undefined;
+        if (projectId && !prepared)
+          throw Object.assign(new Error("Project durable generation is unavailable"), {
+            code: "PROJECT_DURABLE_GENERATION_UNAVAILABLE",
+            statusCode: 503,
+          });
         const actor = actorReference(request);
         const idempotencyKey = headerValue(request, "idempotency-key");
         const result = await options.asyncCommands.enqueue({
@@ -40,11 +62,16 @@ export const generationRoutes: FastifyPluginAsync<Options> = async (app, options
           schemaVersion: 1,
           payload: {
             campaignId: input.campaignId,
-            ...(briefVersionId ? { briefVersionId } : {}),
+            ...((prepared?.briefVersionId ?? briefVersionId)
+              ? { briefVersionId: prepared?.briefVersionId ?? briefVersionId }
+              : {}),
             productIds,
             formatProfileIds: formatSelectionIds,
             variantCountPerProduct: variantCount,
             generationMode,
+            ...(prepared
+              ? { projectId: prepared.projectId, assetPoolSnapshot: prepared.assetPoolSnapshot }
+              : {}),
           },
           ...(actor ? { requestedBy: actor } : {}),
           ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -72,13 +99,11 @@ export const generationRoutes: FastifyPluginAsync<Options> = async (app, options
       reply.header("Operation-Location", location);
       reply.header("Location", location);
       reply.header("Retry-After", "3");
-      return reply
-        .code(202)
-        .send({
-          job: { id: aggregate.request.id, status: aggregate.request.status },
-          resource: aggregate.request,
-          links: { self: location },
-        });
+      return reply.code(202).send({
+        job: { id: aggregate.request.id, status: aggregate.request.status },
+        resource: aggregate.request,
+        links: { self: location },
+      });
     },
   );
   app.get(

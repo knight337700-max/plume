@@ -6,7 +6,10 @@ import { etagForRevision, revisionFromEtag } from "../../concurrency/etag.js";
 
 interface Options {
   readonly projects: ProjectUseCases;
-  readonly creatives: CreativeRepositories;
+  readonly creatives: Pick<
+    CreativeRepositories,
+    "listCreativeSetsByProject" | "listAssetUsageGraph"
+  >;
 }
 interface Params {
   workspaceId: string;

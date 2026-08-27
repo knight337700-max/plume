@@ -36,6 +36,11 @@ import {
   createInMemoryProjectRepositories,
   type ProjectRepositories,
 } from "../../../packages/core/src/modules/project/repositories.js";
+import type {
+  ProjectAssetContext,
+  ProjectCampaignContext,
+} from "../../../packages/core/src/modules/project/project-use-cases.js";
+import type { PreparedProjectGeneration } from "../../../packages/core/src/modules/project/project-generation-preparer.js";
 import type { ClientBrandRepositories } from "../../../packages/core/src/modules/client-brand/repositories.js";
 import { sessionPlugin } from "./plugins/session.js";
 import { csrfPlugin } from "./plugins/csrf.js";
@@ -56,6 +61,20 @@ export interface BuildAppOptions extends FastifyServerOptions {
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
   readonly projectRepositories?: ProjectRepositories;
+  readonly projectCampaignContext?: ProjectCampaignContext;
+  readonly projectAssetContext?: ProjectAssetContext;
+  readonly projectCreativeQueries?: Pick<
+    CreativeRepositories,
+    "listCreativeSetsByProject" | "listAssetUsageGraph"
+  >;
+  readonly projectGenerationPreparer?: {
+    prepare(input: {
+      workspaceId: string;
+      campaignId: string;
+      projectId: string;
+      briefVersionId?: string;
+    }): Promise<PreparedProjectGeneration>;
+  };
   readonly clientBrandRepositories?: ClientBrandRepositories;
   readonly sessionSecret?: string;
   readonly cookieSecure?: boolean;
@@ -77,6 +96,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     assetRepositories,
     creativeRepositories,
     projectRepositories,
+    projectCampaignContext,
+    projectAssetContext,
+    projectCreativeQueries,
+    projectGenerationPreparer,
     clientBrandRepositories,
     sessionSecret,
     cookieSecure,
@@ -90,6 +113,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     (!sessions ||
       !memberships ||
       !uploads ||
+      !projectRepositories ||
+      !projectCampaignContext ||
+      !projectAssetContext ||
+      !projectCreativeQueries ||
+      !projectGenerationPreparer ||
       !sessionSecret ||
       !rateLimit ||
       fastifyOptions.bodyLimit === undefined)
@@ -127,13 +155,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       projectRepositories: resolvedProjectRepositories,
       assetRepositories: resolvedAssetRepositories,
       creativeRepositories: resolvedCreativeRepositories,
+      ...(projectGenerationPreparer ? { projectGenerationPreparer } : {}),
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(projectRouteGroup, {
       projects: resolvedProjectRepositories,
-      campaigns: resolvedCampaignRepositories,
-      assets: resolvedAssetRepositories,
-      creatives: resolvedCreativeRepositories,
+      ...(projectCampaignContext ? { campaignContext: projectCampaignContext } : {}),
+      ...(projectAssetContext ? { assetContext: projectAssetContext } : {}),
+      creatives: projectCreativeQueries ?? resolvedCreativeRepositories,
     });
     await router.register(creativeRouteGroup, {
       repositories: resolvedCreativeRepositories,
