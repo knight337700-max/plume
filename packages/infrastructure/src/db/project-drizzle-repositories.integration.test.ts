@@ -7,8 +7,6 @@ import { DurableProjectGenerationPersistence } from "./durable-project-generatio
 import { DurableAsyncCommandPublisher } from "../async/durable-command-publisher.js";
 import { DrizzleProjectContextReaders } from "./project-context-drizzle-repositories.js";
 import { createProjectUseCases } from "../../../core/src/modules/project/project-use-cases.js";
-import { DurableWorkflowRepository } from "../async/durable-workflow-repository.js";
-import { createJacomoRuntimeHandlers } from "../../../../apps/worker/src/handlers/jacomo-runtime.js";
 
 const enabled = process.env.RUN_PI_4C0_1_POSTGRES_TEST === "true";
 const databaseUrl =
@@ -106,37 +104,6 @@ describe.skipIf(!enabled)("PI-4C0.1 Project SQL durability", () => {
       schemaVersion: 1,
       payload,
     });
-    const handlers = createJacomoRuntimeHandlers({
-      sql,
-      publisher: new DurableAsyncCommandPublisher(sql),
-      workflow: new DurableWorkflowRepository(sql),
-      storage: {} as never,
-      providerGateway: {} as never,
-      liveSmokeBudgetStore: {} as never,
-      liveSmokeCoverageStore: {} as never,
-      liveSmokeLifecycleStore: {} as never,
-      liveSmokeValidationEvidenceStore: {} as never,
-      liveSmokeFailureEvidenceStore: {} as never,
-      providerMode: "mock",
-      campaignRepositories: {} as never,
-      assetRepositories: {} as never,
-      creativeRepositories: {} as never,
-      fileObjectReader: {} as never,
-    });
-    await handlers["creative.generate"]!({
-      name: "creative.generate",
-      data: {
-        messageId: job.messageId,
-        schemaVersion: 1,
-        workspaceId,
-        correlationId: job.correlationId,
-        jobId: job.jobId,
-        jobItemId: job.jobItemId,
-        createdAt: new Date().toISOString(),
-        command: "creative.generate",
-        payload,
-      },
-    } as never);
     const first = new DurableProjectGenerationPersistence(sql);
     const persisted = await first.persist({ workspaceId, jobId: job.jobId, payload });
     expect(persisted).not.toBeNull();
@@ -171,6 +138,51 @@ describe.skipIf(!enabled)("PI-4C0.1 Project SQL durability", () => {
       projectId: created.id,
       assetPoolSnapshot: [{ assetVersionId }],
     });
+  });
+
+  it("deduplicates concurrent delivery of the same durable Project job", async () => {
+    const projects = new DrizzleProjectRepositories(sql);
+    const created = await projects.createProject({
+      workspaceId,
+      campaignId,
+      name: "Concurrent durable generation project",
+    });
+    const payload = {
+      campaignId,
+      briefVersionId,
+      productIds: [randomUUID()],
+      formatProfileIds: [randomUUID()],
+      variantCountPerProduct: 1,
+      generationMode: "MOCK_AI" as const,
+      projectId: created.id,
+      assetPoolSnapshot: [
+        { assetVersionId, productId: null, roleCode: "LOGO", source: "PROJECT" as const },
+      ],
+    };
+    const job = await new DurableAsyncCommandPublisher(sql).enqueue({
+      workspaceId,
+      command: "creative.generate",
+      schemaVersion: 1,
+      payload,
+    });
+    const [first, second] = await Promise.all([
+      new DurableProjectGenerationPersistence(sql).persist({
+        workspaceId,
+        jobId: job.jobId,
+        payload,
+      }),
+      new DurableProjectGenerationPersistence(sql).persist({
+        workspaceId,
+        jobId: job.jobId,
+        payload,
+      }),
+    ]);
+    expect(first).toEqual(second);
+    const rows = await sql<{ requests: number; sets: number }[]>`
+      SELECT
+        (SELECT count(*)::int FROM generation_request WHERE async_job_id = ${job.jobId}) AS requests,
+        (SELECT count(*)::int FROM creative_set WHERE generation_request_id = ${first!.generationRequestId}) AS sets`;
+    expect(rows[0]).toEqual({ requests: 1, sets: 1 });
   });
 
   it("calculates the effective asset pool from durable Campaign and Project SQL context", async () => {

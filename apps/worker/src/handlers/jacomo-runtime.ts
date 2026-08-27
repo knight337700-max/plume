@@ -46,7 +46,6 @@ import type { LiveSmokeLifecycleStore } from "../../../../packages/infrastructur
 import type { LiveSmokeValidationEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-validation-evidence-store.js";
 import type { LiveSmokeFailureEvidenceStore } from "../../../../packages/infrastructure/src/async/live-smoke-failure-evidence-store.js";
 import type { LiveSmokePricingPolicy } from "../../../../packages/infrastructure/src/async/live-smoke-spend-policy.js";
-import { DurableProjectGenerationPersistence } from "../../../../packages/infrastructure/src/db/durable-project-generation-persistence.js";
 
 interface RuntimeDependencies {
   readonly sql: Sql;
@@ -262,11 +261,6 @@ export function createJacomoRuntimeHandlers(
   );
   handlers["creative.generate"] = withCommonContract("creative.generate", async (envelope) => {
     const payload = envelope.payload as CreativeGeneratePayload;
-    await new DurableProjectGenerationPersistence(dependencies.sql).persist({
-      workspaceId: envelope.workspaceId,
-      jobId: envelope.jobId,
-      payload,
-    });
     const formatProfileId = payload.formatProfileIds[0]!;
     const canonical = payload.generationMode === "CANONICAL_RENDERER";
     if (canonical && !payload.briefVersionId)
@@ -312,7 +306,8 @@ export function createJacomoRuntimeHandlers(
           creativeDocument: creative.document,
           purpose: "FINAL_EXPORT",
           outputProfile:
-            creative.document.formatProfileId === "kakao-moment-display-native-2-1-1200x600"
+            creative.document.formatProfileId ===
+            "kakao-moment-display-native-2-1-1200x600"
               ? { ...creative.outputProfile, maxBytes: 500000 }
               : creative.outputProfile,
         },
@@ -402,8 +397,7 @@ export function createJacomoRuntimeHandlers(
     const requestFingerprint =
       rendererOutput?.requestFingerprint ?? rendererMetadata.requestFingerprint;
     const pixelFingerprint = rendererOutput?.pixelFingerprint ?? rendererMetadata.pixelFingerprint;
-    const renderFingerprint =
-      rendererOutput?.renderFingerprint ?? rendererMetadata.renderFingerprint;
+    const renderFingerprint = rendererOutput?.renderFingerprint ?? rendererMetadata.renderFingerprint;
     const objectKey = `renders/${envelope.workspaceId}/${payload.creativeVersionId}/${rendered.checksumSha256}.png`;
     const stored = await dependencies.storage.put({
       body: rendered.outputBytes,
@@ -445,11 +439,9 @@ export function createJacomoRuntimeHandlers(
         commit: rendererMetadata.rendererCommit,
         integrationContract: rendererMetadata.rendererIntegrationContract,
         runtimeVersion: rendererMetadata.rendererRuntimeVersion,
-        validation: rendererOutput?.validation ?? {
-          errors: [],
-          warnings: rendererMetadata.rendererWarnings ?? [],
-          info: [],
-        },
+        validation:
+          rendererOutput?.validation ??
+          { errors: [], warnings: rendererMetadata.rendererWarnings ?? [], info: [] },
         appliedImagePlacements: rendererOutput?.appliedImagePlacements ?? [],
         requestFingerprint,
         pixelFingerprint,
@@ -665,7 +657,8 @@ export function createJacomoRuntimeHandlers(
       payload: {
         creativeVersionId: value.creativeVersionId,
         creativeDocument:
-          value.canonicalDocument ?? (envelope.payload as CreativeRenderPayload).creativeDocument,
+          value.canonicalDocument ??
+          (envelope.payload as CreativeRenderPayload).creativeDocument,
         renderObjectKey: value.objectKey,
         renderChecksumSha256: value.checksumSha256,
         ...(value.renderer ? { renderer: value.renderer } : {}),

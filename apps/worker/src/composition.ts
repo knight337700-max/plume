@@ -57,6 +57,10 @@ import {
 import { PostgresUploadSessionRepository } from "../../../packages/infrastructure/src/db/upload-session-repository.js";
 import type { FileObjectRecord } from "../../../packages/core/src/modules/asset/upload-session.js";
 import type { AgentProviderGateway } from "../../../packages/core/src/agents/orchestrator.js";
+import {
+  createProjectAwareCreativeGenerateHandler,
+  createSnapshotAwareCampaignRepositories,
+} from "./project-generation-execution.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -100,6 +104,14 @@ export function createWorkerRuntimeComposition(
 ): WorkerRuntimeComposition {
   const productionEnvironment: Environment | undefined =
     process.env.APP_ENV?.trim() === "production" ? loadEnvironment(process.env) : undefined;
+  if (
+    productionEnvironment &&
+    (!options.campaignRepositories ||
+      !options.assetRepositories ||
+      !options.creativeRepositories ||
+      !options.fileObjectReader)
+  )
+    throw new Error("PRODUCTION_PROJECT_CANONICAL_DURABLE_DEPENDENCIES_REQUIRED");
   const ownedDatabase = options.sql ? undefined : createDatabaseClient();
   const sql = options.sql ?? ownedDatabase!.sql;
   const adapter =
@@ -150,7 +162,9 @@ export function createWorkerRuntimeComposition(
   const providerGateway = options.providerGateway ?? aiRuntime.provider.gateway;
   const providerMode = options.providerMode ?? aiRuntime.provider.mode;
   const pricingPolicy = createLiveSmokePricingPolicy(runtimeEnvironment);
-  const handlers = createJacomoRuntimeHandlers({
+  const snapshotAwareCampaignRepositories =
+    createSnapshotAwareCampaignRepositories(campaignRepositories);
+  const frozenHandlers = createJacomoRuntimeHandlers({
     sql,
     publisher,
     storage,
@@ -162,13 +176,20 @@ export function createWorkerRuntimeComposition(
     liveSmokeLifecycleStore,
     liveSmokeValidationEvidenceStore,
     liveSmokeFailureEvidenceStore,
-    campaignRepositories,
+    campaignRepositories: snapshotAwareCampaignRepositories,
     assetRepositories,
     creativeRepositories,
     clientBrandRepositories,
     fileObjectReader,
     providerMode,
     ...(pricingPolicy ? { pricingPolicy } : {}),
+  });
+  const handlers = Object.freeze({
+    ...frozenHandlers,
+    "creative.generate": createProjectAwareCreativeGenerateHandler({
+      sql,
+      inner: frozenHandlers["creative.generate"]!,
+    }),
   });
   let closed = false;
 
