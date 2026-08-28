@@ -14,6 +14,13 @@ import { S3ObjectStorage } from "../../../packages/infrastructure/src/storage/s3
 import { createUploadVerifier } from "../../../packages/infrastructure/src/files/verify-upload.js";
 import { createUploadUseCases } from "../../../packages/core/src/modules/asset/upload-use-cases.js";
 import { createSessionUseCases } from "../../../packages/core/src/modules/iam/session-use-cases.js";
+import { DrizzleProjectRepositories } from "../../../packages/infrastructure/src/db/project-drizzle-repositories.js";
+import { DrizzleProjectContextReaders } from "../../../packages/infrastructure/src/db/project-context-drizzle-repositories.js";
+import { DrizzleProjectCreativeQueryRepository } from "../../../packages/infrastructure/src/db/project-creative-query-drizzle-repository.js";
+import { DrizzleProjectGenerationContext } from "../../../packages/infrastructure/src/db/project-generation-context-drizzle-repository.js";
+import { createProjectUseCases } from "../../../packages/core/src/modules/project/project-use-cases.js";
+import { createProjectGenerationPreparer } from "../../../packages/core/src/modules/project/project-generation-preparer.js";
+import { DrizzleProjectFormatBindingResolver } from "../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
 
 export async function startApi(): Promise<void> {
   const environment = loadEnvironment(process.env);
@@ -58,6 +65,13 @@ export async function startApi(): Promise<void> {
     },
   });
   const sessions = createSessionUseCases(new PostgresSessionStore(database.sql), iam);
+  const projectContext = new DrizzleProjectContextReaders(database.sql);
+  const projectRepositories = new DrizzleProjectRepositories(database.sql);
+  const projectUseCases = createProjectUseCases({
+    projects: projectRepositories,
+    campaigns: projectContext,
+    assets: projectContext,
+  });
   const app = await buildApp({
     securityMode: environment.nodeEnv === "production" ? "production" : "test",
     sessions,
@@ -74,6 +88,15 @@ export async function startApi(): Promise<void> {
     publicMetrics: false,
     asyncCommandPublisher: new DurableAsyncCommandPublisher(database.sql),
     jobs: createJobUseCases(new DurableJobQueryRepository(database.sql)),
+    projectRepositories,
+    projectCampaignContext: projectContext,
+    projectAssetContext: projectContext,
+    projectCreativeQueries: new DrizzleProjectCreativeQueryRepository(database.sql),
+    projectGenerationPreparer: createProjectGenerationPreparer({
+      projects: projectUseCases,
+      campaigns: new DrizzleProjectGenerationContext(database.sql),
+    }),
+    projectFormatBindings: new DrizzleProjectFormatBindingResolver(database.sql),
   });
   const host = process.env.HOST ?? "127.0.0.1";
   const port = Number(process.env.PORT ?? 3000);

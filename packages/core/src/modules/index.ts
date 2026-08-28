@@ -20,6 +20,11 @@ export const campaignModule = defineDomainModule({
   dependencies: ["iam", "client-brand", "asset", "operations"],
   publicExports: ["campaign", "brief", "generation"],
 });
+export const projectModule = defineDomainModule({
+  name: "project",
+  dependencies: ["iam", "campaign", "asset"],
+  publicExports: ["project", "project-asset-reference", "effective-asset-pool"],
+});
 export const mediaCatalogModule = defineDomainModule({
   name: "media-catalog",
   dependencies: [],
@@ -56,6 +61,7 @@ export const domainModules: readonly DomainModuleDefinition[] = Object.freeze([
   clientBrandModule,
   assetModule,
   campaignModule,
+  projectModule,
   mediaCatalogModule,
   creativeModule,
   validationModule,

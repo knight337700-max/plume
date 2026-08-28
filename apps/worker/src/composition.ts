@@ -55,8 +55,18 @@ import {
   type ClientBrandRepositories,
 } from "../../../packages/core/src/modules/client-brand/repositories.js";
 import { PostgresUploadSessionRepository } from "../../../packages/infrastructure/src/db/upload-session-repository.js";
+import { DrizzleCreativeRepositories } from "../../../packages/infrastructure/src/db/creative-drizzle-repositories.js";
+import { DrizzleProjectContextReaders } from "../../../packages/infrastructure/src/db/project-context-drizzle-repositories.js";
 import type { FileObjectRecord } from "../../../packages/core/src/modules/asset/upload-session.js";
 import type { AgentProviderGateway } from "../../../packages/core/src/agents/orchestrator.js";
+import {
+  createProjectAwareCreativeGenerateHandler,
+  createProjectAwareCreativeRenderHandler,
+  createProjectDurableAssetRepositories,
+  createProjectDurableCampaignRepositories,
+  currentProjectGenerationExecutionContext,
+  createSnapshotAwareCampaignRepositories,
+} from "./project-generation-execution.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -131,9 +141,20 @@ export function createWorkerRuntimeComposition(
     options.liveSmokeValidationEvidenceStore ?? new PostgresLiveSmokeValidationEvidenceStore(sql);
   const liveSmokeFailureEvidenceStore =
     options.liveSmokeFailureEvidenceStore ?? new PostgresLiveSmokeFailureEvidenceStore(sql);
-  const campaignRepositories = options.campaignRepositories ?? createInMemoryCampaignRepositories();
-  const assetRepositories = options.assetRepositories ?? createInMemoryAssetRepositories();
-  const creativeRepositories = options.creativeRepositories ?? createInMemoryCreativeRepositories();
+  const campaignDelegate = options.campaignRepositories ?? createInMemoryCampaignRepositories();
+  const assetDelegate = options.assetRepositories ?? createInMemoryAssetRepositories();
+  const projectReaders = new DrizzleProjectContextReaders(sql);
+  const campaignRepositories = createProjectDurableCampaignRepositories(
+    campaignDelegate,
+    projectReaders,
+  );
+  const assetRepositories = createProjectDurableAssetRepositories(assetDelegate, projectReaders);
+  const creativeRepositories = new DrizzleCreativeRepositories(
+    sql,
+    {},
+    currentProjectGenerationExecutionContext,
+    options.creativeRepositories ?? createInMemoryCreativeRepositories(),
+  );
   const clientBrandRepositories =
     options.clientBrandRepositories ?? createInMemoryClientBrandRepositories();
   const fileObjectReader = options.fileObjectReader ?? new PostgresUploadSessionRepository(sql);
@@ -150,7 +171,9 @@ export function createWorkerRuntimeComposition(
   const providerGateway = options.providerGateway ?? aiRuntime.provider.gateway;
   const providerMode = options.providerMode ?? aiRuntime.provider.mode;
   const pricingPolicy = createLiveSmokePricingPolicy(runtimeEnvironment);
-  const handlers = createJacomoRuntimeHandlers({
+  const snapshotAwareCampaignRepositories =
+    createSnapshotAwareCampaignRepositories(campaignRepositories);
+  const frozenHandlers = createJacomoRuntimeHandlers({
     sql,
     publisher,
     storage,
@@ -162,13 +185,24 @@ export function createWorkerRuntimeComposition(
     liveSmokeLifecycleStore,
     liveSmokeValidationEvidenceStore,
     liveSmokeFailureEvidenceStore,
-    campaignRepositories,
+    campaignRepositories: snapshotAwareCampaignRepositories,
     assetRepositories,
     creativeRepositories,
     clientBrandRepositories,
     fileObjectReader,
     providerMode,
     ...(pricingPolicy ? { pricingPolicy } : {}),
+  });
+  const handlers = Object.freeze({
+    ...frozenHandlers,
+    "creative.generate": createProjectAwareCreativeGenerateHandler({
+      sql,
+      inner: frozenHandlers["creative.generate"]!,
+    }),
+    "creative.render": createProjectAwareCreativeRenderHandler({
+      sql,
+      inner: frozenHandlers["creative.render"]!,
+    }),
   });
   let closed = false;
 

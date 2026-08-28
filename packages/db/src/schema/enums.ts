@@ -39,6 +39,17 @@ export const campaignStatusEnum = pgEnum("campaign_status", [
   "COMPLETED",
   "ARCHIVED",
 ]);
+export const projectStatusEnum = pgEnum("project_status", ["ACTIVE", "ARCHIVED"]);
+export const assetRoleCodeEnum = pgEnum("asset_role_code", [
+  "LOGO",
+  "MODEL",
+  "PRODUCT",
+  "KEY_VISUAL",
+  "BACKGROUND",
+  "BADGE",
+  "GRAPHIC",
+  "REFERENCE",
+]);
 export const campaignSourceStatusEnum = pgEnum("campaign_source_status", [
   "UPLOADED",
   "ANALYZING",

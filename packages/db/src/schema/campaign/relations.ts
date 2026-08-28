@@ -17,6 +17,7 @@ export const campaignRelations = Object.freeze({
   generationRequest: [
     "workspace",
     "campaign",
+    "project",
     "briefVersion",
     "creativeSet",
     "asyncJob",

@@ -3,6 +3,7 @@ export type DomainModuleName =
   | "client-brand"
   | "asset"
   | "campaign"
+  | "project"
   | "media-catalog"
   | "creative"
   | "validation"

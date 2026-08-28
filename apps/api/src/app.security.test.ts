@@ -10,6 +10,12 @@ import {
   createDeterministicUploadStorage,
   createUploadUseCases,
 } from "../../../packages/core/src/modules/asset/upload-use-cases.js";
+import { createInMemoryProjectRepositories } from "../../../packages/core/src/modules/project/repositories.js";
+import { createInMemoryCampaignRepositories } from "../../../packages/core/src/modules/campaign/repositories.js";
+import { createInMemoryAssetRepositories } from "../../../packages/core/src/modules/asset/repositories.js";
+import { createInMemoryCreativeRepositories } from "../../../packages/core/src/modules/creative/repositories.js";
+import { createProjectUseCases } from "../../../packages/core/src/modules/project/project-use-cases.js";
+import { createProjectGenerationPreparer } from "../../../packages/core/src/modules/project/project-generation-preparer.js";
 
 function productionApp(options: Partial<Parameters<typeof buildApp>[0]> = {}) {
   const sessions = createSessionUseCases(new InMemorySessionStore(), {
@@ -24,6 +30,10 @@ function productionApp(options: Partial<Parameters<typeof buildApp>[0]> = {}) {
     bucket: "production-test",
     filePolicy: { allowedMimeTypes: ["image/png"], maxBytes: 1024, maxPixels: 100 },
   });
+  const projectRepositories = createInMemoryProjectRepositories();
+  const campaigns = createInMemoryCampaignRepositories();
+  const assets = createInMemoryAssetRepositories();
+  const projects = createProjectUseCases({ projects: projectRepositories, campaigns, assets });
   return buildApp({
     securityMode: "production",
     sessions,
@@ -35,6 +45,18 @@ function productionApp(options: Partial<Parameters<typeof buildApp>[0]> = {}) {
     bodyLimit: 1024,
     rateLimit: { windowMs: 60_000, maxRequests: 20 },
     publicMetrics: false,
+    projectRepositories,
+    projectCampaignContext: campaigns,
+    projectAssetContext: assets,
+    projectCreativeQueries: createInMemoryCreativeRepositories(),
+    projectGenerationPreparer: createProjectGenerationPreparer({
+      projects,
+      campaigns: {
+        async getConfirmedBriefVersion() {
+          return "brief-test";
+        },
+      },
+    }),
     ...options,
   });
 }

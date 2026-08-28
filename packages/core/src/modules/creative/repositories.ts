@@ -32,6 +32,7 @@ export interface CreativeSetRecord {
   readonly id: string;
   readonly workspaceId: string;
   readonly campaignId: string;
+  readonly projectId?: string | null;
   readonly name: string;
   readonly generationRequestId?: string | null;
   readonly status: CreativeSetStatus;
@@ -85,6 +86,12 @@ export interface CreativeAssetUsageRecord {
   readonly transformJson: Readonly<Record<string, unknown>>;
   readonly createdAt: string;
 }
+export interface AssetUsageGraphRecord extends CreativeAssetUsageRecord {
+  readonly creativeId: string;
+  readonly creativeSetId: string;
+  readonly campaignId: string;
+  readonly projectId: string | null;
+}
 
 export interface CreativeEditOperationRecord {
   readonly id: string;
@@ -112,6 +119,10 @@ export interface CreativeRenderRecord {
 
 export interface CreativeRepositories {
   listCreativeSets(workspaceId: string, campaignId?: string): Promise<readonly CreativeSetRecord[]>;
+  listCreativeSetsByProject(
+    workspaceId: string,
+    projectId: string,
+  ): Promise<readonly CreativeSetRecord[]>;
   getCreativeSet(workspaceId: string, id: string): Promise<CreativeSetRecord | null>;
   createCreativeSet(
     input: Omit<CreativeSetRecord, "id" | "status" | "revisionNo" | "createdAt" | "updatedAt"> & {
@@ -189,6 +200,10 @@ export interface CreativeRepositories {
     workspaceId: string,
     versionId: string,
   ): Promise<readonly CreativeAssetUsageRecord[]>;
+  listAssetUsageGraph(
+    workspaceId: string,
+    assetVersionId?: string,
+  ): Promise<readonly AssetUsageGraphRecord[]>;
   appendEditOperations(
     items: readonly (Omit<CreativeEditOperationRecord, "id" | "operationNo" | "createdAt"> & {
       id?: string;
@@ -274,6 +289,12 @@ export function createInMemoryCreativeRepositories(seed: CreativeSeed = {}): Cre
           item.workspaceId === workspaceId &&
           !item.deletedAt &&
           (!campaignId || item.campaignId === campaignId),
+      );
+    },
+    async listCreativeSetsByProject(workspaceId, projectId) {
+      return [...sets.values()].filter(
+        (item) =>
+          item.workspaceId === workspaceId && item.projectId === projectId && !item.deletedAt,
       );
     },
     async getCreativeSet(workspaceId, id) {
@@ -460,6 +481,30 @@ export function createInMemoryCreativeRepositories(seed: CreativeSeed = {}): Cre
       return [...usages.values()].filter(
         (item) => item.workspaceId === workspaceId && item.creativeVersionId === versionId,
       );
+    },
+    async listAssetUsageGraph(workspaceId, assetVersionId) {
+      const result: AssetUsageGraphRecord[] = [];
+      for (const usage of usages.values()) {
+        if (
+          usage.workspaceId !== workspaceId ||
+          (assetVersionId && usage.assetVersionId !== assetVersionId)
+        )
+          continue;
+        const version = versions.get(usage.creativeVersionId);
+        const creative = version ? creatives.get(version.creativeId) : undefined;
+        const set = creative ? sets.get(creative.creativeSetId) : undefined;
+        if (version && creative && set)
+          result.push(
+            Object.freeze({
+              ...usage,
+              creativeId: creative.id,
+              creativeSetId: set.id,
+              campaignId: set.campaignId,
+              projectId: set.projectId ?? null,
+            }),
+          );
+      }
+      return result;
     },
     async appendEditOperations(items) {
       const created: CreativeEditOperationRecord[] = [];

@@ -1,5 +1,5 @@
 export const creativeRelations = Object.freeze({
-  creativeSet: ["workspace", "campaign", "generationRequest"],
+  creativeSet: ["workspace", "campaign", "project", "generationRequest"],
   creative: [
     "workspace",
     "creativeSet",
