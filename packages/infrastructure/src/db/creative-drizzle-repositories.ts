@@ -280,8 +280,18 @@ export class DrizzleCreativeRepositories implements CreativeRepositories {
       );
     const id = input.id ?? randomUUID();
     const versionNo = input.versionNo ?? 1;
-    await this
-      .sql`INSERT INTO creative_version (id, workspace_id, creative_id, version_no, parent_version_id, format_profile_id, layout_template_id, brief_version_id, document_json, copy_assets_json, generation_metadata_json, status, revision_no, created_by) VALUES (${id}, ${input.workspaceId}, ${input.creativeId}, ${versionNo}, ${input.parentVersionId ?? null}, ${formats[0]!.format_profile_id}, ${formats[0]!.layout_template_id}, ${input.briefVersionId}, convert_from(${jsonb(input.documentJson)}, 'UTF8')::jsonb, convert_from(${jsonb(input.copyAssetsJson ?? {})}, 'UTF8')::jsonb, convert_from(${jsonb(input.generationMetadataJson ?? {})}, 'UTF8')::jsonb, ${input.status ?? "DRAFT"}, ${input.revisionNo ?? 1}, ${input.createdBy ?? null}) ON CONFLICT (id) DO NOTHING`;
+    await this.sql.begin(async (transaction) => {
+      await transaction`INSERT INTO creative_version (id, workspace_id, creative_id, version_no, parent_version_id, format_profile_id, layout_template_id, brief_version_id, document_json, copy_assets_json, generation_metadata_json, status, revision_no, created_by) VALUES (${id}, ${input.workspaceId}, ${input.creativeId}, ${versionNo}, ${input.parentVersionId ?? null}, ${formats[0]!.format_profile_id}, ${formats[0]!.layout_template_id}, ${input.briefVersionId}, convert_from(${jsonb(input.documentJson)}, 'UTF8')::jsonb, convert_from(${jsonb(input.copyAssetsJson ?? {})}, 'UTF8')::jsonb, convert_from(${jsonb(input.generationMetadataJson ?? {})}, 'UTF8')::jsonb, ${input.status ?? "DRAFT"}, ${input.revisionNo ?? 1}, ${input.createdBy ?? null}) ON CONFLICT (id) DO NOTHING`;
+      const persisted = await transaction<
+        { creative_id: string }[]
+      >`SELECT creative_id FROM creative_version WHERE workspace_id = ${input.workspaceId} AND id = ${id}`;
+      if (persisted.length !== 1 || persisted[0]!.creative_id !== input.creativeId)
+        throw new Error("PROJECT_CREATIVE_VERSION_IDENTITY_MISMATCH");
+      const pointed = await transaction<
+        { id: string }[]
+      >`UPDATE creative SET current_version_id = ${id}, revision_no = CASE WHEN current_version_id IS DISTINCT FROM ${id} THEN revision_no + 1 ELSE revision_no END, updated_at = CASE WHEN current_version_id IS DISTINCT FROM ${id} THEN now() ELSE updated_at END WHERE workspace_id = ${input.workspaceId} AND id = ${input.creativeId} RETURNING id`;
+      if (pointed.length !== 1) throw new Error("PROJECT_CREATIVE_CURRENT_VERSION_PERSIST_FAILED");
+    });
     const created = await this.version(input.workspaceId, id);
     if (!created) throw new Error("PROJECT_CREATIVE_VERSION_PERSIST_FAILED");
     return created;

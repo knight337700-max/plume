@@ -5,6 +5,7 @@ import path from "node:path";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetTestDatabase } from "../../../packages/db/src/testing/reset.js";
+import { validateCommandEnvelope } from "../../../packages/contracts/src/async.js";
 import { DrizzleCreativeRepositories } from "../../../packages/infrastructure/src/db/creative-drizzle-repositories.js";
 import { DurableAsyncCommandPublisher } from "../../../packages/infrastructure/src/async/durable-command-publisher.js";
 import { createBullMqAdapter } from "../../../packages/infrastructure/src/queue/bullmq.js";
@@ -134,42 +135,44 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
       async deleteTemp() {},
     };
     const adapter = createBullMqAdapter({ redisUrl, prefix });
-    const composition = createWorkerRuntimeComposition({
-      sql,
-      adapter,
-      storage,
-      fileObjectReader: {
-        async getFileObject(requestWorkspace, requestId) {
-          return requestWorkspace === workspaceId && requestId === fileObjectId
-            ? {
-                id: fileObjectId,
-                workspaceId,
-                storageProvider: "TEST",
-                bucket: "test",
-                objectKey,
-                originalFilename: "snapshot.png",
-                mimeType: "image/png",
-                bytes: image.byteLength,
-                checksumSha256: checksum(image),
-                metadataJson: { alpha: true },
-                createdAt: new Date().toISOString(),
-              }
-            : null;
+    let composition: ReturnType<typeof createWorkerRuntimeComposition> | null =
+      createWorkerRuntimeComposition({
+        sql,
+        adapter,
+        storage,
+        fileObjectReader: {
+          async getFileObject(requestWorkspace, requestId) {
+            return requestWorkspace === workspaceId && requestId === fileObjectId
+              ? {
+                  id: fileObjectId,
+                  workspaceId,
+                  storageProvider: "TEST",
+                  bucket: "test",
+                  objectKey,
+                  originalFilename: "snapshot.png",
+                  mimeType: "image/png",
+                  bytes: image.byteLength,
+                  checksumSha256: checksum(image),
+                  metadataJson: { alpha: true },
+                  createdAt: new Date().toISOString(),
+                }
+              : null;
+          },
         },
-      },
-      providerMode: "mock",
-    });
+        providerMode: "mock",
+      });
     const registry = createRuntimeHandlerRegistry(
       composition.handlers,
       ["creative.generate", "creative.render"],
       ["creative.generate", "creative.render"],
     );
-    const bootstrap = createWorkerBootstrap({
+    let bootstrap: ReturnType<typeof createWorkerBootstrap> | null = createWorkerBootstrap({
       adapter,
       handlers: registry.registrations,
       requiredHandlerTypes: ["creative.generate", "creative.render"],
       readinessChecks: composition.readinessChecks,
     });
+    let runtimeStopped = false;
     try {
       expect((await bootstrap.start()).status).toBe("ready");
       const command = await new DurableAsyncCommandPublisher(sql).enqueue({
@@ -278,6 +281,7 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
           stored_selection_id: string;
           stored_format_profile_id: string;
           used_asset_version_id: string;
+          current_version_id: string | null;
         }[]
       >`SELECT
         (SELECT count(*)::int FROM creative_set cs WHERE cs.generation_request_id = gr.id) AS creative_sets,
@@ -286,6 +290,7 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
         (SELECT count(*)::int FROM creative_version cv JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id WHERE cs.generation_request_id = gr.id) AS versions,
         (SELECT count(*)::int FROM creative_asset_usage cau JOIN creative_version cv ON cv.id = cau.creative_version_id JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id WHERE cs.generation_request_id = gr.id) AS usages,
         c.campaign_format_selection_id AS stored_selection_id,
+        c.current_version_id,
         cv.format_profile_id AS stored_format_profile_id,
         cau.asset_version_id AS used_asset_version_id
         FROM generation_request gr
@@ -304,15 +309,77 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
           stored_selection_id: campaignFormatSelectionId,
           stored_format_profile_id: durableFormatProfileId,
           used_asset_version_id: snapshotAssetVersionId,
+          current_version_id: generatedVersion!.id,
         }),
       ]);
-      const recreatedRepositories = new DrizzleCreativeRepositories(sql);
-      await expect(
-        recreatedRepositories.getVersion(workspaceId, generatedVersion!.id),
-      ).resolves.toMatchObject({
-        id: generatedVersion!.id,
-        formatProfileId: "kakao-moment-bizboard-1029x258",
+      expect(generatedCreative?.currentVersionId).toBe(generatedVersion?.id);
+      const sourceMessages = await sql<
+        {
+          workspace_id: string;
+          topic: string;
+          message_key: string;
+          message_type: string;
+          schema_version: number;
+          payload_json: Record<string, unknown>;
+          headers_json: Record<string, unknown>;
+          created_at: Date;
+        }[]
+      >`SELECT workspace_id, topic, message_key, message_type, schema_version, payload_json, headers_json, created_at
+        FROM outbox_message WHERE message_key = ${command.messageId}`;
+      const sourceMessage = sourceMessages[0]!;
+      const replayEnvelope = validateCommandEnvelope({
+        messageId: String(sourceMessage.headers_json.messageId ?? sourceMessage.message_key),
+        schemaVersion: sourceMessage.schema_version,
+        workspaceId: sourceMessage.workspace_id,
+        correlationId: String(sourceMessage.headers_json.correlationId),
+        jobId: String(sourceMessage.headers_json.jobId),
+        jobItemId: String(sourceMessage.headers_json.jobItemId),
+        createdAt: String(
+          sourceMessage.headers_json.createdAt ?? sourceMessage.created_at.toISOString(),
+        ),
+        command: sourceMessage.message_type,
+        payload: sourceMessage.payload_json,
       });
+      const replay = await adapter.enqueue(sourceMessage.topic, {
+        name: sourceMessage.message_type,
+        data: replayEnvelope,
+        options: { jobId: `replay-${randomUUID()}`, attempts: 1 },
+      });
+      await eventually(async () => (await replay.getState()) === "completed");
+      const afterReplay = await sql<
+        {
+          generation_requests: number;
+          generation_items: number;
+          creative_sets: number;
+          creatives: number;
+          versions: number;
+          usages: number;
+          creative_set_id: string | null;
+          current_version_id: string | null;
+        }[]
+      >`SELECT
+        (SELECT count(*)::int FROM generation_request WHERE async_job_id = ${command.jobId}) AS generation_requests,
+        (SELECT count(*)::int FROM generation_request_item WHERE generation_request_id = ${persisted[0]!.id}) AS generation_items,
+        (SELECT count(*)::int FROM creative_set WHERE generation_request_id = ${persisted[0]!.id}) AS creative_sets,
+        (SELECT count(*)::int FROM creative WHERE creative_set_id = ${generatedSet!.id}) AS creatives,
+        (SELECT count(*)::int FROM creative_version WHERE creative_id = ${generatedCreative!.id}) AS versions,
+        (SELECT count(*)::int FROM creative_asset_usage WHERE creative_version_id = ${generatedVersion!.id}) AS usages,
+        gr.creative_set_id,
+        c.current_version_id
+        FROM generation_request gr JOIN creative c ON c.id = ${generatedCreative!.id}
+        WHERE gr.id = ${persisted[0]!.id}`;
+      expect(afterReplay).toEqual([
+        {
+          generation_requests: 1,
+          generation_items: 1,
+          creative_sets: 1,
+          creatives: 1,
+          versions: 1,
+          usages: 1,
+          creative_set_id: generatedSet!.id,
+          current_version_id: generatedVersion!.id,
+        },
+      ]);
       expect(
         (
           await sql<
@@ -326,6 +393,75 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
         JOIN creative c ON c.id = cv.creative_id
         JOIN creative_set cs ON cs.id = c.creative_set_id
         WHERE cs.generation_request_id = ${persisted[0]!.id}`;
+      await composition.outboxDispatcher.stop();
+      await bootstrap.stop();
+      await composition.close();
+      runtimeStopped = true;
+      composition = null;
+      bootstrap = null;
+      await sql.end({ timeout: 5 });
+      sql = postgres(databaseUrl, { max: 2, onnotice: () => undefined });
+      const recreatedRepositories = new DrizzleCreativeRepositories(sql);
+      const recreatedSet = (
+        await recreatedRepositories.listCreativeSetsByProject(workspaceId, projectId)
+      )[0];
+      const recreatedCreative = (
+        await recreatedRepositories.listCreatives(workspaceId, recreatedSet?.id)
+      )[0];
+      const recreatedVersion = await recreatedRepositories.getVersion(
+        workspaceId,
+        generatedVersion!.id,
+      );
+      await expect(
+        recreatedRepositories.createVersion({
+          id: generatedVersion!.id,
+          workspaceId,
+          creativeId: generatedCreative!.id,
+          versionNo: generatedVersion!.versionNo,
+          parentVersionId: generatedVersion!.parentVersionId ?? null,
+          formatProfileId: generatedVersion!.formatProfileId,
+          layoutTemplateId: generatedVersion!.layoutTemplateId ?? null,
+          briefVersionId: generatedVersion!.briefVersionId,
+          documentJson: generatedVersion!.documentJson,
+          copyAssetsJson: generatedVersion!.copyAssetsJson,
+          generationMetadataJson: generatedVersion!.generationMetadataJson,
+          status: generatedVersion!.status,
+          revisionNo: generatedVersion!.revisionNo,
+          createdBy: generatedVersion!.createdBy ?? null,
+        }),
+      ).resolves.toMatchObject({ id: generatedVersion!.id });
+      const recreatedUsage = await recreatedRepositories.listAssetUsageGraph(
+        workspaceId,
+        snapshotAssetVersionId,
+      );
+      expect(recreatedSet?.id).toBe(generatedSet?.id);
+      expect(recreatedCreative).toMatchObject({
+        id: generatedCreative!.id,
+        currentVersionId: generatedVersion!.id,
+      });
+      expect(recreatedVersion).toMatchObject({
+        id: generatedVersion!.id,
+        formatProfileId: "kakao-moment-bizboard-1029x258",
+      });
+      expect(recreatedUsage).toEqual([
+        expect.objectContaining({
+          id: usageRows[0]!.id,
+          creativeVersionId: generatedVersion!.id,
+          projectId,
+          assetVersionId: snapshotAssetVersionId,
+        }),
+      ]);
+      await expect(
+        sql`SELECT gr.id AS generation_request_id, gr.creative_set_id, cs.project_id,
+          c.id AS creative_id, c.current_version_id, cv.id AS creative_version_id,
+          cau.id AS asset_usage_id
+          FROM generation_request gr
+          JOIN creative_set cs ON cs.id = gr.creative_set_id
+          JOIN creative c ON c.creative_set_id = cs.id
+          JOIN creative_version cv ON cv.id = c.current_version_id
+          JOIN creative_asset_usage cau ON cau.creative_version_id = cv.id
+          WHERE gr.id = ${persisted[0]!.id}`,
+      ).resolves.toHaveLength(1);
       console.info(
         "PI_4C0_3_GRAPH_EVIDENCE",
         JSON.stringify({
@@ -348,12 +484,21 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
           creativeVersionCount: durableGraph[0]!.versions,
           assetUsageCount: durableGraph[0]!.usages,
           finalRenderAssetVersionId: snapshotAssetVersionId,
+          creativeCurrentVersionId: recreatedCreative!.currentVersionId,
+          replayGenerationRequestCount: afterReplay[0]!.generation_requests,
+          replayCreativeSetCount: afterReplay[0]!.creative_sets,
+          replayCreativeCount: afterReplay[0]!.creatives,
+          replayCreativeVersionCount: afterReplay[0]!.versions,
+          replayAssetUsageCount: afterReplay[0]!.usages,
+          fullRuntimeRecreation: true,
         }),
       );
     } finally {
-      await composition.outboxDispatcher.stop();
-      await bootstrap.stop();
-      await composition.close();
+      if (!runtimeStopped) {
+        await composition?.outboxDispatcher.stop();
+        await bootstrap?.stop();
+        await composition?.close();
+      }
     }
   }, 30_000);
 });
