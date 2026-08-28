@@ -6,6 +6,7 @@ import { clientBrandRoutes } from "./routes/client-brand/index.js";
 import { mediaCatalogRoutes } from "./routes/media-catalog/index.js";
 import { assetFileRoutes, assetRoutesGroup } from "./routes/asset/index.js";
 import { campaignRouteGroup } from "./routes/campaign/index.js";
+import type { DurableFormatBinding } from "../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
 import { projectRouteGroup } from "./routes/project/index.js";
 import { creativeRouteGroup } from "./routes/creative/index.js";
 import { validationRouteGroup } from "./routes/validation/index.js";
@@ -75,6 +76,13 @@ export interface BuildAppOptions extends FastifyServerOptions {
       briefVersionId?: string;
     }): Promise<PreparedProjectGeneration>;
   };
+  readonly projectFormatBindings?: {
+    resolve(
+      workspaceId: string,
+      campaignId: string,
+      formatSelectionIds: readonly string[],
+    ): Promise<readonly DurableFormatBinding[]>;
+  };
   readonly clientBrandRepositories?: ClientBrandRepositories;
   readonly sessionSecret?: string;
   readonly cookieSecure?: boolean;
@@ -100,6 +108,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     projectAssetContext,
     projectCreativeQueries,
     projectGenerationPreparer,
+    projectFormatBindings,
     clientBrandRepositories,
     sessionSecret,
     cookieSecure,
@@ -156,6 +165,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       assetRepositories: resolvedAssetRepositories,
       creativeRepositories: resolvedCreativeRepositories,
       ...(projectGenerationPreparer ? { projectGenerationPreparer } : {}),
+      ...(projectFormatBindings ? { projectFormatBindings } : {}),
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(projectRouteGroup, {

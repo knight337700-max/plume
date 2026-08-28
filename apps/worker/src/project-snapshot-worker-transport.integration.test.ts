@@ -5,9 +5,7 @@ import path from "node:path";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetTestDatabase } from "../../../packages/db/src/testing/reset.js";
-import { createInMemoryAssetRepositories } from "../../../packages/core/src/modules/asset/repositories.js";
-import { createInMemoryCampaignRepositories } from "../../../packages/core/src/modules/campaign/repositories.js";
-import { createInMemoryCreativeRepositories } from "../../../packages/core/src/modules/creative/repositories.js";
+import { DrizzleCreativeRepositories } from "../../../packages/infrastructure/src/db/creative-drizzle-repositories.js";
 import { DurableAsyncCommandPublisher } from "../../../packages/infrastructure/src/async/durable-command-publisher.js";
 import { createBullMqAdapter } from "../../../packages/infrastructure/src/queue/bullmq.js";
 import type { ObjectStorage } from "../../../packages/infrastructure/src/storage/s3-object-storage.js";
@@ -15,7 +13,9 @@ import { createWorkerBootstrap } from "./bootstrap.js";
 import { createWorkerRuntimeComposition } from "./composition.js";
 import { createRuntimeHandlerRegistry } from "./runtime-registry.js";
 
-const enabled = process.env.RUN_PI_4C0_2_REDIS_TEST === "true";
+const enabled =
+  process.env.RUN_PI_4C0_3_POSTGRES_REDIS_TEST === "true" ||
+  process.env.RUN_PI_4C0_2_REDIS_TEST === "true";
 const databaseUrl =
   process.env.TEST_DATABASE_URL?.trim() ||
   "postgresql://plume:plume_local_only@localhost:5432/plume_test";
@@ -33,7 +33,7 @@ async function eventually(check: () => Promise<boolean>, timeoutMs = 15_000): Pr
   }
 }
 
-describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport", () => {
+describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", () => {
   let sql: Sql;
   let image: Uint8Array;
 
@@ -68,152 +68,45 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
     const liveAssetVersionId = randomUUID();
     const fileObjectId = randomUUID();
     const productId = randomUUID();
+    const channelId = randomUUID();
+    const productFamilyId = randomUUID();
+    const adProductId = randomUUID();
+    const exportRecipeId = randomUUID();
+    const durableFormatProfileId = randomUUID();
+    const campaignChannelSelectionId = randomUUID();
+    const campaignFormatSelectionId = randomUUID();
+    const campaignSnapshotAssetId = randomUUID();
+    const campaignLiveAssetId = randomUUID();
     const prefix = `pi4c0-2-${randomUUID()}`;
-    const initialSelectionId = randomUUID();
+    const objectKey = `workspaces/${workspaceId}/uploads/snapshot.png`;
 
     await sql`INSERT INTO workspace (id, name, slug) VALUES (${workspaceId}, 'PI-4C0.2', ${`pi4c0-2-${workspaceId.slice(0, 8)}`})`;
     await sql`INSERT INTO advertiser (id, workspace_id, name, normalized_name) VALUES (${advertiserId}, ${workspaceId}, 'PI-4C0.2', 'pi-4c0-2')`;
     await sql`INSERT INTO brand (id, workspace_id, advertiser_id, name, normalized_name) VALUES (${brandId}, ${workspaceId}, ${advertiserId}, 'PI-4C0.2', 'pi-4c0-2')`;
     await sql`INSERT INTO campaign (id, workspace_id, brand_id, display_code, name, objective_code, current_step, status) VALUES (${campaignId}, ${workspaceId}, ${brandId}, 'PI4C02', 'Snapshot transport', 'SALES', 'READY', 'DRAFT')`;
+    await sql`INSERT INTO product (id, workspace_id, brand_id, name, normalized_name) VALUES (${productId}, ${workspaceId}, ${brandId}, 'Snapshot product', 'snapshot-product')`;
+    await sql`INSERT INTO channel (id, code, name) VALUES (${channelId}, 'KAKAO_MOMENT', 'Kakao Moment')`;
+    await sql`INSERT INTO product_family (id, channel_id, code, name) VALUES (${productFamilyId}, ${channelId}, 'DISPLAY', 'Display')`;
+    await sql`INSERT INTO ad_product (id, product_family_id, code, name) VALUES (${adProductId}, ${productFamilyId}, 'BIZBOARD', 'Bizboard')`;
+    await sql`INSERT INTO export_recipe (id, stable_key, version, name, recipe_json) VALUES (${exportRecipeId}, 'pi4c0.3', '1', 'PI-4C0.3', '{}'::jsonb)`;
+    await sql`INSERT INTO format_profile (id, channel_id, ad_product_id, export_recipe_id, stable_key, version, name, render_mode, media_type, verification_status, spec_json) VALUES (${durableFormatProfileId}, ${channelId}, ${adProductId}, ${exportRecipeId}, 'kakao-moment-bizboard-1029x258', '2026.1', 'Bizboard', 'CANONICAL_RENDERER', 'IMAGE', 'VERIFIED', '{}'::jsonb)`;
+    await sql`INSERT INTO campaign_channel_selection (id, workspace_id, campaign_id, channel_id) VALUES (${campaignChannelSelectionId}, ${workspaceId}, ${campaignId}, ${channelId})`;
+    await sql`INSERT INTO campaign_format_selection (id, workspace_id, campaign_id, campaign_channel_selection_id, format_profile_id) VALUES (${campaignFormatSelectionId}, ${workspaceId}, ${campaignId}, ${campaignChannelSelectionId}, ${durableFormatProfileId})`;
     await sql`INSERT INTO campaign_brief (id, workspace_id, campaign_id) VALUES (${briefId}, ${workspaceId}, ${campaignId})`;
-    await sql`INSERT INTO campaign_brief_version (id, workspace_id, campaign_brief_id, version_no, source_kind, content_json, status) VALUES (${briefVersionId}, ${workspaceId}, ${briefId}, 1, 'MANUAL', ${JSON.stringify({ creativeCopy: { advertiser: "PLUME", headline: "Snapshot", subcopy: "Frozen before enqueue" } })}::jsonb, 'CONFIRMED')`;
+    await sql`INSERT INTO campaign_brief_version (id, workspace_id, campaign_brief_id, version_no, source_kind, content_json, status) VALUES (${briefVersionId}, ${workspaceId}, ${briefId}, 1, 'MANUAL', jsonb_build_object('creativeCopy', jsonb_build_object('advertiser', '자코모', 'headline', '자코모 프리미엄 소파', 'subcopy', '거실을 바꾸는 선택')), 'CONFIRMED')`;
     await sql`UPDATE campaign_brief SET current_version_id = ${briefVersionId}, current_confirmed_version_id = ${briefVersionId} WHERE id = ${briefId}`;
     await sql`INSERT INTO project (id, workspace_id, campaign_id, name, status, revision_no) VALUES (${projectId}, ${workspaceId}, ${campaignId}, 'Transport project', 'ACTIVE', 1)`;
-    await sql`INSERT INTO file_object (id, workspace_id, storage_provider, bucket, object_key, original_filename, mime_type, bytes, checksum_sha256) VALUES (${fileObjectId}, ${workspaceId}, 'TEST', 'test', 'snapshot.png', 'snapshot.png', 'image/png', ${image.byteLength}, ${checksum(image)})`;
+    await sql`INSERT INTO file_object (id, workspace_id, storage_provider, bucket, object_key, original_filename, mime_type, bytes, checksum_sha256) VALUES (${fileObjectId}, ${workspaceId}, 'TEST', 'test', ${objectKey}, 'snapshot.png', 'image/png', ${image.byteLength}, ${checksum(image)})`;
     for (const [assetId, versionId, name] of [
       [snapshotAssetId, snapshotAssetVersionId, "Snapshot Product"],
       [liveAssetId, liveAssetVersionId, "Live Product"],
     ] as const) {
       await sql`INSERT INTO design_asset (id, workspace_id, brand_id, name, asset_type, status, license_status) VALUES (${assetId}, ${workspaceId}, ${brandId}, ${name}, 'IMAGE', 'ACTIVE', 'VALID')`;
-      await sql`INSERT INTO asset_version (id, workspace_id, design_asset_id, version_no, file_object_id, source_type) VALUES (${versionId}, ${workspaceId}, ${assetId}, 1, ${fileObjectId}, 'UPLOAD')`;
+      await sql`INSERT INTO asset_version (id, workspace_id, design_asset_id, version_no, file_object_id, source_type, analysis_json) VALUES (${versionId}, ${workspaceId}, ${assetId}, 1, ${fileObjectId}, 'UPLOAD', '{"alpha":true}'::jsonb)`;
+      await sql`UPDATE design_asset SET current_version_id = ${versionId} WHERE id = ${assetId}`;
     }
+    await sql`INSERT INTO campaign_asset (id, workspace_id, campaign_id, design_asset_id, product_id, status, role_code) VALUES (${campaignSnapshotAssetId}, ${workspaceId}, ${campaignId}, ${snapshotAssetId}, ${productId}, 'SELECTED', 'PRODUCT')`;
 
-    let liveSelectionReads = 0;
-    const campaigns = createInMemoryCampaignRepositories({
-      campaigns: [
-        {
-          id: campaignId,
-          workspaceId,
-          brandId,
-          displayCode: "PI4C02",
-          name: "Snapshot transport",
-          objectiveCode: "SALES",
-          status: "DRAFT",
-          currentStep: "READY",
-          revisionNo: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      briefs: [
-        { id: briefId, workspaceId, campaignId, currentVersionId: briefVersionId, revisionNo: 1 },
-      ],
-      briefVersions: [
-        {
-          id: briefVersionId,
-          workspaceId,
-          campaignBriefId: briefId,
-          versionNo: 1,
-          sourceKind: "MANUAL",
-          contentJson: {
-            creativeCopy: {
-              advertiser: "PLUME",
-              headline: "Snapshot",
-              subcopy: "Frozen before enqueue",
-            },
-          },
-          sourceCitationsJson: [],
-          brandProfileSnapshotJson: {},
-          status: "CONFIRMED",
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      assetPoolSelections: [
-        {
-          id: initialSelectionId,
-          workspaceId,
-          campaignId,
-          productId,
-          assetVersionId: snapshotAssetVersionId,
-          roleCode: "PRODUCT",
-          status: "SELECTED",
-          licenseStatus: "VALID",
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      formatSelections: [
-        {
-          id: randomUUID(),
-          workspaceId,
-          campaignId,
-          channelCode: "KAKAO_MOMENT",
-          formatProfileId: "kakao-moment-bizboard-1029x258",
-          profileVersion: "2026.1",
-          status: "SELECTED",
-          snapshotJson: {},
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-    });
-    const campaignRepositories = {
-      ...campaigns,
-      async listAssetPoolSelections(...args: Parameters<typeof campaigns.listAssetPoolSelections>) {
-        liveSelectionReads += 1;
-        return campaigns.listAssetPoolSelections(...args);
-      },
-    };
-    const assets = createInMemoryAssetRepositories({
-      assets: [
-        {
-          id: snapshotAssetId,
-          workspaceId,
-          brandId,
-          name: "Snapshot Product",
-          assetType: "IMAGE",
-          status: "ACTIVE",
-          licenseStatus: "VALID",
-          analysisSummaryJson: {},
-          revisionNo: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: liveAssetId,
-          workspaceId,
-          brandId,
-          name: "Live Product",
-          assetType: "IMAGE",
-          status: "ACTIVE",
-          licenseStatus: "VALID",
-          analysisSummaryJson: {},
-          revisionNo: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      versions: [
-        {
-          id: snapshotAssetVersionId,
-          workspaceId,
-          designAssetId: snapshotAssetId,
-          versionNo: 1,
-          fileObjectId,
-          sourceType: "UPLOAD",
-          analysisJson: { alpha: true },
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: liveAssetVersionId,
-          workspaceId,
-          designAssetId: liveAssetId,
-          versionNo: 1,
-          fileObjectId,
-          sourceType: "UPLOAD",
-          analysisJson: { alpha: true },
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
     const storage: ObjectStorage = {
       createObjectKey: () => "output.png",
       async put(input) {
@@ -241,14 +134,10 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
       async deleteTemp() {},
     };
     const adapter = createBullMqAdapter({ redisUrl, prefix });
-    const creativeRepositories = createInMemoryCreativeRepositories();
     const composition = createWorkerRuntimeComposition({
       sql,
       adapter,
       storage,
-      campaignRepositories,
-      assetRepositories: assets,
-      creativeRepositories,
       fileObjectReader: {
         async getFileObject(requestWorkspace, requestId) {
           return requestWorkspace === workspaceId && requestId === fileObjectId
@@ -257,7 +146,7 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
                 workspaceId,
                 storageProvider: "TEST",
                 bucket: "test",
-                objectKey: "snapshot.png",
+                objectKey,
                 originalFilename: "snapshot.png",
                 mimeType: "image/png",
                 bytes: image.byteLength,
@@ -272,13 +161,13 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
     });
     const registry = createRuntimeHandlerRegistry(
       composition.handlers,
-      ["creative.generate"],
-      ["creative.generate"],
+      ["creative.generate", "creative.render"],
+      ["creative.generate", "creative.render"],
     );
     const bootstrap = createWorkerBootstrap({
       adapter,
       handlers: registry.registrations,
-      requiredHandlerTypes: ["creative.generate"],
+      requiredHandlerTypes: ["creative.generate", "creative.render"],
       readinessChecks: composition.readinessChecks,
     });
     try {
@@ -292,6 +181,13 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
           briefVersionId,
           productIds: [productId],
           formatProfileIds: ["kakao-moment-bizboard-1029x258"],
+          formatBindings: [
+            {
+              canonicalFormatKey: "kakao-moment-bizboard-1029x258",
+              campaignFormatSelectionId,
+              formatProfileId: durableFormatProfileId,
+            },
+          ],
           variantCountPerProduct: 1,
           generationMode: "CANONICAL_RENDERER",
           projectId,
@@ -305,26 +201,8 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
           ],
         },
       });
-      await campaigns.upsertAssetPoolSelection({
-        id: initialSelectionId,
-        workspaceId,
-        campaignId,
-        productId,
-        assetVersionId: snapshotAssetVersionId,
-        roleCode: "PRODUCT",
-        status: "EXCLUDED",
-        licenseStatus: "VALID",
-      });
-      await campaigns.upsertAssetPoolSelection({
-        id: randomUUID(),
-        workspaceId,
-        campaignId,
-        productId,
-        assetVersionId: liveAssetVersionId,
-        roleCode: "PRODUCT",
-        status: "SELECTED",
-        licenseStatus: "VALID",
-      });
+      await sql`UPDATE campaign_asset SET status = 'EXCLUDED' WHERE id = ${campaignSnapshotAssetId}`;
+      await sql`INSERT INTO campaign_asset (id, workspace_id, campaign_id, design_asset_id, product_id, status, role_code) VALUES (${campaignLiveAssetId}, ${workspaceId}, ${campaignId}, ${liveAssetId}, ${productId}, 'SELECTED', 'PRODUCT')`;
       await composition.outboxDispatcher.flush();
       await eventually(
         async () =>
@@ -334,9 +212,22 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
             >`SELECT status FROM async_job_item WHERE id = ${command.jobItemId}`
           )[0]?.status === "COMPLETED",
       );
+      await composition.outboxDispatcher.flush();
+      await eventually(
+        async () =>
+          (
+            await sql<{ status: string }[]>`SELECT status FROM async_job_item
+              WHERE workspace_id = ${workspaceId} AND command = 'creative.render'`
+          )[0]?.status === "COMPLETED",
+      );
       const persisted = await sql<
-        { project_id: string; asset_pool_snapshot_json: unknown; creative_set_id: string | null }[]
-      >`SELECT project_id, asset_pool_snapshot_json, creative_set_id FROM generation_request WHERE async_job_id = ${command.jobId}`;
+        {
+          id: string;
+          project_id: string;
+          asset_pool_snapshot_json: unknown;
+          creative_set_id: string | null;
+        }[]
+      >`SELECT id, project_id, asset_pool_snapshot_json, creative_set_id FROM generation_request WHERE async_job_id = ${command.jobId}`;
       expect(persisted[0]).toMatchObject({
         project_id: projectId,
         creative_set_id: expect.any(String),
@@ -349,19 +240,78 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
           source: "PROJECT",
         },
       ]);
-      expect(liveSelectionReads).toBe(0);
-      const generatedSet = (
-        await creativeRepositories.listCreativeSets(workspaceId, campaignId)
-      )[0];
+      await expect(
+        sql<{ asset_version_id: string }[]>`SELECT av.id AS asset_version_id
+          FROM campaign_asset ca JOIN design_asset da ON da.id = ca.design_asset_id
+          JOIN asset_version av ON av.id = da.current_version_id
+          WHERE ca.workspace_id = ${workspaceId} AND ca.campaign_id = ${campaignId}
+          AND ca.product_id = ${productId} AND ca.status = 'SELECTED'`,
+      ).resolves.toEqual([{ asset_version_id: liveAssetVersionId }]);
+      const durableCreatives = new DrizzleCreativeRepositories(sql);
+      const generatedSet = (await durableCreatives.listCreativeSets(workspaceId, campaignId))[0];
       const generatedCreative = (
-        await creativeRepositories.listCreatives(workspaceId, generatedSet?.id)
+        await durableCreatives.listCreatives(workspaceId, generatedSet?.id)
       )[0];
-      const generatedVersion = await creativeRepositories.getVersion(
-        workspaceId,
-        generatedCreative?.currentVersionId ?? "",
-      );
+      const generatedVersion = (
+        await durableCreatives.listVersions(workspaceId, generatedCreative?.id ?? "")
+      )[0];
       expect(generatedVersion?.documentJson).toMatchObject({
         usedAssetVersionIds: [snapshotAssetVersionId],
+      });
+      await expect(
+        sql<{ result_json: { renderer?: { assetVersionId?: string } } }[]>`SELECT result_json
+          FROM async_job_item WHERE workspace_id = ${workspaceId} AND command = 'creative.render'`,
+      ).resolves.toEqual([
+        expect.objectContaining({
+          result_json: expect.objectContaining({
+            renderer: expect.objectContaining({ assetVersionId: snapshotAssetVersionId }),
+          }),
+        }),
+      ]);
+      const durableGraph = await sql<
+        {
+          creative_sets: number;
+          generation_items: number;
+          creatives: number;
+          versions: number;
+          usages: number;
+          stored_selection_id: string;
+          stored_format_profile_id: string;
+          used_asset_version_id: string;
+        }[]
+      >`SELECT
+        (SELECT count(*)::int FROM creative_set cs WHERE cs.generation_request_id = gr.id) AS creative_sets,
+        (SELECT count(*)::int FROM generation_request_item gri WHERE gri.generation_request_id = gr.id) AS generation_items,
+        (SELECT count(*)::int FROM creative c JOIN creative_set cs ON cs.id = c.creative_set_id WHERE cs.generation_request_id = gr.id) AS creatives,
+        (SELECT count(*)::int FROM creative_version cv JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id WHERE cs.generation_request_id = gr.id) AS versions,
+        (SELECT count(*)::int FROM creative_asset_usage cau JOIN creative_version cv ON cv.id = cau.creative_version_id JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id WHERE cs.generation_request_id = gr.id) AS usages,
+        c.campaign_format_selection_id AS stored_selection_id,
+        cv.format_profile_id AS stored_format_profile_id,
+        cau.asset_version_id AS used_asset_version_id
+        FROM generation_request gr
+        JOIN creative_set cs ON cs.id = gr.creative_set_id
+        JOIN creative c ON c.creative_set_id = cs.id
+        JOIN creative_version cv ON cv.creative_id = c.id
+        JOIN creative_asset_usage cau ON cau.creative_version_id = cv.id
+        WHERE gr.async_job_id = ${command.jobId}`;
+      expect(durableGraph).toEqual([
+        expect.objectContaining({
+          creative_sets: 1,
+          generation_items: 1,
+          creatives: 1,
+          versions: 1,
+          usages: 1,
+          stored_selection_id: campaignFormatSelectionId,
+          stored_format_profile_id: durableFormatProfileId,
+          used_asset_version_id: snapshotAssetVersionId,
+        }),
+      ]);
+      const recreatedRepositories = new DrizzleCreativeRepositories(sql);
+      await expect(
+        recreatedRepositories.getVersion(workspaceId, generatedVersion!.id),
+      ).resolves.toMatchObject({
+        id: generatedVersion!.id,
+        formatProfileId: "kakao-moment-bizboard-1029x258",
       });
       expect(
         (
@@ -370,10 +320,40 @@ describe.skipIf(!enabled)("PI-4C0.2 Project snapshot WorkerBootstrap transport",
           >`SELECT project_id FROM creative_set WHERE id = ${persisted[0]!.creative_set_id}`
         )[0]?.project_id,
       ).toBe(projectId);
+      const usageRows = await sql<{ id: string }[]>`SELECT cau.id
+        FROM creative_asset_usage cau
+        JOIN creative_version cv ON cv.id = cau.creative_version_id
+        JOIN creative c ON c.id = cv.creative_id
+        JOIN creative_set cs ON cs.id = c.creative_set_id
+        WHERE cs.generation_request_id = ${persisted[0]!.id}`;
+      console.info(
+        "PI_4C0_3_GRAPH_EVIDENCE",
+        JSON.stringify({
+          projectId,
+          asyncJobId: command.jobId,
+          generationRequestId: persisted[0]!.id,
+          creativeSetId: generatedSet!.id,
+          generationRequestCreativeSetId: persisted[0]!.creative_set_id,
+          creativeId: generatedCreative!.id,
+          creativeVersionId: generatedVersion!.id,
+          assetUsageId: usageRows[0]!.id,
+          snapshotAssetVersionId,
+          liveAssetVersionId,
+          canonicalFormatKey: generatedVersion!.formatProfileId,
+          campaignFormatSelectionId,
+          durableFormatProfileId,
+          creativeSetCount: durableGraph[0]!.creative_sets,
+          generationRequestItemCount: durableGraph[0]!.generation_items,
+          creativeCount: durableGraph[0]!.creatives,
+          creativeVersionCount: durableGraph[0]!.versions,
+          assetUsageCount: durableGraph[0]!.usages,
+          finalRenderAssetVersionId: snapshotAssetVersionId,
+        }),
+      );
     } finally {
       await composition.outboxDispatcher.stop();
       await bootstrap.stop();
       await composition.close();
     }
-  });
+  }, 30_000);
 });

@@ -43,6 +43,7 @@ import type { AssetRepositories } from "../../../../../packages/core/src/modules
 import type { CreativeRepositories } from "../../../../../packages/core/src/modules/creative/repositories.js";
 import { createProjectUseCases } from "../../../../../packages/core/src/modules/project/project-use-cases.js";
 import type { PreparedProjectGeneration } from "../../../../../packages/core/src/modules/project/project-generation-preparer.js";
+import type { DurableFormatBinding } from "../../../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
 
 interface Options {
   readonly campaigns?: CampaignUseCases;
@@ -64,6 +65,13 @@ interface Options {
       projectId: string;
       briefVersionId?: string;
     }): Promise<PreparedProjectGeneration>;
+  };
+  readonly projectFormatBindings?: {
+    resolve(
+      workspaceId: string,
+      campaignId: string,
+      formatSelectionIds: readonly string[],
+    ): Promise<readonly DurableFormatBinding[]>;
   };
 }
 export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, options) => {
@@ -115,6 +123,9 @@ export const campaignRouteGroup: FastifyPluginAsync<Options> = async (app, optio
     generation,
     ...(options.projectGenerationPreparer
       ? { projectGenerationPreparer: options.projectGenerationPreparer }
+      : {}),
+    ...(options.projectFormatBindings
+      ? { projectFormatBindings: options.projectFormatBindings }
       : {}),
     ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}),
   });

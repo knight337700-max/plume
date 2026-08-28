@@ -20,6 +20,7 @@ import { DrizzleProjectCreativeQueryRepository } from "../../../packages/infrast
 import { DrizzleProjectGenerationContext } from "../../../packages/infrastructure/src/db/project-generation-context-drizzle-repository.js";
 import { createProjectUseCases } from "../../../packages/core/src/modules/project/project-use-cases.js";
 import { createProjectGenerationPreparer } from "../../../packages/core/src/modules/project/project-generation-preparer.js";
+import { DrizzleProjectFormatBindingResolver } from "../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
 
 export async function startApi(): Promise<void> {
   const environment = loadEnvironment(process.env);
@@ -95,6 +96,7 @@ export async function startApi(): Promise<void> {
       projects: projectUseCases,
       campaigns: new DrizzleProjectGenerationContext(database.sql),
     }),
+    projectFormatBindings: new DrizzleProjectFormatBindingResolver(database.sql),
   });
   const host = process.env.HOST ?? "127.0.0.1";
   const port = Number(process.env.PORT ?? 3000);

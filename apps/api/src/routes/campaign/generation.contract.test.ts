@@ -73,6 +73,17 @@ describe("generation routes", () => {
           };
         },
       },
+      projectFormatBindings: {
+        async resolve() {
+          return [
+            {
+              canonicalFormatKey: "kakao-moment-bizboard-1029x258",
+              campaignFormatSelectionId: "00000000-0000-4000-8000-000000000014",
+              formatProfileId: "00000000-0000-4000-8000-000000000015",
+            },
+          ];
+        },
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -90,6 +101,13 @@ describe("generation routes", () => {
       payload: {
         projectId: "project-1",
         assetPoolSnapshot: [{ assetVersionId: "asset-version-1" }],
+        formatProfileIds: ["kakao-moment-bizboard-1029x258"],
+        formatBindings: [
+          {
+            campaignFormatSelectionId: "00000000-0000-4000-8000-000000000014",
+            formatProfileId: "00000000-0000-4000-8000-000000000015",
+          },
+        ],
       },
     });
     await app.close();

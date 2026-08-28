@@ -3,6 +3,7 @@ import type { GenerationUseCases } from "../../../../../packages/core/src/module
 import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
 import { actorReference, headerValue } from "../../async/route-policy.js";
 import type { PreparedProjectGeneration } from "../../../../../packages/core/src/modules/project/project-generation-preparer.js";
+import type { DurableFormatBinding } from "../../../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
 interface Options {
   readonly generation: GenerationUseCases;
   readonly asyncCommands?: AsyncCommandPublisher;
@@ -13,6 +14,13 @@ interface Options {
       projectId: string;
       briefVersionId?: string;
     }): Promise<PreparedProjectGeneration>;
+  };
+  readonly projectFormatBindings?: {
+    resolve(
+      workspaceId: string,
+      campaignId: string,
+      formatSelectionIds: readonly string[],
+    ): Promise<readonly DurableFormatBinding[]>;
   };
 }
 interface Params {
@@ -54,6 +62,18 @@ export const generationRoutes: FastifyPluginAsync<Options> = async (app, options
             code: "PROJECT_DURABLE_GENERATION_UNAVAILABLE",
             statusCode: 503,
           });
+        const formatBindings = projectId
+          ? await options.projectFormatBindings?.resolve(
+              input.workspaceId,
+              input.campaignId,
+              formatSelectionIds,
+            )
+          : undefined;
+        if (projectId && !formatBindings)
+          throw Object.assign(new Error("Project durable format binding is unavailable"), {
+            code: "PROJECT_DURABLE_FORMAT_BINDING_UNAVAILABLE",
+            statusCode: 503,
+          });
         const actor = actorReference(request);
         const idempotencyKey = headerValue(request, "idempotency-key");
         const result = await options.asyncCommands.enqueue({
@@ -66,12 +86,14 @@ export const generationRoutes: FastifyPluginAsync<Options> = async (app, options
               ? { briefVersionId: prepared?.briefVersionId ?? briefVersionId }
               : {}),
             productIds,
-            formatProfileIds: formatSelectionIds,
+            formatProfileIds:
+              formatBindings?.map((binding) => binding.canonicalFormatKey) ?? formatSelectionIds,
             variantCountPerProduct: variantCount,
             generationMode,
             ...(prepared
               ? { projectId: prepared.projectId, assetPoolSnapshot: prepared.assetPoolSnapshot }
               : {}),
+            ...(formatBindings ? { formatBindings } : {}),
           },
           ...(actor ? { requestedBy: actor } : {}),
           ...(idempotencyKey ? { idempotencyKey } : {}),

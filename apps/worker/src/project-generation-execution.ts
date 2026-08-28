@@ -9,6 +9,7 @@ import type {
   CampaignAssetPoolSelectionRecord,
   CampaignRepositories,
 } from "../../../packages/core/src/modules/campaign/repositories.js";
+import type { AssetRepositories } from "../../../packages/core/src/modules/asset/repositories.js";
 import { DurableProjectGenerationPersistence } from "../../../packages/infrastructure/src/db/durable-project-generation-persistence.js";
 import type { Sql } from "postgres";
 import type { RuntimeJobHandler } from "./runtime-registry.js";
@@ -22,6 +23,12 @@ export interface ProjectGenerationExecutionContext {
 }
 
 const executionContext = new AsyncLocalStorage<ProjectGenerationExecutionContext>();
+
+export function currentProjectGenerationExecutionContext():
+  | ProjectGenerationExecutionContext
+  | undefined {
+  return executionContext.getStore();
+}
 
 function immutableSnapshot(payload: CreativeGeneratePayload) {
   if (!payload.projectId || !payload.assetPoolSnapshot)
@@ -114,6 +121,78 @@ export function createSnapshotAwareCampaignRepositories(
   });
 }
 
+/** Routes only active Project canonical reads to PostgreSQL; legacy paths stay unchanged. */
+export function createProjectDurableCampaignRepositories(
+  delegate: CampaignRepositories,
+  durable: Pick<
+    CampaignRepositories,
+    | "getCampaign"
+    | "getBrief"
+    | "getBriefVersion"
+    | "listFormatSelections"
+    | "listCampaignProducts"
+    | "listAssetPoolSelections"
+  >,
+): CampaignRepositories {
+  return new Proxy(delegate, {
+    get(target, property, receiver) {
+      if (
+        ![
+          "getCampaign",
+          "getBrief",
+          "getBriefVersion",
+          "listFormatSelections",
+          "listCampaignProducts",
+          "listAssetPoolSelections",
+        ].includes(String(property))
+      )
+        return Reflect.get(target, property, receiver);
+      return (...args: readonly unknown[]) => {
+        const context = executionContext.getStore();
+        const workspaceId = args[0];
+        const campaignId = args[1];
+        const isVersionLookup = property === "getBriefVersion";
+        if (
+          !context ||
+          workspaceId !== context.workspaceId ||
+          (!isVersionLookup && typeof campaignId === "string" && campaignId !== context.campaignId)
+        )
+          return (
+            Reflect.get(target, property, receiver) as (...values: readonly unknown[]) => unknown
+          ).apply(target, [...args]);
+        return (Reflect.get(durable, property) as (...values: readonly unknown[]) => unknown).apply(
+          durable,
+          [...args],
+        );
+      };
+    },
+  });
+}
+
+export function createProjectDurableAssetRepositories(
+  delegate: AssetRepositories,
+  durable: Pick<AssetRepositories, "getAsset" | "getVersion">,
+): AssetRepositories {
+  return new Proxy(delegate, {
+    get(target, property, receiver) {
+      if (property !== "getAsset" && property !== "getVersion")
+        return Reflect.get(target, property, receiver);
+      return (...args: readonly unknown[]) => {
+        const context = executionContext.getStore();
+        const targetMethod = Reflect.get(target, property, receiver) as (
+          ...values: readonly unknown[]
+        ) => unknown;
+        const durableMethod = Reflect.get(durable, property) as (
+          ...values: readonly unknown[]
+        ) => unknown;
+        if (!context || args[0] !== context.workspaceId)
+          return targetMethod.apply(target, [...args]);
+        return durableMethod.apply(durable, [...args]);
+      };
+    },
+  });
+}
+
 export function createProjectAwareCreativeGenerateHandler(input: {
   readonly sql: Sql;
   readonly inner: RuntimeJobHandler;
@@ -140,6 +219,58 @@ export function createProjectAwareCreativeGenerateHandler(input: {
         projectId: payload.projectId!,
         jobId: envelope.jobId,
         assetPoolSnapshot,
+      }),
+      () => input.inner(job),
+    );
+  };
+}
+
+/** Rehydrates the immutable Project snapshot for a later durable creative.render job. */
+export function createProjectAwareCreativeRenderHandler(input: {
+  readonly sql: Sql;
+  readonly inner: RuntimeJobHandler;
+}): RuntimeJobHandler {
+  return async (job: Job<unknown>) => {
+    const envelope = validateCommandEnvelope(job.data);
+    if (envelope.command !== "creative.render") return input.inner(job);
+    const payload = envelope.payload as { creativeVersionId: string; campaignId?: string };
+    const rows = await input.sql<
+      {
+        workspace_id: string;
+        campaign_id: string;
+        project_id: string | null;
+        async_job_id: string;
+        asset_pool_snapshot_json: NonNullable<CreativeGeneratePayload["assetPoolSnapshot"]>;
+      }[]
+    >`SELECT gr.workspace_id, gr.campaign_id, gr.project_id, gr.async_job_id, gr.asset_pool_snapshot_json
+      FROM creative_version cv
+      JOIN creative c ON c.id = cv.creative_id
+      JOIN creative_set cs ON cs.id = c.creative_set_id
+      JOIN generation_request gr ON gr.id = cs.generation_request_id
+      WHERE cv.workspace_id = ${envelope.workspaceId} AND cv.id = ${payload.creativeVersionId}`;
+    const row = rows[0];
+    if (!row?.project_id) return input.inner(job);
+    if (
+      rows.length !== 1 ||
+      row.workspace_id !== envelope.workspaceId ||
+      (payload.campaignId && payload.campaignId !== row.campaign_id)
+    )
+      throw Object.assign(new Error("Persisted Project render graph scope mismatch"), {
+        code: "PROJECT_RENDER_SCOPE_MISMATCH",
+      });
+    if (!Array.isArray(row.asset_pool_snapshot_json))
+      throw Object.assign(new Error("Persisted Project render snapshot is missing"), {
+        code: "PROJECT_RENDER_SNAPSHOT_REQUIRED",
+      });
+    return runProjectGenerationExecutionContext(
+      Object.freeze({
+        workspaceId: row.workspace_id,
+        campaignId: row.campaign_id,
+        projectId: row.project_id,
+        jobId: row.async_job_id,
+        assetPoolSnapshot: Object.freeze(
+          row.asset_pool_snapshot_json.map((item) => Object.freeze({ ...item })),
+        ),
       }),
       () => input.inner(job),
     );
