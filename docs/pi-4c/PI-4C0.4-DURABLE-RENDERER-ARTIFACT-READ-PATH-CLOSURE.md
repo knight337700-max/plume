@@ -43,13 +43,31 @@ Renderer objects use the existing renderer namespace:
 renders/{workspaceId}/{creativeVersionId}/{checksumSha256}.png
 ```
 
-The integration seam records the exact bucket, object key, byte count,
-checksum, MIME type, dimensions, render mode, and renderer metadata in
-`file_object` and `creative_render.render_config_json`. `FileObject` identity
-is workspace-scoped and content-deduplicated by the existing
+The integration seam records the validated bucket, authoritative FileObject
+object key, current produced renderer key, byte count, checksum, MIME type,
+dimensions, render mode, and renderer metadata in `file_object` and
+`creative_render.render_config_json`. `FileObject` identity is workspace-scoped
+and content-deduplicated by the existing
 `(workspace_id, checksum_sha256, bytes)` constraint. A deterministic UUID
 derived from the command message identity makes replay idempotent; a duplicate
 delivery cannot create a second `CreativeRender`.
+
+Content deduplication is intentionally independent from the Frozen renderer
+object key. The current renderer output is verified first, including its
+workspace-scoped key, byte count, and checksum. If the content-dedup insert
+reuses a `FileObject` created by another CreativeVersion, the reused row is
+verified independently with its own workspace-scoped object key, bucket,
+storage `HEAD`, bytes, and checksum. It is then linked by `creative_render`
+without requiring the reused `FileObject.object_key` to equal the current
+renderer output key. `render_config_json.fileObjectObjectKey` is the
+authoritative download key, while `render_config_json.producedObjectKey` is
+the current Frozen renderer key. This preserves both V1 and V2 render paths
+when distinct versions produce identical bytes under distinct renderer keys.
+
+The Frozen outcome's `mimeType`, `width`, and `height` are also checked against
+the expected render context before either durable row is written; the values
+persisted in the FileObject and render configuration therefore come from the
+validated renderer outcome rather than an unchecked payload-only projection.
 
 The SQL creative repository now reads Project renders from `creative_render`
 instead of its in-memory delegate. Its legacy fallback remains available only
@@ -99,6 +117,10 @@ The test also proves:
   creative graph;
 - a distinct render message can create a separate render without graph
   duplication;
+- two distinct CreativeVersions with identical rendered bytes and checksum,
+  but different Frozen renderer object keys, both complete and point to the
+  same content-deduplicated FileObject; both version-scoped list and download
+  paths return the same checksum and byte count;
 - a retryable FileObject/CreativeRender persistence failure occurs before
   workflow completion and succeeds on retry;
 - stopping the dispatcher, WorkerBootstrap, composition, and SQL client,

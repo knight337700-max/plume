@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import type { Sql } from "postgres";
 import type { CreativeRenderRecord } from "../../../core/src/modules/creative/repositories.js";
 import type { FileObjectRecord } from "../../../core/src/modules/asset/upload-session.js";
-import type { ObjectStorage } from "../storage/s3-object-storage.js";
+import type { ObjectStorage, StorageHead } from "../storage/s3-object-storage.js";
 import { persistFileObject } from "./upload-session-repository.js";
 
 export interface ProjectRenderArtifactContext {
@@ -26,6 +26,9 @@ export interface ProjectRenderArtifactOutcome {
   readonly objectKey?: unknown;
   readonly checksumSha256?: unknown;
   readonly bytes?: unknown;
+  readonly mimeType?: unknown;
+  readonly width?: unknown;
+  readonly height?: unknown;
   readonly purpose?: unknown;
   readonly renderMode?: unknown;
   readonly renderer?: unknown;
@@ -90,6 +93,9 @@ function validateOutcome(
   objectKey: string;
   checksumSha256: string;
   bytes: number;
+  mimeType: string;
+  width: number;
+  height: number;
   purpose: string;
   renderMode: string;
 } {
@@ -109,6 +115,9 @@ function validateOutcome(
   const checksumSha256 =
     typeof outcome.checksumSha256 === "string" ? outcome.checksumSha256.toLowerCase() : "";
   const bytes = typeof outcome.bytes === "number" ? outcome.bytes : Number.NaN;
+  const mimeType = typeof outcome.mimeType === "string" ? outcome.mimeType : "";
+  const width = typeof outcome.width === "number" ? outcome.width : Number.NaN;
+  const height = typeof outcome.height === "number" ? outcome.height : Number.NaN;
   const purpose = typeof outcome.purpose === "string" ? outcome.purpose : "";
   const renderMode = typeof outcome.renderMode === "string" ? outcome.renderMode : "";
   if (
@@ -116,6 +125,11 @@ function validateOutcome(
     !/^[0-9a-f]{64}$/iu.test(checksumSha256) ||
     !Number.isSafeInteger(bytes) ||
     bytes <= 0 ||
+    !mimeType ||
+    !Number.isSafeInteger(width) ||
+    width <= 0 ||
+    !Number.isSafeInteger(height) ||
+    height <= 0 ||
     !purpose ||
     !renderMode
   )
@@ -123,8 +137,53 @@ function validateOutcome(
       "PROJECT_RENDER_OUTCOME_INVALID",
       "Renderer outcome is missing durable artifact fields",
     );
+  if (mimeType !== context.mimeType || width !== context.width || height !== context.height)
+    throw failure(
+      "PROJECT_RENDER_ARTIFACT_CONTEXT_MISMATCH",
+      "Renderer outcome profile does not match the active Project render context",
+    );
   assertRendererArtifactObjectKey(context.workspaceId, objectKey);
-  return { objectKey, checksumSha256, bytes, purpose, renderMode };
+  return { objectKey, checksumSha256, bytes, mimeType, width, height, purpose, renderMode };
+}
+
+async function verifyStorageArtifact(
+  storage: ObjectStorage,
+  objectKey: string,
+  checksumSha256: string,
+  bytes: number,
+  expectedBucket?: string,
+): Promise<StorageHead> {
+  let head: StorageHead | null;
+  try {
+    head = await storage.head(objectKey);
+  } catch (error) {
+    throw Object.assign(
+      failure(
+        "PROJECT_RENDER_ARTIFACT_HEAD_FAILED",
+        "Renderer artifact could not be verified in object storage",
+        true,
+      ),
+      { cause: error },
+    );
+  }
+  if (
+    !head ||
+    head.objectKey !== objectKey ||
+    head.bytes !== bytes ||
+    head.bucket.length === 0 ||
+    (expectedBucket !== undefined && head.bucket !== expectedBucket)
+  )
+    throw failure(
+      "PROJECT_RENDER_ARTIFACT_STORAGE_VERIFICATION_FAILED",
+      "Renderer artifact object storage HEAD does not match the render outcome",
+      true,
+    );
+  if (head.checksumSha256 && head.checksumSha256.toLowerCase() !== checksumSha256)
+    throw failure(
+      "PROJECT_RENDER_ARTIFACT_CHECKSUM_MISMATCH",
+      "Renderer artifact object storage checksum differs from the render outcome",
+    );
+  return head;
 }
 
 function renderRecord(row: RenderRow): CreativeRenderRecord {
@@ -158,50 +217,14 @@ export class ProjectRenderArtifactPersistence {
     outcome: ProjectRenderArtifactOutcome,
   ): Promise<PersistedProjectRenderArtifact> {
     const validated = validateOutcome(context, outcome);
-    let head;
-    try {
-      head = await this.storage.head(validated.objectKey);
-    } catch (error) {
-      throw Object.assign(
-        failure(
-          "PROJECT_RENDER_ARTIFACT_HEAD_FAILED",
-          "Renderer artifact could not be verified in object storage",
-          true,
-        ),
-        { cause: error },
-      );
-    }
-    if (!head || head.objectKey !== validated.objectKey || head.bytes !== validated.bytes)
-      throw failure(
-        "PROJECT_RENDER_ARTIFACT_STORAGE_VERIFICATION_FAILED",
-        "Renderer artifact object storage HEAD does not match the render outcome",
-        true,
-      );
-    if (head.bucket.length === 0)
-      throw failure(
-        "PROJECT_RENDER_ARTIFACT_STORAGE_VERIFICATION_FAILED",
-        "Renderer artifact object storage bucket is missing",
-        true,
-      );
-    if (head.checksumSha256 && head.checksumSha256.toLowerCase() !== validated.checksumSha256)
-      throw failure(
-        "PROJECT_RENDER_ARTIFACT_CHECKSUM_MISMATCH",
-        "Renderer artifact object storage checksum differs from the render outcome",
-      );
+    const producedHead = await verifyStorageArtifact(
+      this.storage,
+      validated.objectKey,
+      validated.checksumSha256,
+      validated.bytes,
+    );
 
     const renderId = deterministicUuid(context.messageId);
-    const renderConfigJson = {
-      objectKey: validated.objectKey,
-      checksumSha256: validated.checksumSha256,
-      bytes: validated.bytes,
-      mimeType: context.mimeType,
-      width: context.width,
-      height: context.height,
-      renderMode: validated.renderMode,
-      ...(outcome.renderer && typeof outcome.renderer === "object"
-        ? { renderer: outcome.renderer }
-        : {}),
-    } satisfies Record<string, unknown>;
 
     return this.sql.begin(async (transaction) => {
       const versions = await transaction<
@@ -228,14 +251,14 @@ export class ProjectRenderArtifactPersistence {
         id: randomUUID(),
         workspaceId: context.workspaceId,
         storageProvider: "S3",
-        bucket: head.bucket,
+        bucket: producedHead.bucket,
         objectKey: validated.objectKey,
         originalFilename: `renderer-${context.creativeVersionId}-${context.renderPurpose.toLowerCase()}.png`,
-        mimeType: context.mimeType,
+        mimeType: validated.mimeType,
         bytes: validated.bytes,
         checksumSha256: validated.checksumSha256,
-        width: context.width,
-        height: context.height,
+        width: validated.width,
+        height: validated.height,
         metadataJson: {
           kind: "RENDERER_ARTIFACT",
           creativeVersionId: context.creativeVersionId,
@@ -261,11 +284,27 @@ export class ProjectRenderArtifactPersistence {
           "PROJECT_RENDER_ARTIFACT_FILE_IDENTITY_MISMATCH",
           "Persisted FileObject does not match the Renderer artifact",
         );
-      if (fileObject.objectKey !== validated.objectKey)
-        throw failure(
-          "PROJECT_RENDER_ARTIFACT_FILE_SCOPE_MISMATCH",
-          "Content-deduplicated FileObject is not the Renderer artifact object",
-        );
+      await verifyStorageArtifact(
+        this.storage,
+        fileObject.objectKey,
+        validated.checksumSha256,
+        validated.bytes,
+        fileObject.bucket,
+      );
+
+      const renderConfigJson = {
+        fileObjectObjectKey: fileObject.objectKey,
+        producedObjectKey: validated.objectKey,
+        checksumSha256: validated.checksumSha256,
+        bytes: validated.bytes,
+        mimeType: validated.mimeType,
+        width: validated.width,
+        height: validated.height,
+        renderMode: validated.renderMode,
+        ...(outcome.renderer && typeof outcome.renderer === "object"
+          ? { renderer: outcome.renderer }
+          : {}),
+      } satisfies Record<string, unknown>;
 
       await this.options.beforeRenderInsert?.();
 

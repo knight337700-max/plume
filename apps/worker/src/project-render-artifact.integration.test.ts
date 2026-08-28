@@ -282,6 +282,7 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
           usages: number;
           renders: number;
           creative_set_id: string | null;
+          creative_id: string;
           current_version_id: string | null;
           used_asset_version_id: string;
         }[]
@@ -294,6 +295,7 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
         (SELECT count(*)::int FROM creative_asset_usage cau JOIN creative_version cv ON cv.id = cau.creative_version_id JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id JOIN generation_request gr ON gr.id = cs.generation_request_id WHERE gr.async_job_id = ${command.jobId}) AS usages,
         (SELECT count(*)::int FROM creative_render cr JOIN creative_version cv ON cv.id = cr.creative_version_id JOIN creative c ON c.id = cv.creative_id JOIN creative_set cs ON cs.id = c.creative_set_id JOIN generation_request gr ON gr.id = cs.generation_request_id WHERE gr.async_job_id = ${command.jobId}) AS renders,
         gr.creative_set_id,
+        c.id AS creative_id,
         c.current_version_id,
         cau.asset_version_id AS used_asset_version_id
       FROM generation_request gr
@@ -311,6 +313,7 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
           versions: 1,
           usages: 1,
           renders: 1,
+          creative_id: expect.any(String),
           used_asset_version_id: ids.snapshotAssetVersionId,
           current_version_id: expect.any(String),
         }),
@@ -321,7 +324,8 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
       >`SELECT id, file_object_id, render_config_json FROM creative_render WHERE creative_version_id = ${versionId}`;
       expect(initialRenderRows).toHaveLength(1);
       expect(initialRenderRows[0]!.render_config_json).toMatchObject({
-        objectKey: expect.stringContaining(`renders/${ids.workspaceId}/`),
+        fileObjectObjectKey: expect.stringContaining(`renders/${ids.workspaceId}/`),
+        producedObjectKey: expect.stringContaining(`renders/${ids.workspaceId}/${versionId}/`),
         renderMode: "CANONICAL_RENDERER",
       });
       const renderId = initialRenderRows[0]!.id;
@@ -330,7 +334,12 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
         { object_key: string; bytes: number; checksum_sha256: string; bucket: string }[]
       >`SELECT object_key, bytes::int, checksum_sha256, bucket FROM file_object WHERE id = ${fileObjectId}`;
       expect(storedFile).toHaveLength(1);
-      expect(storedFile[0]!.object_key).toBe(initialRenderRows[0]!.render_config_json.objectKey);
+      expect(storedFile[0]!.object_key).toBe(
+        initialRenderRows[0]!.render_config_json.fileObjectObjectKey,
+      );
+      expect(initialRenderRows[0]!.render_config_json.producedObjectKey).toBe(
+        storedFile[0]!.object_key,
+      );
       expect(await storage.head(storedFile[0]!.object_key)).toMatchObject({
         objectKey: storedFile[0]!.object_key,
         bytes: storedFile[0]!.bytes,
@@ -426,6 +435,107 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
         { renders: 2, files: 1, usages: 1, creatives: 1, versions: 1 },
       ]);
 
+      const durableCreativeRepositories = new DrizzleCreativeRepositories(sql);
+      const firstVersion = await durableCreativeRepositories.getVersion(ids.workspaceId, versionId);
+      expect(firstVersion).not.toBeNull();
+      const secondVersion = await durableCreativeRepositories.createVersion({
+        workspaceId: ids.workspaceId,
+        creativeId: graph[0]!.creative_id,
+        versionNo: 2,
+        parentVersionId: versionId,
+        formatProfileId: ids.canonicalFormatKey,
+        briefVersionId: firstVersion!.briefVersionId,
+        documentJson: firstVersion!.documentJson,
+        copyAssetsJson: firstVersion!.copyAssetsJson,
+        generationMetadataJson: firstVersion!.generationMetadataJson,
+        status: firstVersion!.status,
+        revisionNo: 1,
+        createdBy: firstVersion!.createdBy ?? null,
+      });
+      expect(secondVersion.id).not.toBe(versionId);
+      expect(
+        (await durableCreativeRepositories.getCreative(ids.workspaceId, graph[0]!.creative_id))
+          ?.currentVersionId,
+      ).toBe(secondVersion.id);
+      const secondVersionReplay = await durableCreativeRepositories.createVersion({
+        id: secondVersion.id,
+        workspaceId: ids.workspaceId,
+        creativeId: graph[0]!.creative_id,
+        versionNo: secondVersion.versionNo,
+        parentVersionId: secondVersion.parentVersionId ?? null,
+        formatProfileId: secondVersion.formatProfileId,
+        briefVersionId: secondVersion.briefVersionId,
+        documentJson: secondVersion.documentJson,
+        copyAssetsJson: secondVersion.copyAssetsJson,
+        generationMetadataJson: secondVersion.generationMetadataJson,
+        status: secondVersion.status,
+        revisionNo: secondVersion.revisionNo,
+        createdBy: secondVersion.createdBy ?? null,
+      });
+      expect(secondVersionReplay.id).toBe(secondVersion.id);
+      expect(
+        (await durableCreativeRepositories.getCreative(ids.workspaceId, graph[0]!.creative_id))
+          ?.currentVersionId,
+      ).toBe(secondVersion.id);
+
+      const secondRenderPayload: CreativeRenderPayload = {
+        ...renderMessage.payload_json,
+        creativeVersionId: secondVersion.id,
+      };
+      const secondRenderCommand = await publisher.enqueue({
+        workspaceId: ids.workspaceId,
+        command: "creative.render",
+        schemaVersion: 1,
+        jobId: command.jobId,
+        correlationId: command.jobId,
+        payload: secondRenderPayload,
+      });
+      await composition.outboxDispatcher.flush();
+      await eventually(async () => {
+        const rows = await sql<{ status: string }[]>`
+          SELECT status FROM async_job_item WHERE id = ${secondRenderCommand.jobItemId}
+        `;
+        return rows[0]?.status === "COMPLETED";
+      });
+      const secondRenderRows = await sql<
+        { id: string; file_object_id: string; render_config_json: Record<string, unknown> }[]
+      >`SELECT id, file_object_id, render_config_json FROM creative_render WHERE creative_version_id = ${secondVersion.id}`;
+      expect(secondRenderRows).toHaveLength(1);
+      const secondRenderConfig = secondRenderRows[0]!.render_config_json;
+      const expectedSecondObjectKey = `renders/${ids.workspaceId}/${secondVersion.id}/${storedFile[0]!.checksum_sha256}.png`;
+      expect(secondRenderRows[0]!.file_object_id).toBe(fileObjectId);
+      expect(secondRenderConfig).toMatchObject({
+        fileObjectObjectKey: storedFile[0]!.object_key,
+        producedObjectKey: expectedSecondObjectKey,
+        checksumSha256: storedFile[0]!.checksum_sha256,
+        bytes: storedFile[0]!.bytes,
+        mimeType: "image/png",
+        width: 1029,
+        height: 258,
+      });
+      expect(secondRenderConfig.producedObjectKey).not.toBe(secondRenderConfig.fileObjectObjectKey);
+      expect(await storage.head(expectedSecondObjectKey)).toMatchObject({
+        objectKey: expectedSecondObjectKey,
+        bytes: storedFile[0]!.bytes,
+      });
+      const secondProducedBytes = await storage.get(expectedSecondObjectKey);
+      expect(checksum(secondProducedBytes)).toBe(storedFile[0]!.checksum_sha256);
+      expect(secondProducedBytes.byteLength).toBe(storedFile[0]!.bytes);
+      const deduplicatedRendererFiles = await sql<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM file_object
+        WHERE workspace_id = ${ids.workspaceId}
+          AND checksum_sha256 = ${storedFile[0]!.checksum_sha256}
+          AND bytes = ${storedFile[0]!.bytes}
+          AND object_key LIKE ${`renders/${ids.workspaceId}/%`}
+      `;
+      expect(deduplicatedRendererFiles[0]?.count).toBe(1);
+      expect(
+        await sql`SELECT id FROM creative_render WHERE creative_version_id = ${versionId}`,
+      ).toHaveLength(2);
+      expect(
+        await sql`SELECT id FROM creative_render WHERE creative_version_id = ${secondVersion.id}`,
+      ).toHaveLength(1);
+
       await composition.outboxDispatcher.stop();
       await bootstrap.stop();
       await composition.close();
@@ -438,11 +548,22 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
         await freshCreativeRepositories.listCreatives(ids.workspaceId, freshSet.id)
       )[0]!;
       const freshVersion = await freshCreativeRepositories.getVersion(ids.workspaceId, versionId);
+      const freshSecondVersion = await freshCreativeRepositories.getVersion(
+        ids.workspaceId,
+        secondVersion.id,
+      );
       const freshRenders = await freshCreativeRepositories.listRenders(ids.workspaceId, versionId);
-      expect(freshCreative.currentVersionId).toBe(versionId);
+      const freshSecondRenders = await freshCreativeRepositories.listRenders(
+        ids.workspaceId,
+        secondVersion.id,
+      );
+      expect(freshCreative.currentVersionId).toBe(secondVersion.id);
       expect(freshVersion?.id).toBe(versionId);
       expect(freshVersion?.formatProfileId).toBe(ids.canonicalFormatKey);
+      expect(freshSecondVersion?.id).toBe(secondVersion.id);
+      expect(freshSecondVersion?.formatProfileId).toBe(ids.canonicalFormatKey);
       expect(freshRenders).toHaveLength(2);
+      expect(freshSecondRenders).toHaveLength(1);
       const freshStorage = storageFor(bucket);
       const freshFileObjects = new PostgresUploadSessionRepository(sql);
       const download = new CreativeRenderArtifactDownload({
@@ -471,6 +592,23 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
       const downloadedBytes = new Uint8Array(await (await fetch(signed.url)).arrayBuffer());
       expect(checksum(downloadedBytes)).toBe(storedFile[0]!.checksum_sha256);
       expect(downloadedBytes.byteLength).toBe(storedFile[0]!.bytes);
+      const secondListed = await app.inject({
+        method: "GET",
+        url: `/api/v1/workspaces/${ids.workspaceId}/creative-versions/${secondVersion.id}/renders`,
+      });
+      expect(secondListed.statusCode).toBe(200);
+      expect(secondListed.json().items).toHaveLength(1);
+      const secondDownloadResponse = await app.inject({
+        method: "GET",
+        url: `/api/v1/workspaces/${ids.workspaceId}/creative-versions/${secondVersion.id}/renders/${freshSecondRenders[0]!.id}/download-url`,
+      });
+      expect(secondDownloadResponse.statusCode).toBe(200);
+      const secondSigned = secondDownloadResponse.json().data as { url: string; filename: string };
+      const secondDownloadedBytes = new Uint8Array(
+        await (await fetch(secondSigned.url)).arrayBuffer(),
+      );
+      expect(checksum(secondDownloadedBytes)).toBe(storedFile[0]!.checksum_sha256);
+      expect(secondDownloadedBytes.byteLength).toBe(storedFile[0]!.bytes);
       expect(
         (
           await app.inject({
@@ -542,9 +680,12 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
           creativeSetId: generation[0]!.creative_set_id,
           creativeId: freshCreative.id,
           creativeVersionId: versionId,
+          secondCreativeVersionId: secondVersion.id,
           creativeCurrentVersionId: freshCreative.currentVersionId,
           renderIds: freshRenders.map((item) => item.id),
           renderCount: freshRenders.length,
+          secondRenderIds: freshSecondRenders.map((item) => item.id),
+          secondRenderCount: freshSecondRenders.length,
           fileObjectId,
           fileObjectChecksumSha256: storedFile[0]!.checksum_sha256,
           fileObjectBytes: storedFile[0]!.bytes,
@@ -552,6 +693,11 @@ describe.skipIf(!enabled)("PI-4C0.4 durable renderer artifact read path", () => 
           liveAssetVersionId: ids.liveAssetVersionId,
           renderedSnapshotAssetVersionId: ids.snapshotAssetVersionId,
           duplicateReplayRenderCount: 2,
+          contentDedupReusedFileObject: secondRenderRows[0]!.file_object_id === fileObjectId,
+          sameBytesAcrossDistinctVersions: true,
+          producedObjectKeyDistinctFromFileObjectKey:
+            secondRenderConfig.producedObjectKey !== secondRenderConfig.fileObjectObjectKey,
+          bothVersionListAndDownloadPathsVerified: true,
           persistenceFailureThenRetry: persistenceFailureObserved,
           processRepositoryApiRecreation: true,
           crossWorkspaceDenied: true,
