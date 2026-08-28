@@ -34,6 +34,7 @@ function productionApp(options: Partial<Parameters<typeof buildApp>[0]> = {}) {
   const campaigns = createInMemoryCampaignRepositories();
   const assets = createInMemoryAssetRepositories();
   const projects = createProjectUseCases({ projects: projectRepositories, campaigns, assets });
+  const creativeRepositories = createInMemoryCreativeRepositories();
   return buildApp({
     securityMode: "production",
     sessions,
@@ -49,6 +50,16 @@ function productionApp(options: Partial<Parameters<typeof buildApp>[0]> = {}) {
     projectCampaignContext: campaigns,
     projectAssetContext: assets,
     projectCreativeQueries: createInMemoryCreativeRepositories(),
+    creativeRepositories,
+    renderArtifactDownloads: {
+      async getDownloadUrl() {
+        return {
+          url: "https://storage.invalid/render",
+          expiresAt: new Date().toISOString(),
+          filename: "render.png",
+        };
+      },
+    },
     projectGenerationPreparer: createProjectGenerationPreparer({
       projects,
       campaigns: {

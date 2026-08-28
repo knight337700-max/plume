@@ -9,12 +9,14 @@ import { creativeRoutes } from "./creatives.js";
 import { creativeRenderRoutes } from "./renders.js";
 import type { AsyncCommandPublisher } from "../../../../../packages/core/src/async/command-publisher.js";
 import type { CreativeRepositories } from "../../../../../packages/core/src/modules/creative/repositories.js";
+import type { CreativeRenderArtifactDownloadService } from "../../../../../packages/infrastructure/src/db/creative-render-download.js";
 
 export interface CreativeRouteGroupOptions {
   readonly useCases?: CreativeUseCases;
   readonly idempotency?: IdempotencyRepository;
   readonly asyncCommands?: AsyncCommandPublisher;
   readonly repositories?: CreativeRepositories;
+  readonly artifactDownloads?: CreativeRenderArtifactDownloadService;
 }
 export const creativeRouteGroup: FastifyPluginAsync<CreativeRouteGroupOptions> = async (
   app,
@@ -27,5 +29,8 @@ export const creativeRouteGroup: FastifyPluginAsync<CreativeRouteGroupOptions> =
     ...(options.idempotency ? { idempotency: options.idempotency } : {}),
     ...(options.asyncCommands ? { asyncCommands: options.asyncCommands } : {}),
   });
-  await app.register(creativeRenderRoutes, { useCases });
+  await app.register(creativeRenderRoutes, {
+    useCases,
+    ...(options.artifactDownloads ? { artifactDownloads: options.artifactDownloads } : {}),
+  });
 };

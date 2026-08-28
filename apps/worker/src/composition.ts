@@ -67,6 +67,7 @@ import {
   currentProjectGenerationExecutionContext,
   createSnapshotAwareCampaignRepositories,
 } from "./project-generation-execution.js";
+import { createProjectRenderArtifactWorkflow } from "./project-render-artifact-execution.js";
 
 export interface WorkerRuntimeComposition {
   readonly sql: Sql;
@@ -99,6 +100,8 @@ export interface WorkerRuntimeCompositionOptions {
   readonly fileObjectReader?: {
     getFileObject(workspaceId: string, fileObjectId: string): Promise<FileObjectRecord | null>;
   };
+  /** Additive failure-injection seam for renderer artifact integration tests. */
+  readonly beforeRenderInsert?: () => Promise<void> | void;
 }
 
 function envValue(name: string, fallback: string): string {
@@ -130,7 +133,7 @@ export function createWorkerRuntimeComposition(
         envValue("S3_SECRET_ACCESS_KEY", "plume_local_only"),
     });
   const publisher = options.publisher ?? new DurableAsyncCommandPublisher(sql);
-  const workflow = options.workflow ?? new DurableWorkflowRepository(sql);
+  const baseWorkflow = options.workflow ?? new DurableWorkflowRepository(sql);
   const liveSmokeBudgetStore =
     options.liveSmokeBudgetStore ?? new PostgresLiveSmokeBudgetStore(sql);
   const liveSmokeCoverageStore =
@@ -158,6 +161,12 @@ export function createWorkerRuntimeComposition(
   const clientBrandRepositories =
     options.clientBrandRepositories ?? createInMemoryClientBrandRepositories();
   const fileObjectReader = options.fileObjectReader ?? new PostgresUploadSessionRepository(sql);
+  const workflow = createProjectRenderArtifactWorkflow({
+    workflow: baseWorkflow,
+    sql,
+    storage,
+    ...(options.beforeRenderInsert ? { beforeRenderInsert: options.beforeRenderInsert } : {}),
+  });
   const outboxDispatcher = createOutboxDispatcher(new DrizzleOutboxRepository(sql), adapter, {
     pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 500),
     batchLimit: Number(process.env.OUTBOX_BATCH_LIMIT ?? 50),

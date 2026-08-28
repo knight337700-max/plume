@@ -21,6 +21,8 @@ import { DrizzleProjectGenerationContext } from "../../../packages/infrastructur
 import { createProjectUseCases } from "../../../packages/core/src/modules/project/project-use-cases.js";
 import { createProjectGenerationPreparer } from "../../../packages/core/src/modules/project/project-generation-preparer.js";
 import { DrizzleProjectFormatBindingResolver } from "../../../packages/infrastructure/src/db/project-format-binding-resolver.js";
+import { DrizzleCreativeRepositories } from "../../../packages/infrastructure/src/db/creative-drizzle-repositories.js";
+import { CreativeRenderArtifactDownload } from "../../../packages/infrastructure/src/db/creative-render-download.js";
 
 export async function startApi(): Promise<void> {
   const environment = loadEnvironment(process.env);
@@ -49,8 +51,9 @@ export async function startApi(): Promise<void> {
     accessKeyId: environment.s3AccessKeyId,
     secretAccessKey: environment.s3SecretAccessKey,
   });
+  const uploadRepository = new PostgresUploadSessionRepository(database.sql);
   const uploads = createUploadUseCases({
-    repository: new PostgresUploadSessionRepository(database.sql),
+    repository: uploadRepository,
     storage,
     verifier: createUploadVerifier(
       { read: (objectKey) => storage.get(objectKey) },
@@ -66,6 +69,12 @@ export async function startApi(): Promise<void> {
   });
   const sessions = createSessionUseCases(new PostgresSessionStore(database.sql), iam);
   const projectContext = new DrizzleProjectContextReaders(database.sql);
+  const creativeRepositories = new DrizzleCreativeRepositories(database.sql);
+  const renderArtifactDownloads = new CreativeRenderArtifactDownload({
+    creativeRepositories,
+    fileObjects: uploadRepository,
+    storage,
+  });
   const projectRepositories = new DrizzleProjectRepositories(database.sql);
   const projectUseCases = createProjectUseCases({
     projects: projectRepositories,
@@ -97,6 +106,8 @@ export async function startApi(): Promise<void> {
       campaigns: new DrizzleProjectGenerationContext(database.sql),
     }),
     projectFormatBindings: new DrizzleProjectFormatBindingResolver(database.sql),
+    creativeRepositories,
+    renderArtifactDownloads,
   });
   const host = process.env.HOST ?? "127.0.0.1";
   const port = Number(process.env.PORT ?? 3000);
