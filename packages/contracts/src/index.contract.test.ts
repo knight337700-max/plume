@@ -9,7 +9,7 @@ import {
 
 describe("contracts public entrypoint", () => {
   it("exports all Gate A generated contract families", () => {
-    expect(openApiOperationCount).toBe(151);
+    expect(openApiOperationCount).toBe(152);
     expect(screenContractCount).toBe(29);
     expect(agentSchemaCount).toBe(23);
     expect(API_ERROR_CODE_COUNT).toBe(39);

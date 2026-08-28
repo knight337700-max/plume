@@ -124,7 +124,7 @@ function checkContractCounts() {
   const openapiIds = [...openapiSource.matchAll(/^\s+operationId:\s*([A-Za-z0-9_.-]+)\s*$/gm)]
     .map((match) => match[1])
     .filter((value): value is string => value !== undefined);
-  assertEqual(openapiIds.length, 151, "OpenAPI operation count");
+  assertEqual(openapiIds.length, 152, "OpenAPI operation count");
   assertUnique(openapiIds, "OpenAPI operation IDs");
   const generatedOpenapi = readRepository("packages/contracts/src/generated/openapi.ts");
   const generatedOpenapiIds = quotedArray(generatedOpenapi, "openApiOperationIds");
@@ -263,7 +263,7 @@ if (failures.length > 0) {
         status: "PASS",
         counts: {
           entityWriteOwners: 65,
-          openApiOperations: 151,
+          openApiOperations: 152,
           screens: 29,
           agents: 8,
           agentSchemas: 23,

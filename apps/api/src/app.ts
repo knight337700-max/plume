@@ -48,6 +48,7 @@ import { csrfPlugin } from "./plugins/csrf.js";
 import { authorizationPlugin } from "./plugins/authorization.js";
 import { workspaceGuardPlugin } from "./plugins/workspace-guard.js";
 import { createRateLimitPlugin, type RateLimitPluginOptions } from "./plugins/rate-limit.js";
+import type { CreativeRenderArtifactDownloadService } from "../../../packages/infrastructure/src/db/creative-render-download.js";
 
 export interface BuildAppOptions extends FastifyServerOptions {
   readonly readinessChecks?: ReadinessChecks;
@@ -61,6 +62,7 @@ export interface BuildAppOptions extends FastifyServerOptions {
   readonly campaignRepositories?: CampaignRepositories;
   readonly assetRepositories?: AssetRepositories;
   readonly creativeRepositories?: CreativeRepositories;
+  readonly renderArtifactDownloads?: CreativeRenderArtifactDownloadService;
   readonly projectRepositories?: ProjectRepositories;
   readonly projectCampaignContext?: ProjectCampaignContext;
   readonly projectAssetContext?: ProjectAssetContext;
@@ -103,6 +105,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     campaignRepositories,
     assetRepositories,
     creativeRepositories,
+    renderArtifactDownloads,
     projectRepositories,
     projectCampaignContext,
     projectAssetContext,
@@ -122,6 +125,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     (!sessions ||
       !memberships ||
       !uploads ||
+      !creativeRepositories ||
+      !renderArtifactDownloads ||
       !projectRepositories ||
       !projectCampaignContext ||
       !projectAssetContext ||
@@ -176,6 +181,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
     await router.register(creativeRouteGroup, {
       repositories: resolvedCreativeRepositories,
+      ...(renderArtifactDownloads ? { artifactDownloads: renderArtifactDownloads } : {}),
       ...(asyncCommandPublisher ? { asyncCommands: asyncCommandPublisher } : {}),
     });
     await router.register(validationRouteGroup, {

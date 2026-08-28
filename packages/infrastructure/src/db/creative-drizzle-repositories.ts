@@ -71,6 +71,17 @@ type VersionRow = {
   created_at: Date;
   frozen_at: Date | null;
 };
+type RenderRow = {
+  id: string;
+  workspace_id: string;
+  creative_version_id: string;
+  async_job_id: string | null;
+  render_purpose: string;
+  file_object_id: string;
+  status: CreativeRenderRecord["status"];
+  render_config_json: Record<string, unknown>;
+  created_at: Date;
+};
 
 const setRecord = (row: SetRow): CreativeSetRecord => ({
   id: row.id,
@@ -117,6 +128,17 @@ const versionRecord = (row: VersionRow): CreativeVersionRecord => ({
   createdBy: row.created_by,
   createdAt: iso(row.created_at),
   frozenAt: row.frozen_at ? iso(row.frozen_at) : null,
+});
+const renderRecord = (row: RenderRow): CreativeRenderRecord => ({
+  id: row.id,
+  workspaceId: row.workspace_id,
+  creativeVersionId: row.creative_version_id,
+  asyncJobId: row.async_job_id,
+  renderPurpose: row.render_purpose,
+  fileObjectId: row.file_object_id,
+  status: row.status,
+  renderConfigJson: row.render_config_json,
+  createdAt: iso(row.created_at),
 });
 
 /** SQL-first Project creative graph adapter. Legacy non-Project calls keep their delegate. */
@@ -369,34 +391,42 @@ export class DrizzleCreativeRepositories implements CreativeRepositories {
     const version = await this.version(input.workspaceId, input.creativeVersionId);
     if (!version) return this.delegate.createRender(input);
     const id = input.id ?? randomUUID();
-    const rows = await this.sql<
-      {
-        id: string;
-        workspace_id: string;
-        creative_version_id: string;
-        async_job_id: string | null;
-        render_purpose: string;
-        file_object_id: string;
-        status: CreativeRenderRecord["status"];
-        render_config_json: Record<string, unknown>;
-        created_at: Date;
-      }[]
-    >`INSERT INTO creative_render (id, workspace_id, creative_version_id, async_job_id, render_purpose, file_object_id, status, render_config_json) VALUES (${id}, ${input.workspaceId}, ${input.creativeVersionId}, ${input.asyncJobId ?? null}, ${input.renderPurpose}, ${input.fileObjectId}, ${input.status ?? "COMPLETED"}, convert_from(${jsonb(input.renderConfigJson)}, 'UTF8')::jsonb) RETURNING id, workspace_id, creative_version_id, async_job_id, render_purpose, file_object_id, status, render_config_json, created_at`;
+    const status = input.status ?? "COMPLETED";
+    const inserted = await this.sql<RenderRow[]>`INSERT INTO creative_render
+      (id, workspace_id, creative_version_id, async_job_id, render_purpose, file_object_id,
+       status, render_config_json)
+      VALUES (${id}, ${input.workspaceId}, ${input.creativeVersionId}, ${input.asyncJobId ?? null},
+        ${input.renderPurpose}, ${input.fileObjectId}, ${status},
+        convert_from(${jsonb(input.renderConfigJson)}, 'UTF8')::jsonb)
+      ON CONFLICT (id) DO NOTHING
+      RETURNING id, workspace_id, creative_version_id, async_job_id, render_purpose,
+        file_object_id, status, render_config_json, created_at`;
+    const rows = inserted.length
+      ? inserted
+      : await this.sql<RenderRow[]>`SELECT id, workspace_id, creative_version_id,
+          async_job_id, render_purpose, file_object_id, status, render_config_json, created_at
+        FROM creative_render WHERE id = ${id}`;
     const row = rows[0];
-    if (!row) throw new Error("PROJECT_CREATIVE_RENDER_PERSIST_FAILED");
-    return {
-      id: row.id,
-      workspaceId: row.workspace_id,
-      creativeVersionId: row.creative_version_id,
-      asyncJobId: row.async_job_id,
-      renderPurpose: row.render_purpose,
-      fileObjectId: row.file_object_id,
-      status: row.status,
-      renderConfigJson: row.render_config_json,
-      createdAt: iso(row.created_at),
-    };
+    if (
+      !row ||
+      row.workspace_id !== input.workspaceId ||
+      row.creative_version_id !== input.creativeVersionId ||
+      row.async_job_id !== (input.asyncJobId ?? null) ||
+      row.render_purpose !== input.renderPurpose ||
+      row.file_object_id !== input.fileObjectId ||
+      row.status !== status
+    )
+      throw new Error("PROJECT_CREATIVE_RENDER_IDENTITY_MISMATCH");
+    return renderRecord(row);
   }
-  listRenders(...args: Parameters<CreativeRepositories["listRenders"]>) {
-    return this.delegate.listRenders(...args);
+  async listRenders(workspaceId: string, versionId: string) {
+    const version = await this.version(workspaceId, versionId);
+    if (!version) return this.delegate.listRenders(workspaceId, versionId);
+    const rows = await this.sql<RenderRow[]>`SELECT id, workspace_id, creative_version_id,
+        async_job_id, render_purpose, file_object_id, status, render_config_json, created_at
+      FROM creative_render
+      WHERE workspace_id = ${workspaceId} AND creative_version_id = ${versionId}
+      ORDER BY created_at, id`;
+    return rows.map(renderRecord);
   }
 }

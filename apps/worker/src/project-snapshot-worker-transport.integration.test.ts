@@ -108,19 +108,23 @@ describe.skipIf(!enabled)("PI-4C0.3 durable Project canonical graph transport", 
     }
     await sql`INSERT INTO campaign_asset (id, workspace_id, campaign_id, design_asset_id, product_id, status, role_code) VALUES (${campaignSnapshotAssetId}, ${workspaceId}, ${campaignId}, ${snapshotAssetId}, ${productId}, 'SELECTED', 'PRODUCT')`;
 
+    const objects = new Map<string, { bytes: number; checksumSha256: string }>();
     const storage: ObjectStorage = {
       createObjectKey: () => "output.png",
       async put(input) {
-        return {
+        const value = {
           bucket: "test",
           objectKey: input.objectKey ?? "output.png",
           bytes: input.body.byteLength,
           checksumSha256: checksum(input.body),
           etag: checksum(input.body),
         };
+        objects.set(value.objectKey, value);
+        return value;
       },
-      async head() {
-        return null;
+      async head(objectKey) {
+        const value = objects.get(objectKey);
+        return value ? { ...value, bucket: "test", objectKey } : null;
       },
       async get() {
         return image;

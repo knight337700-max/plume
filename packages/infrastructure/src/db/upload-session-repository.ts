@@ -95,27 +95,19 @@ export class PostgresUploadSessionRepository implements UploadSessionRepository 
   }
 
   async createFileObject(fileObject: FileObjectRecord): Promise<FileObjectRecord> {
-    const inserted = await this.sql<Record<string, unknown>[]>`
-      INSERT INTO file_object
-        (id, workspace_id, storage_provider, bucket, object_key, original_filename, mime_type,
-         bytes, checksum_sha256, metadata_json, created_at)
-      VALUES
-        (${fileObject.id}, ${fileObject.workspaceId}, ${fileObject.storageProvider}, ${fileObject.bucket},
-         ${fileObject.objectKey}, ${fileObject.originalFilename}, ${fileObject.mimeType}, ${fileObject.bytes},
-         ${fileObject.checksumSha256}, ${this.sql.json(JSON.parse(JSON.stringify(fileObject.metadataJson)))}, ${fileObject.createdAt})
-      ON CONFLICT (workspace_id, checksum_sha256, bytes) DO NOTHING
-      RETURNING *
-    `;
-    if (inserted[0]) return mapFile(inserted[0]);
-    const existing = await this.sql<Record<string, unknown>[]>`
-      SELECT * FROM file_object
-      WHERE workspace_id = ${fileObject.workspaceId}
-        AND checksum_sha256 = ${fileObject.checksumSha256}
-        AND bytes = ${fileObject.bytes}
-      LIMIT 1
-    `;
-    if (!existing[0]) throw new Error("FILE_OBJECT_CREATE_FAILED");
-    return mapFile(existing[0]);
+    return persistFileObject(this.sql, fileObject);
+  }
+
+  /**
+   * Persists a FileObject through an existing SQL transaction. Renderer artifact
+   * completion uses this narrow helper so FileObject and CreativeRender can be
+   * committed atomically without introducing a second file repository.
+   */
+  async createFileObjectInTransaction(
+    transaction: Sql,
+    fileObject: FileObjectRecord & { readonly width?: number; readonly height?: number },
+  ): Promise<FileObjectRecord> {
+    return persistFileObject(transaction, fileObject);
   }
 
   async getFileObject(workspaceId: string, id: string): Promise<FileObjectRecord | null> {
@@ -124,6 +116,35 @@ export class PostgresUploadSessionRepository implements UploadSessionRepository 
     `;
     return rows[0] ? mapFile(rows[0]) : null;
   }
+}
+
+/** Shared FileObject insert/dedup primitive for regular uploads and render artifacts. */
+export async function persistFileObject(
+  sql: Sql,
+  fileObject: FileObjectRecord & { readonly width?: number; readonly height?: number },
+): Promise<FileObjectRecord> {
+  const inserted = await sql<Record<string, unknown>[]>`
+      INSERT INTO file_object
+        (id, workspace_id, storage_provider, bucket, object_key, original_filename, mime_type,
+         bytes, checksum_sha256, width, height, metadata_json, created_at)
+      VALUES
+        (${fileObject.id}, ${fileObject.workspaceId}, ${fileObject.storageProvider}, ${fileObject.bucket},
+        ${fileObject.objectKey}, ${fileObject.originalFilename}, ${fileObject.mimeType}, ${fileObject.bytes},
+        ${fileObject.checksumSha256}, ${fileObject.width ?? null}, ${fileObject.height ?? null},
+        ${sql.json(JSON.parse(JSON.stringify(fileObject.metadataJson)))}, ${fileObject.createdAt})
+      ON CONFLICT (workspace_id, checksum_sha256, bytes) DO UPDATE SET id = file_object.id
+      RETURNING *
+    `;
+  if (inserted[0]) return mapFile(inserted[0]);
+  const existing = await sql<Record<string, unknown>[]>`
+      SELECT * FROM file_object
+      WHERE workspace_id = ${fileObject.workspaceId}
+        AND checksum_sha256 = ${fileObject.checksumSha256}
+        AND bytes = ${fileObject.bytes}
+      LIMIT 1
+    `;
+  if (!existing[0]) throw new Error("FILE_OBJECT_CREATE_FAILED");
+  return mapFile(existing[0]);
 }
 
 interface SessionRow extends Record<string, unknown> {

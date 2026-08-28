@@ -4,6 +4,7 @@ import type { Job } from "bullmq";
 import {
   validateCommandEnvelope,
   type CreativeGeneratePayload,
+  type CreativeRenderPayload,
 } from "../../../packages/contracts/src/async.js";
 import type {
   CampaignAssetPoolSelectionRecord,
@@ -13,6 +14,7 @@ import type { AssetRepositories } from "../../../packages/core/src/modules/asset
 import { DurableProjectGenerationPersistence } from "../../../packages/infrastructure/src/db/durable-project-generation-persistence.js";
 import type { Sql } from "postgres";
 import type { RuntimeJobHandler } from "./runtime-registry.js";
+import { runProjectRenderArtifactContext } from "./project-render-artifact-execution.js";
 
 export interface ProjectGenerationExecutionContext {
   readonly workspaceId: string;
@@ -233,7 +235,7 @@ export function createProjectAwareCreativeRenderHandler(input: {
   return async (job: Job<unknown>) => {
     const envelope = validateCommandEnvelope(job.data);
     if (envelope.command !== "creative.render") return input.inner(job);
-    const payload = envelope.payload as { creativeVersionId: string; campaignId?: string };
+    const payload = envelope.payload as CreativeRenderPayload & { campaignId?: string };
     const rows = await input.sql<
       {
         workspace_id: string;
@@ -262,17 +264,34 @@ export function createProjectAwareCreativeRenderHandler(input: {
       throw Object.assign(new Error("Persisted Project render snapshot is missing"), {
         code: "PROJECT_RENDER_SNAPSHOT_REQUIRED",
       });
-    return runProjectGenerationExecutionContext(
-      Object.freeze({
-        workspaceId: row.workspace_id,
-        campaignId: row.campaign_id,
-        projectId: row.project_id,
-        jobId: row.async_job_id,
-        assetPoolSnapshot: Object.freeze(
-          row.asset_pool_snapshot_json.map((item) => Object.freeze({ ...item })),
-        ),
-      }),
-      () => input.inner(job),
+    if (!envelope.jobItemId)
+      throw Object.assign(new Error("Project render workflow item is required"), {
+        code: "PROJECT_RENDER_JOB_ITEM_REQUIRED",
+      });
+    const executionContext = Object.freeze({
+      workspaceId: row.workspace_id,
+      campaignId: row.campaign_id,
+      projectId: row.project_id,
+      jobId: row.async_job_id,
+      assetPoolSnapshot: Object.freeze(
+        row.asset_pool_snapshot_json.map((item) => Object.freeze({ ...item })),
+      ),
+    });
+    const artifactContext = Object.freeze({
+      workspaceId: row.workspace_id,
+      campaignId: row.campaign_id,
+      projectId: row.project_id,
+      jobId: envelope.jobId,
+      jobItemId: envelope.jobItemId,
+      messageId: envelope.messageId,
+      creativeVersionId: payload.creativeVersionId,
+      renderPurpose: payload.purpose,
+      mimeType: payload.outputProfile.mimeType,
+      width: payload.outputProfile.width,
+      height: payload.outputProfile.height,
+    });
+    return runProjectRenderArtifactContext(artifactContext, () =>
+      runProjectGenerationExecutionContext(executionContext, () => input.inner(job)),
     );
   };
 }

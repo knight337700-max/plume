@@ -7325,6 +7325,77 @@ paths:
             ETag:
               schema:
                 type: string
+  /api/v1/workspaces/{workspaceId}/creative-versions/{versionId}/renders/{renderId}/download-url:
+    get:
+      operationId: getCreativeRenderDownloadUrl
+      summary: Creative 렌더 다운로드 URL 발급
+      tags:
+        - Creative
+      x-roles:
+        - OWNER
+        - ADMIN
+        - EDITOR
+        - REVIEWER
+        - VIEWER
+      x-module: CREATIVE
+      x-execution: SYNC
+      x-entities:
+        - creative_render
+        - file_object
+      x-screen-ids:
+        - EDITOR-01
+        - CREATIVE-01
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace UUID
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          description: Creative version UUID
+          schema:
+            type: string
+            format: uuid
+        - name: renderId
+          in: path
+          required: true
+          description: Creative render UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadUrl"
+          headers:
+            ETag:
+              schema:
+                type: string
   /api/v1/workspaces/{workspaceId}/creative-versions/{versionId}/validation-runs:
     post:
       operationId: createValidationRun
