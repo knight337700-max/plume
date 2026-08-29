@@ -43,6 +43,7 @@ export default defineWorkspace([
         "apps/api/e2e/jacomo-flow.spec.ts",
         "apps/api/e2e/jacomo-canonical-product-flow.spec.ts",
         "apps/api/e2e/jacomo-thumbnail-semantic-product-flow.spec.ts",
+        "apps/web/e2e/pi4c-real-hard-pass.integration.test.ts",
       ],
       exclude: ["**/node_modules/**", "**/dist/**"],
       passWithNoTests: false,

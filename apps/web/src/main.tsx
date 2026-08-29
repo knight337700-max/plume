@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import "./styles/astryx.css";
 import { queryClient } from "./app/query-client";
 import { createAppRouter } from "./app/router";
+import { ThemeProvider } from "./pi4c/theme";
 
 type BrowserRuntime = {
   document?: {
@@ -12,9 +13,7 @@ type BrowserRuntime = {
   };
 };
 
-const rootElement = (globalThis as BrowserRuntime).document?.getElementById(
-  "root",
-);
+const rootElement = (globalThis as BrowserRuntime).document?.getElementById("root");
 
 if (!rootElement) {
   throw new Error("Plume requires a root element to mount the application.");
@@ -23,7 +22,9 @@ if (!rootElement) {
 createRoot(rootElement as Parameters<typeof createRoot>[0]).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={createAppRouter()} />
+      <ThemeProvider>
+        <RouterProvider router={createAppRouter()} />
+      </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

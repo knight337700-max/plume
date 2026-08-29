@@ -4,7 +4,8 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "apps/web/e2e",
-  testMatch: /(?:jacomo-representative-flow|channel-catalog-alignment|visual-regression|accessibility)\.spec\.ts/,
+  testMatch:
+    /(?:jacomo-representative-flow|channel-catalog-alignment|visual-regression|accessibility|pi4c-core-ui|pi4c-visual)\.spec\.ts/,
   use: {
     baseURL: "http://127.0.0.1:5173",
     browserName: "chromium",
