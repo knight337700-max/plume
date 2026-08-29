@@ -110,7 +110,10 @@ PI-4C provides navigation, durable data binding, preview, selection, read-only i
 responsive behavior, and accessible controls. Advanced element mutation, save/autosave semantics,
 validation execution/projection, finalize, approval, and export remain deferred to PI-4D or later
 authorized Gates. The validation pane explicitly reports that no durable validation projection is
-available instead of inferring PASS from a successful render.
+available instead of inferring PASS from a successful render. The visible Validate and Finalize
+controls remain explicitly disabled even when a durable current CreativeVersion and Renderer
+preview are loaded; their accessible descriptions identify the missing durable validation action
+and approval readiness. They have no mutation handlers and do not expose PI-4D behavior.
 
 ## Theme, responsive behavior, and accessibility
 

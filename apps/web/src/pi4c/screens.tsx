@@ -1052,13 +1052,21 @@ export function EditorPage() {
         </div>
         <div className="g-action-row">
           <StatusPill status={current?.status ?? "LOADING"} />
-          <PlumeButton type="button" label="Validate" variant="secondary" isDisabled={!current} />
+          <PlumeButton
+            type="button"
+            label="Validate"
+            variant="secondary"
+            className="g-deferred-action"
+            isDisabled
+            disabledReason="Durable validation actions are not available in PI-4C."
+          />
           <PlumeButton
             type="button"
             label="Finalize"
-            variant="primary"
-            isDisabled={!current}
-            disabledReason="Validation and approval policy must pass first."
+            variant="secondary"
+            className="g-deferred-action"
+            isDisabled
+            disabledReason="Finalize requires durable validation and approval readiness."
           />
         </div>
       </div>

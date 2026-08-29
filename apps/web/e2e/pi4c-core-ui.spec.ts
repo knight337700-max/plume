@@ -174,6 +174,39 @@ test("editor resolves previews through the render-scoped download contract", asy
   await expect(page.getByText(/PREVIEW · renderer pixels/)).toBeVisible();
 });
 
+test("editor keeps deferred Validate and Finalize actions disabled", async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on("request", (request) => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) {
+      mutationRequests.push(`${request.method()} ${request.url()}`);
+    }
+  });
+
+  await page.goto(
+    `/w/${ids.workspace}/ai-creative/editor?${creativeSearch({ creativeSetId: ids.set, creativeId: ids.creative })}`,
+  );
+  await expect(page.getByRole("img", { name: /Renderer preview:/ })).toBeVisible();
+
+  const validate = page.getByRole("button", { name: "Validate" });
+  const finalize = page.getByRole("button", { name: "Finalize" });
+  await expect(validate).toBeDisabled();
+  await expect(finalize).toBeDisabled();
+  await expect(validate).toHaveAccessibleDescription(
+    "Durable validation actions are not available in PI-4C.",
+  );
+  await expect(finalize).toHaveAccessibleDescription(
+    "Finalize requires durable validation and approval readiness.",
+  );
+
+  await validate.evaluate((button) => button.focus());
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Space");
+  await finalize.evaluate((button) => button.focus());
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Space");
+  expect(mutationRequests).toEqual([]);
+});
+
 test("System theme follows OS and theme changes do not alter renderer artifact identity", async ({
   page,
 }) => {
