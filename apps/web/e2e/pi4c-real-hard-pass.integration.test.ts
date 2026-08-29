@@ -307,6 +307,9 @@ describe("PI-4C real browser hard pass", () => {
       expect(await editorArtifact.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(
         1029,
       );
+      expect(await editorArtifact.evaluate((image: HTMLImageElement) => image.naturalHeight)).toBe(
+        258,
+      );
       await page.getByRole("button", { name: "Zoom in" }).click();
       await page.getByRole("button", { name: "Fit" }).click();
       await page.reload();
@@ -315,6 +318,9 @@ describe("PI-4C real browser hard pass", () => {
       expect(
         await recoveredArtifact.evaluate((image: HTMLImageElement) => image.naturalWidth),
       ).toBe(1029);
+      expect(
+        await recoveredArtifact.evaluate((image: HTMLImageElement) => image.naturalHeight),
+      ).toBe(258);
 
       await page.goto(
         new URL(
