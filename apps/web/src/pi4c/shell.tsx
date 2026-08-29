@@ -24,6 +24,7 @@ export function WorkspaceShell() {
   const { resolved } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const dialogTitleId = useId();
   const campaignId =
     location.pathname.match(/\/campaigns\/([^/]+)/)?.[1] ?? search.get("campaignId");
@@ -36,11 +37,30 @@ export function WorkspaceShell() {
   useEffect(() => setMenuOpen(false), [location.pathname, location.search]);
   useEffect(() => {
     if (!menuOpen) return;
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMenu();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMenu();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        drawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => !element.hasAttribute("hidden"));
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
   function closeMenu() {
@@ -135,6 +155,7 @@ export function WorkspaceShell() {
       {menuOpen ? (
         <div className="g-modal-backdrop" role="presentation" onMouseDown={closeMenu}>
           <section
+            ref={drawerRef}
             className="g-mobile-drawer"
             role="dialog"
             aria-modal="true"

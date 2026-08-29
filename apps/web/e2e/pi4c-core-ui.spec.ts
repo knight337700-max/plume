@@ -132,7 +132,12 @@ test("responsive navigation drawer returns focus", async ({ page }) => {
   const menu = page.getByRole("button", { name: "Open navigation" });
   await menu.click();
   await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close navigation" })).toBeFocused();
+  const close = page.getByRole("button", { name: "Close navigation" });
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("dialog").getByRole("link", { name: "Settings" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toBeFocused();
 });
@@ -155,7 +160,53 @@ test("editor resolves previews through the render-scoped download contract", asy
     `/w/${ids.workspace}/ai-creative/editor?${creativeSearch({ creativeSetId: ids.set, creativeId: ids.creative })}`,
   );
   await downloadRequest;
+  const artifact = page.getByRole("img", { name: /Renderer preview:/ });
+  await expect(artifact).toBeVisible();
+  await expect
+    .poll(() => artifact.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(1200);
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(page.getByLabel("Canvas zoom")).toHaveText("90%");
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect(page.getByLabel("Canvas zoom")).toHaveText("80%");
+  await page.reload();
   await expect(page.getByRole("img", { name: /Renderer preview:/ })).toBeVisible();
+  await expect(page.getByText(/PREVIEW · renderer pixels/)).toBeVisible();
+});
+
+test("System theme follows OS and theme changes do not alter renderer artifact identity", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(`/w/${ids.workspace}/settings`);
+  await page.getByRole("radio", { name: /System/ }).check();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  const editorPath = `/w/${ids.workspace}/ai-creative/editor?${creativeSearch({ creativeSetId: ids.set, creativeId: ids.creative })}`;
+  await page.goto(editorPath);
+  const lightSource = await page
+    .getByRole("img", { name: /Renderer preview:/ })
+    .getAttribute("src");
+  await page.evaluate(() => localStorage.setItem("gobanos.theme", "dark"));
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const darkSource = await page.getByRole("img", { name: /Renderer preview:/ }).getAttribute("src");
+  expect(darkSource).toBe(lightSource);
+});
+
+test("reduced motion removes meaningful canvas transition duration", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(
+    `/w/${ids.workspace}/ai-creative/editor?${creativeSearch({ creativeSetId: ids.set, creativeId: ids.creative })}`,
+  );
+  await expect(page.getByRole("img", { name: /Renderer preview:/ })).toBeVisible();
+  const duration = await page
+    .locator(".g-artboard-wrap")
+    .first()
+    .evaluate((element) => getComputedStyle(element).transitionDuration);
+  expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.00001);
 });
 
 test("keyboard navigation reaches the skip link and workflow", async ({ page }) => {

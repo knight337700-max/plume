@@ -246,20 +246,23 @@ export async function mockPi4cApi(page: Page) {
       const id = path.split("/").at(-1);
       return fulfill(route, { data: creatives.find((item) => item.id === id) ?? creatives[0] });
     }
-    if (path.endsWith(`/creative-versions/${ids.version}/renders`))
+    const renderListMatch = path.match(/\/creative-versions\/([^/]+)\/renders$/);
+    if (renderListMatch) {
+      const versionId = renderListMatch[1] ?? ids.version;
+      const renderId = versionId === ids.version ? "render-1" : `render-${versionId.slice(-4)}`;
       return fulfill(route, {
         items: [
           {
-            id: "render-1",
-            creativeVersionId: ids.version,
+            id: renderId,
+            creativeVersionId: versionId,
             renderPurpose: "PREVIEW",
-            fileObjectId: "file-preview-1",
             status: "COMPLETED",
             createdAt: "2026-08-28T10:15:00.000Z",
           },
         ],
       });
-    if (path.endsWith(`/creative-versions/${ids.version}/renders/render-1/download-url`)) {
+    }
+    if (/\/creative-versions\/[^/]+\/renders\/[^/]+\/download-url$/.test(path)) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><defs><linearGradient id="g" x2="1"><stop stop-color="#11182d"/><stop offset="1" stop-color="#3158d4"/></linearGradient><linearGradient id="o"><stop stop-color="#ffc9b8"/><stop offset="1" stop-color="#819bff"/></linearGradient></defs><rect width="1200" height="600" fill="url(#g)"/><circle cx="950" cy="300" r="190" fill="url(#o)"/><text x="90" y="95" fill="white" font-family="Arial" font-size="20" font-weight="700" letter-spacing="4">GOBANOS</text><text x="90" y="260" fill="#cbd5ff" font-family="Arial" font-size="18" font-weight="700">AI FIRST DRAFT</text><text x="90" y="330" fill="white" font-family="Arial" font-size="55" font-weight="700">Designed for human final control.</text><text x="90" y="380" fill="white" opacity=".7" font-family="Arial" font-size="16">1200 × 600 · renderer PREVIEW</text></svg>`;
       return fulfill(route, {
         data: {

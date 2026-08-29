@@ -28,6 +28,7 @@ import { DrizzleProjectCreativeQueryRepository } from "../../../infrastructure/s
 import { DrizzleProjectGenerationContext } from "../../../infrastructure/src/db/project-generation-context-drizzle-repository.js";
 import { DrizzleProjectFormatBindingResolver } from "../../../infrastructure/src/db/project-format-binding-resolver.js";
 import { DrizzleCreativeRepositories } from "../../../infrastructure/src/db/creative-drizzle-repositories.js";
+import { CreativeRenderArtifactDownload } from "../../../infrastructure/src/db/creative-render-download.js";
 import { createProjectUseCases } from "../../../core/src/modules/project/project-use-cases.js";
 import { createProjectGenerationPreparer } from "../../../core/src/modules/project/project-generation-preparer.js";
 import type { ClientBrandRepositories } from "../../../core/src/modules/client-brand/repositories.js";
@@ -213,6 +214,9 @@ export async function startProcessHarness(
     const projectRepositories = options.durableProjectComposition
       ? new DrizzleProjectRepositories(database)
       : undefined;
+    const durableCreativeRepositories = options.durableProjectComposition
+      ? new DrizzleCreativeRepositories(database)
+      : undefined;
     const projectContext = options.durableProjectComposition
       ? new DrizzleProjectContextReaders(database)
       : undefined;
@@ -230,9 +234,16 @@ export async function startProcessHarness(
       uploads,
       campaignRepositories,
       assetRepositories,
-      creativeRepositories: options.durableProjectComposition
-        ? new DrizzleCreativeRepositories(database)
-        : creativeRepositories,
+      creativeRepositories: durableCreativeRepositories ?? creativeRepositories,
+      ...(durableCreativeRepositories
+        ? {
+            renderArtifactDownloads: new CreativeRenderArtifactDownload({
+              creativeRepositories: durableCreativeRepositories,
+              fileObjects: new PostgresUploadSessionRepository(database),
+              storage,
+            }),
+          }
+        : {}),
       ...(projectRepositories ? { projectRepositories } : {}),
       ...(projectContext
         ? {

@@ -126,7 +126,6 @@ export interface CreativeRenderRecord {
   readonly id: string;
   readonly creativeVersionId: string;
   readonly renderPurpose: string;
-  readonly fileObjectId: string;
   readonly status: "COMPLETED" | "FAILED";
   readonly createdAt: string;
 }
@@ -172,4 +171,21 @@ export function formatOptionLabel(option: FormatOptionRecord): string {
   const height = option.height ?? option.spec?.height;
   const dimensions = width && height ? ` · ${width} × ${height}` : "";
   return `${option.displayName ?? option.name ?? formatOptionId(option)}${dimensions}`;
+}
+
+/** Editor preview authority: newest PREVIEW, falling back to newest FINAL_EXPORT. */
+export function selectPrimaryRender(
+  renders: readonly CreativeRenderRecord[],
+): CreativeRenderRecord | undefined {
+  const completed = renders.filter((render) => render.status === "COMPLETED");
+  for (const purpose of ["PREVIEW", "FINAL_EXPORT"] as const) {
+    const candidates = completed
+      .filter((render) => render.renderPurpose === purpose)
+      .sort(
+        (left, right) =>
+          right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id),
+      );
+    if (candidates[0]) return candidates[0];
+  }
+  return undefined;
 }

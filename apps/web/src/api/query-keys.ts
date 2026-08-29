@@ -30,6 +30,10 @@ export const queryKeys = {
     [...queryKeys.workspace(workspaceId), "creative", creativeId] as const,
   creativeVersion: (workspaceId: string, versionId: string) =>
     [...queryKeys.workspace(workspaceId), "creative-version", versionId] as const,
+  creativeRenders: (workspaceId: string, versionId: string) =>
+    [...queryKeys.creativeVersion(workspaceId, versionId), "renders"] as const,
+  creativeRenderDownload: (workspaceId: string, versionId: string, renderId: string) =>
+    [...queryKeys.creativeRenders(workspaceId, versionId), renderId, "download"] as const,
   campaignAssets: (workspaceId: string, campaignId: string) =>
     [...queryKeys.campaign(workspaceId, campaignId), "assets"] as const,
   channels: (workspaceId: string, campaignId: string) =>

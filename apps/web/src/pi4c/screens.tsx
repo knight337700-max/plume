@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlumeBanner, PlumeButton, PlumeEmptyState, PlumeProgress } from "@plume/ui";
 import {
@@ -15,6 +15,7 @@ import {
   channelLabels,
   formatOptionId,
   formatOptionLabel,
+  selectPrimaryRender,
   type AssetUsageRecord,
   type CampaignRecord,
   type CampaignFormatSelectionRecord,
@@ -711,7 +712,6 @@ export function GeneratePage() {
       const next = new URLSearchParams(search);
       next.set("jobId", result.job.id);
       setSearch(next, { replace: true });
-      localStorage.setItem(`gobanos.last-generation.${workspaceId}.${projectId}`, result.job.id);
     },
   });
   const retry = useMutation({
@@ -933,12 +933,28 @@ function CreativePreview({
   readonly url: string;
   readonly filename: string;
 }) {
+  const [artifactState, setArtifactState] = useState<"loading" | "loaded" | "failed">("loading");
+  useEffect(() => setArtifactState("loading"), [url]);
   return (
-    <div className="g-artboard-wrap">
+    <div className="g-artboard-wrap" data-artifact-state={artifactState}>
+      {artifactState === "loading" ? (
+        <div className="g-canvas-loading" role="status">
+          Loading renderer artifact bytes…
+        </div>
+      ) : null}
+      {artifactState === "failed" ? (
+        <div className="g-artifact-failure" role="alert">
+          <strong>Renderer artifact failed to load</strong>
+          <span>The durable render exists, but its scoped download could not be decoded.</span>
+        </div>
+      ) : null}
       <img
         className="g-render-artifact"
         src={url}
         alt={`Renderer preview: ${filename} · ${version.formatProfileId}`}
+        hidden={artifactState !== "loaded"}
+        onLoad={() => setArtifactState("loaded")}
+        onError={() => setArtifactState("failed")}
       />
     </div>
   );
@@ -984,20 +1000,21 @@ export function EditorPage() {
     enabled: Boolean(versionId),
   });
   const renders = useQuery({
-    queryKey: [...queryKeys.creativeVersion(workspaceId, versionId), "renders"],
+    queryKey: queryKeys.creativeRenders(workspaceId, versionId),
     queryFn: () =>
       apiClient.get<Collection<CreativeRenderRecord>>(
         `/workspaces/${workspaceId}/creative-versions/${versionId}/renders`,
       ),
     enabled: Boolean(versionId),
   });
-  const completedRender = renders.data?.items.find((item) => item.status === "COMPLETED");
+  const completedRender = selectPrimaryRender(renders.data?.items ?? []);
+  const failedRender = renders.data?.items.find((item) => item.status === "FAILED");
   const download = useQuery({
-    queryKey: [
-      ...queryKeys.creativeVersion(workspaceId, versionId),
-      "render-download",
+    queryKey: queryKeys.creativeRenderDownload(
+      workspaceId,
+      versionId,
       completedRender?.id ?? "none",
-    ],
+    ),
     queryFn: () =>
       apiClient.get<Resource<DownloadUrlRecord>>(
         `/workspaces/${workspaceId}/creative-versions/${versionId}/renders/${completedRender?.id}/download-url`,
@@ -1108,10 +1125,36 @@ export function EditorPage() {
             className="g-canvas-stage"
             style={{ "--preview-scale": zoom / 100 } as React.CSSProperties}
           >
-            {version.isLoading || renders.isLoading || download.isLoading ? (
-              <div className="g-canvas-loading">Loading current renderer artifact…</div>
+            {!versionId ? (
+              <Empty
+                title="No current version"
+                description="The durable Creative.currentVersionId pointer did not resolve. The editor fails closed."
+              />
+            ) : version.isLoading ? (
+              <div className="g-canvas-loading" role="status">
+                Loading durable current version…
+              </div>
             ) : version.isError ? (
               <QueryFailure error={version.error} onRetry={() => void version.refetch()} />
+            ) : renders.isLoading ? (
+              <div className="g-canvas-loading" role="status">
+                Loading renderer outcomes…
+              </div>
+            ) : renders.isError ? (
+              <QueryFailure error={renders.error} onRetry={() => void renders.refetch()} />
+            ) : !completedRender ? (
+              <Empty
+                title={failedRender ? "Renderer preview failed" : "No completed renderer preview"}
+                description={
+                  failedRender
+                    ? "The renderer outcome failed. Validation status is tracked separately and is not inferred from this failure."
+                    : "The UI does not synthesize final pixels. Request a renderer PREVIEW to populate this canvas."
+                }
+              />
+            ) : download.isLoading ? (
+              <div className="g-canvas-loading" role="status">
+                Authorizing scoped artifact download…
+              </div>
             ) : download.isError ? (
               <QueryFailure error={download.error} onRetry={() => void download.refetch()} />
             ) : current && download.data ? (
@@ -1120,15 +1163,10 @@ export function EditorPage() {
                 url={download.data.data.url}
                 filename={download.data.data.filename}
               />
-            ) : current ? (
-              <Empty
-                title="No completed renderer preview"
-                description="The UI does not synthesize final pixels. Request a renderer PREVIEW to populate this canvas."
-              />
             ) : (
               <Empty
-                title="No current version"
-                description="The durable Creative.currentVersionId pointer did not resolve. The editor fails closed."
+                title="Artifact unavailable"
+                description="The durable render download contract returned no artifact."
               />
             )}
           </div>
@@ -1209,11 +1247,11 @@ export function EditorPage() {
                   description="Renderer remains geometry and validation authority."
                 />
                 <div className="g-validation-summary">
-                  <span aria-hidden="true">✓</span>
-                  <strong>Ready for validation</strong>
+                  <span aria-hidden="true">—</span>
+                  <strong>Validation not run</strong>
                   <p>
-                    Run contract-backed validation before finalization. No browser geometry is
-                    treated as authoritative.
+                    A durable validation projection is not exposed by this Gate. The UI does not
+                    infer PASS from render completion or browser geometry.
                   </p>
                 </div>
               </>
@@ -1226,7 +1264,11 @@ export function EditorPage() {
           <i aria-hidden="true" /> Current durable version{" "}
           {versionId ? versionId.slice(0, 8) : "unresolved"}
         </span>
-        <span>Review shell · No advanced geometry mutation</span>
+        <span>
+          {completedRender
+            ? `${completedRender.renderPurpose.replaceAll("_", " ")} · renderer pixels`
+            : "No renderer artifact selected"}
+        </span>
       </footer>
       <div className="g-limited-editor" role="status">
         <strong>Limited editor mode</strong>
@@ -1236,6 +1278,91 @@ export function EditorPage() {
         </span>
       </div>
     </div>
+  );
+}
+
+function ProjectCreativeCard({
+  workspaceId,
+  projectId,
+  set,
+  creative,
+}: {
+  readonly workspaceId: string;
+  readonly projectId: string;
+  readonly set: CreativeSetRecord;
+  readonly creative: CreativeRecord;
+}) {
+  const versionId = creative.currentVersionId ?? "";
+  const version = useQuery({
+    queryKey: queryKeys.creativeVersion(workspaceId, versionId),
+    queryFn: () =>
+      apiClient.get<Resource<CreativeVersionRecord>>(
+        `/workspaces/${workspaceId}/creative-versions/${versionId}`,
+      ),
+    enabled: Boolean(versionId),
+  });
+  const renders = useQuery({
+    queryKey: queryKeys.creativeRenders(workspaceId, versionId),
+    queryFn: () =>
+      apiClient.get<Collection<CreativeRenderRecord>>(
+        `/workspaces/${workspaceId}/creative-versions/${versionId}/renders`,
+      ),
+    enabled: Boolean(versionId),
+  });
+  const primaryRender = selectPrimaryRender(renders.data?.items ?? []);
+  const download = useQuery({
+    queryKey: queryKeys.creativeRenderDownload(workspaceId, versionId, primaryRender?.id ?? "none"),
+    queryFn: () =>
+      apiClient.get<Resource<DownloadUrlRecord>>(
+        `/workspaces/${workspaceId}/creative-versions/${versionId}/renders/${primaryRender?.id}/download-url`,
+      ),
+    enabled: Boolean(versionId && primaryRender),
+  });
+  const editorSearch = new URLSearchParams({
+    projectId,
+    creativeSetId: set.id,
+    creativeId: creative.id,
+  });
+  const current = version.data?.data;
+  const width = current?.documentJson.width;
+  const height = current?.documentJson.height;
+  const previewLoading = version.isLoading || renders.isLoading || download.isLoading;
+  return (
+    <article className="g-creative-card">
+      <div className="g-creative-visual g-durable-creative-preview">
+        {previewLoading ? (
+          <span role="status">Loading renderer preview…</span>
+        ) : version.isError || renders.isError || download.isError ? (
+          <span role="alert">Preview unavailable</span>
+        ) : current && download.data ? (
+          <CreativePreview
+            version={current}
+            url={download.data.data.url}
+            filename={download.data.data.filename}
+          />
+        ) : (
+          <span>No completed renderer preview</span>
+        )}
+      </div>
+      <div className="g-creative-copy">
+        <span>{set.name}</span>
+        <h2>Creative {creative.id.slice(0, 8)}</h2>
+        <p>
+          {current?.formatProfileId ?? "Current format unresolved"}
+          {width && height ? ` · ${width} × ${height}` : ""}
+        </p>
+        <div>
+          <StatusPill status={creative.status} />
+          <span>Current v. {versionId ? "resolved" : "missing"}</span>
+        </div>
+        <Link
+          className="g-primary-link"
+          to={`/w/${workspaceId}/ai-creative/editor?${editorSearch}`}
+        >
+          Open editor
+        </Link>
+      </div>
+    </article>
   );
 }
 
@@ -2114,43 +2241,24 @@ export function ProjectCreativesPage() {
         <LoadingCards count={4} />
       ) : sets.isError ? (
         <QueryFailure error={sets.error} onRetry={() => void sets.refetch()} />
+      ) : creativeQueries.some((query) => query.isError) ? (
+        <QueryFailure
+          error={creativeQueries.find((query) => query.isError)?.error}
+          onRetry={() => {
+            for (const query of creativeQueries) if (query.isError) void query.refetch();
+          }}
+        />
       ) : visible.length ? (
         <div className="g-creative-grid">
-          {visible.map(({ set, creative }, index) => {
-            const editorSearch = new URLSearchParams({
-              projectId,
-              creativeSetId: set.id,
-              creativeId: creative.id,
-            });
-            return (
-              <article className="g-creative-card" key={creative.id}>
-                <div className={`g-creative-visual g-palette-${index % 4}`}>
-                  <span>GOBANOS</span>
-                  <strong>AI draft {index + 1}</strong>
-                  <small>Human final control</small>
-                </div>
-                <div className="g-creative-copy">
-                  <span>{set.name}</span>
-                  <h2>Creative {creative.id.slice(0, 8)}</h2>
-                  <p>
-                    {creative.productId
-                      ? `Product ${creative.productId.slice(0, 8)}`
-                      : "Campaign creative"}
-                  </p>
-                  <div>
-                    <StatusPill status={creative.status} />
-                    <span>Current v. {creative.currentVersionId ? "resolved" : "missing"}</span>
-                  </div>
-                  <Link
-                    className="g-primary-link"
-                    to={`/w/${workspaceId}/ai-creative/editor?${editorSearch}`}
-                  >
-                    Open editor
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
+          {visible.map(({ set, creative }) => (
+            <ProjectCreativeCard
+              key={creative.id}
+              workspaceId={workspaceId}
+              projectId={projectId}
+              set={set}
+              creative={creative}
+            />
+          ))}
         </div>
       ) : (
         <Empty

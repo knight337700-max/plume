@@ -7,6 +7,11 @@
     "rootDir": "../.."
   },
   "files": ["./package.json"],
-  "include": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts", "../../packages/core/src/modules/media-catalog/canonical-catalog.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "e2e/**/*.ts",
+    "../../packages/core/src/modules/media-catalog/canonical-catalog.ts"
+  ],
   "exclude": ["e2e/pi4c-real-hard-pass.integration.test.ts"]
 }
