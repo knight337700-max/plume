@@ -27,7 +27,13 @@
     --g-focus: #315cdf;
     --g-shadow: 0 12px 36px rgb(20 29 48 / 7%);
     --g-radius: 14px;
-    font-family: Inter, Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-family:
+      Figtree,
+      Pretendard,
+      "Noto Sans KR",
+      system-ui,
+      -apple-system,
+      sans-serif;
     color: var(--g-text);
     background: var(--g-bg);
   }
