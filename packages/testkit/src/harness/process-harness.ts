@@ -20,6 +20,17 @@ import { PostgresUploadSessionRepository } from "../../../infrastructure/src/db/
 import { createInMemoryCampaignRepositories } from "../../../core/src/modules/campaign/repositories.js";
 import { createInMemoryAssetRepositories } from "../../../core/src/modules/asset/repositories.js";
 import { createInMemoryCreativeRepositories } from "../../../core/src/modules/creative/repositories.js";
+import type { CampaignRepositories } from "../../../core/src/modules/campaign/repositories.js";
+import type { AssetRepositories } from "../../../core/src/modules/asset/repositories.js";
+import { DrizzleProjectRepositories } from "../../../infrastructure/src/db/project-drizzle-repositories.js";
+import { DrizzleProjectContextReaders } from "../../../infrastructure/src/db/project-context-drizzle-repositories.js";
+import { DrizzleProjectCreativeQueryRepository } from "../../../infrastructure/src/db/project-creative-query-drizzle-repository.js";
+import { DrizzleProjectGenerationContext } from "../../../infrastructure/src/db/project-generation-context-drizzle-repository.js";
+import { DrizzleProjectFormatBindingResolver } from "../../../infrastructure/src/db/project-format-binding-resolver.js";
+import { DrizzleCreativeRepositories } from "../../../infrastructure/src/db/creative-drizzle-repositories.js";
+import { CreativeRenderArtifactDownload } from "../../../infrastructure/src/db/creative-render-download.js";
+import { createProjectUseCases } from "../../../core/src/modules/project/project-use-cases.js";
+import { createProjectGenerationPreparer } from "../../../core/src/modules/project/project-generation-preparer.js";
 import type { ClientBrandRepositories } from "../../../core/src/modules/client-brand/repositories.js";
 import type { AgentProviderGateway } from "../../../core/src/agents/orchestrator.js";
 import { createJobUseCases } from "../../../core/src/modules/operations/job-use-cases.js";
@@ -43,6 +54,10 @@ export interface ProcessHarnessOptions {
   readonly workerProviderGateway?: AgentProviderGateway;
   readonly workerProviderMode?: "mock" | "live";
   readonly clientBrandRepositories?: ClientBrandRepositories;
+  /** Browser-test composition seam. Production paths are unchanged. */
+  readonly durableProjectComposition?: boolean;
+  readonly campaignRepositories?: CampaignRepositories;
+  readonly assetRepositories?: AssetRepositories;
 }
 export interface ProcessHarness {
   readonly services: Readonly<Record<string, HarnessService>>;
@@ -51,6 +66,7 @@ export interface ProcessHarness {
   readonly database: Sql;
   request(path: string, init?: RequestInit): Promise<Response>;
   getObject(objectKey: string): Promise<Uint8Array>;
+  putObject(objectKey: string, body: Uint8Array, contentType: string): Promise<void>;
   replayMessage(messageId: string): Promise<void>;
   exerciseDeadLetter(): Promise<boolean>;
   close(): Promise<void>;
@@ -129,8 +145,9 @@ export async function startProcessHarness(
       secretAccessKey:
         process.env.S3_SECRET_ACCESS_KEY ?? process.env.MINIO_ROOT_PASSWORD ?? "plume_local_only",
     });
-    const campaignRepositories = createInMemoryCampaignRepositories();
-    const assetRepositories = createInMemoryAssetRepositories();
+    const campaignRepositories =
+      options.campaignRepositories ?? createInMemoryCampaignRepositories();
+    const assetRepositories = options.assetRepositories ?? createInMemoryAssetRepositories();
     const creativeRepositories = createInMemoryCreativeRepositories();
     const clientBrandRepositories = options.clientBrandRepositories;
     const uploads = createUploadUseCases({
@@ -194,13 +211,56 @@ export async function startProcessHarness(
     if (!(await scheduler.start())) throw new Error("scheduler readiness failed");
 
     const publisher = new DurableAsyncCommandPublisher(database);
+    const projectRepositories = options.durableProjectComposition
+      ? new DrizzleProjectRepositories(database)
+      : undefined;
+    const durableCreativeRepositories = options.durableProjectComposition
+      ? new DrizzleCreativeRepositories(database)
+      : undefined;
+    const projectContext = options.durableProjectComposition
+      ? new DrizzleProjectContextReaders(database)
+      : undefined;
+    const projectUseCases =
+      projectRepositories && projectContext
+        ? createProjectUseCases({
+            projects: projectRepositories,
+            campaigns: projectContext,
+            assets: projectContext,
+          })
+        : undefined;
     api = await buildApp({
       asyncCommandPublisher: publisher,
       jobs: createJobUseCases(new DurableJobQueryRepository(database)),
       uploads,
       campaignRepositories,
       assetRepositories,
-      creativeRepositories,
+      creativeRepositories: durableCreativeRepositories ?? creativeRepositories,
+      ...(durableCreativeRepositories
+        ? {
+            renderArtifactDownloads: new CreativeRenderArtifactDownload({
+              creativeRepositories: durableCreativeRepositories,
+              fileObjects: new PostgresUploadSessionRepository(database),
+              storage,
+            }),
+          }
+        : {}),
+      ...(projectRepositories ? { projectRepositories } : {}),
+      ...(projectContext
+        ? {
+            projectCampaignContext: projectContext,
+            projectAssetContext: projectContext,
+            projectCreativeQueries: new DrizzleProjectCreativeQueryRepository(database),
+          }
+        : {}),
+      ...(projectUseCases
+        ? {
+            projectGenerationPreparer: createProjectGenerationPreparer({
+              projects: projectUseCases,
+              campaigns: new DrizzleProjectGenerationContext(database),
+            }),
+            projectFormatBindings: new DrizzleProjectFormatBindingResolver(database),
+          }
+        : {}),
       ...(clientBrandRepositories ? { clientBrandRepositories } : {}),
     });
     const apiUrl = await api.listen({ host: "127.0.0.1", port: 0 });
@@ -258,6 +318,9 @@ export async function startProcessHarness(
       database,
       request: (path, init) => fetch(`${apiUrl}${path}`, init),
       getObject: (objectKey) => storage.get(objectKey),
+      putObject: async (objectKey, body, contentType) => {
+        await storage.put({ objectKey, body, contentType });
+      },
       replayMessage: async (messageId) => {
         const rows = await database!<Record<string, unknown>[]>`
           SELECT id, workspace_id, topic, message_key, message_type, schema_version,

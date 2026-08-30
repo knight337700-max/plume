@@ -62,6 +62,10 @@ jobs:
         run: docker compose -f infra/compose/docker-compose.yml up -d --wait --wait-timeout 60
       - name: Database migration
         run: pnpm db:migrate:test
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Unit and regression tests
         run: pnpm test
       - name: Integration workflow

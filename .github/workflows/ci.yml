@@ -54,6 +54,9 @@ jobs:
       - name: Prepare test database
         run: pnpm db:migrate:test
 
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Test
         run: pnpm test
 

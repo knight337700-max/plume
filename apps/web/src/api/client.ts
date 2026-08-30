@@ -42,11 +42,7 @@ function numberValue(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function normalizeProblem(
-  payload: unknown,
-  status: number,
-  instance: string,
-): NormalizedProblem {
+function normalizeProblem(payload: unknown, status: number, instance: string): NormalizedProblem {
   if (!isRecord(payload)) {
     return {
       type: "about:blank",
@@ -60,11 +56,13 @@ function normalizeProblem(
   const rawErrors = Array.isArray(payload.errors) ? payload.errors : [];
   const errors = rawErrors.flatMap((error) => {
     if (!isRecord(error)) return [];
-    return [{
-      path: stringValue(error.path, ""),
-      message: stringValue(error.message, "Field validation failed"),
-      code: stringValue(error.code, "FIELD_VALIDATION_FAILED"),
-    }];
+    return [
+      {
+        path: stringValue(error.path, ""),
+        message: stringValue(error.message, "Field validation failed"),
+        code: stringValue(error.code, "FIELD_VALIDATION_FAILED"),
+      },
+    ];
   });
   const problem: NormalizedProblem = {
     type: stringValue(payload.type, "about:blank"),
@@ -97,10 +95,7 @@ async function readPayload(response: Response): Promise<unknown> {
   }
 }
 
-export function createApiClient({
-  baseUrl = "/api/v1",
-  fetcher = fetch,
-}: ApiClientOptions = {}) {
+export function createApiClient({ baseUrl = "/api/v1", fetcher = fetch }: ApiClientOptions = {}) {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const url = resolveUrl(baseUrl, path);
     const headers = new Headers(init.headers);
@@ -123,6 +118,9 @@ export function createApiClient({
     },
     put<T>(path: string, body: unknown, init?: RequestInit) {
       return request<T>(path, { ...init, method: "PUT", body: JSON.stringify(body) });
+    },
+    patch<T>(path: string, body: unknown, init?: RequestInit) {
+      return request<T>(path, { ...init, method: "PATCH", body: JSON.stringify(body) });
     },
     delete<T>(path: string, init?: RequestInit) {
       return request<T>(path, { ...init, method: "DELETE" });
