@@ -36,8 +36,6 @@ const pnpm = (name: string, ...args: string[]): CommandSpec => ({
 });
 
 const canonicalVisualRegression = (): CommandSpec => {
-  if (!isWindows) return pnpm("Visual regression", "e2e:visual");
-
   return {
     name: "Visual regression (canonical Linux)",
     command: "docker",
